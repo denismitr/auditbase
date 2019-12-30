@@ -1,0 +1,44 @@
+version: "3.4"
+
+services:
+    auditbase_rest:
+        container_name: auditbase_rest
+        build:
+            context: .
+            dockerfile: docker/dev/rest.Dockerfile
+        depends_on: 
+            - auditbase_db
+            - auditbase_rabbit
+        ports:
+            - "8888:3000"
+
+    auditbase_rabbit:
+        image: rabbitmq:3-management-alpine
+        container_name: auditbase_rabbit
+        volumes:
+            - auditbase_rabbit_volume:/var/lib/rabbitmq
+        ports: 
+            - 15672:15672
+        env_file:
+            - ./.env
+
+    auditbase_db:
+        image: mysql:8.0.18
+        env_file:
+            - ./.env
+        command: ['--max_allowed_packet=9999G',
+                    '--character-set-server=utf8mb4',
+                    '--collation-server=utf8mb4_unicode_ci',
+                    '--wait_timeout=999999']
+        ports:
+            - "3306:3306"
+        restart: always
+        volumes:
+            -  auditbase_db_volume:/var/lib/mysql
+        tty: true
+                         
+    
+volumes:
+    auditbase_db_volume:
+    auditbase_rabbit_volume:
+            

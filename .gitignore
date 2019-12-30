@@ -1,0 +1,4 @@
+vendor/
+auditbase
+.vscode/
+cmd/rest/rest
