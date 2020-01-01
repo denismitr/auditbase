@@ -1,0 +1,12 @@
+GET http://localhost:8888/api/v1/microservices
+
+###
+
+POST http://localhost:8888/api/v1/microservices HTTP/1.1
+content-type: application/json
+
+{
+    "id": "3b06ff75-ef66-4715-b732-dcf07e229700",
+    "name": "BAZ",
+    "description": "ABC 12345"
+}

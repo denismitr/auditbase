@@ -9,6 +9,8 @@ RUN go mod download
 COPY cmd/ ./cmd
 COPY rest/ ./rest
 COPY queue/ ./queue
+COPY model/ ./model
+COPY sql/ ./sql
 COPY .env ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o rest ./cmd/rest

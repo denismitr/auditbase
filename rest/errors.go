@@ -23,8 +23,12 @@ func newErrorResponseWithDetails(code int, title string, details string) *errorR
 	}
 }
 
-func badRequest(details string) *errorResponse {
-	return newErrorResponseWithDetails(http.StatusBadRequest, "Bad request", details)
+func badRequest(err error) (int, *errorResponse) {
+	return http.StatusBadRequest, newErrorResponseWithDetails(http.StatusBadRequest, "Bad request", err.Error())
+}
+
+func internalError(err error) (int, *errorResponse) {
+	return http.StatusInternalServerError, newErrorResponseWithDetails(http.StatusInternalServerError, "Whoops", err.Error())
 }
 
 func validationFailed(details string) *errorResponse {

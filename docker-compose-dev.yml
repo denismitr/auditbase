@@ -24,6 +24,7 @@ services:
 
     auditbase_db:
         image: mysql:8.0.18
+        container_name: auditbase_db
         env_file:
             - ./.env
         command: ['--max_allowed_packet=9999G',

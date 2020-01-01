@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -16,15 +17,21 @@ type API struct {
 	cfg Config
 }
 
-func New(cfg Config, q queue.MQ) *API {
+func New(cfg Config, q queue.MQ, mr model.MicroserviceRepository) *API {
 	e := echo.New()
 
 	e.Use(middleware.BodyLimit("250K"))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	h := handlers{}
+	h := handlers{
+		logger:        e.Logger,
+		microservices: mr,
+	}
+
 	e.POST("/events", h.CreateEvent)
+	e.GET("/api/v1/microservices", h.SelectMicroservices)
+	e.POST("/api/v1/microservices", h.CreateMicroservice)
 
 	return &API{
 		e:   e,
