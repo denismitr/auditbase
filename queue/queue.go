@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -22,7 +23,7 @@ type MQ interface {
 	Declare(name string) error
 	OpenAndKeepConnection() error
 	ListenOnQueue(name string)
-	Consumer() <-chan ReceivedMessage
+	Consume() <-chan []byte
 	Stop()
 }
 
@@ -33,7 +34,7 @@ type RabbitQueue struct {
 	logger    *logrus.Logger
 	stopCh    chan struct{}
 	errorCh   chan error
-	receiveCh chan ReceivedMessage
+	receiveCh chan []byte
 
 	maxConnRetries int
 
@@ -46,7 +47,7 @@ func NewRabbitQueue(dsn string, logger *logrus.Logger, maxConnRetries int) *Rabb
 		conn:           nil,
 		logger:         logger,
 		stopCh:         make(chan struct{}),
-		receiveCh:      make(chan ReceivedMessage),
+		receiveCh:      make(chan []byte),
 		maxConnRetries: maxConnRetries,
 		mu:             &sync.RWMutex{},
 	}
@@ -88,11 +89,32 @@ func (q *RabbitQueue) OpenAndKeepConnection() error {
 }
 
 func (q *RabbitQueue) ListenOnQueue(name string) {
+	c, err := q.conn.Channel()
+	if err != nil {
+		panic(err)
+	}
 
+	msgs, err := c.Consume(
+		name,  // queue
+		"",    // consumer
+		true,  // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,   // args
+	)
+
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Waiting for messages")
+	for msg := range msgs {
+		q.receiveCh <- msg.Body
+	}
 }
 
-func (q *RabbitQueue) Consumer() <-chan ReceivedMessage {
-	return nil
+func (q *RabbitQueue) Consume() <-chan []byte {
+	return q.receiveCh
 }
 
 func (q *RabbitQueue) WaitForConnection() {

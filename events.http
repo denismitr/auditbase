@@ -2,9 +2,9 @@ POST http://localhost:8888/api/v1/events
 Content-Type: application/json
 
 {
-    "targetId": "124",
+    "targetId": "fffffffffffffffffffff",
     "parentEventId": "ea00da4c-f228-4753-8b18-c979cc2c94f3",
-	"targetType": "transaction",
+	"targetType": "transaction 123",
 	"targetServiceId": "ef00da4c-f228-4753-8b18-c979cc2c94f3",
 	"actorId": "74901",
 	"actorType": "user",
