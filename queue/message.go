@@ -11,8 +11,8 @@ type Message interface {
 	ContentType() string
 }
 
-type Delivery struct {
-	QueueName   string
+type delivery struct {
+	Exchange    string
 	RoutingKey  string
 	IsPeristent bool
 }

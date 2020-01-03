@@ -5,6 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"encoding/json"
+
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
@@ -15,7 +18,7 @@ const (
 
 // MQ is the message queu
 type MQ interface {
-	Produce(Message, Delivery) error
+	Publish(interface{}, delivery) error
 	Declare(name string) error
 	OpenAndKeepConnection() error
 	ListenOnQueue(name string)
@@ -53,7 +56,26 @@ func (q *RabbitQueue) Stop() {
 
 }
 
-func (q *RabbitQueue) Produce(m Message, d Delivery) error {
+func (q *RabbitQueue) Publish(msg interface{}, d delivery) error {
+	ch, err := q.conn.Channel()
+	if err != nil {
+		return errors.Wrapf(err, "could not publish message to %s with routing key %s", d.Exchange, d.RoutingKey)
+	}
+
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert message to JSON before sending to RabbitMQ")
+	}
+
+	p := amqp.Publishing{
+		ContentType: "application/json",
+		Body:        b,
+	}
+
+	if err := ch.Publish(d.Exchange, d.RoutingKey, false, false, p); err != nil {
+		return errors.Wrapf(err, "failed to send message to exchange %s with routing key %s", d.Exchange, d.RoutingKey)
+	}
+
 	return nil
 }
 

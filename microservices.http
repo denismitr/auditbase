@@ -19,23 +19,3 @@ content-type: application/json
     "name": "FOO",
     "description": "Baaaaaaaaar"
 }
-
-###
-
-POST http://localhost:8888/api/v1/events
-Content-Type: application/json
-
-{
-    "targetId": "123",
-    "parentEventId": "ef00da4c-f228-4753-8b18-c979cc2c94f3",
-	"targetType": "transaction",
-	"targetServiceId": "ef00da4c-f228-4753-8b18-c979cc2c94f3",
-	"actorId": "74901",
-	"actorType": "user",
-	"actorServiceId": "ef00da4c-f111-4753-8b18-c979cc2c94f3",
-    "eventName": "transactionRevoked",
-    "emittedAt": "2019-12-31 23:59:59",
-	"delta": {
-		"status": ["CONFIRMED", "REVOKED"]
-	}
-}

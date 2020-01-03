@@ -13,6 +13,7 @@ services:
             - "8888:3000"
 
     auditbase_rabbit:
+        hostname: auditbase_rabbit
         image: rabbitmq:3-management-alpine
         container_name: auditbase_rabbit
         volumes:
