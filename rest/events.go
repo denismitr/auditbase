@@ -27,21 +27,49 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 
 	// TODO: add validation, should not be empty
 	if e.EmittedAt == "" {
-		e.EmittedAt = time.Now().String()
+		e.EmittedAt = time.Now().Format(time.RFC3339)
 	}
 
-	// TODO: change to now()
-	e.RegisteredAt = "9999-12-31 23:59:59"
+	e.RegisteredAt = time.Now().Format(time.RFC3339)
 
 	if err := ec.exchange.Publish(e); err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
-	// if err := ec.events.Create(e); err != nil {
-	// 	return ctx.JSON(badRequest(err))
-	// }
-
 	return ctx.JSON(202, map[string]string{
 		"status": "Accepted",
 	})
+}
+
+func (ec *eventsController) SelectEvents(ctx echo.Context) error {
+	events, err := ec.events.SelectAll()
+	if err != nil {
+		return ctx.JSON(internalError(err))
+	}
+
+	return ctx.JSON(200, map[string]interface{}{
+		"data": events,
+	})
+}
+
+func (ec *eventsController) GetEvent(ctx echo.Context) error {
+	ID := ctx.Param("id")
+	event, err := ec.events.FindOneByID(ID)
+	if err != nil {
+		return ctx.JSON(notFound(err))
+	}
+
+	return ctx.JSON(200, map[string]interface{}{
+		"data": event,
+	})
+}
+
+func (ec *eventsController) DeleteEvent(ctx echo.Context) error {
+	ID := ctx.Param("id")
+	err := ec.events.Delete(ID)
+	if err != nil {
+		return ctx.JSON(notFound(err))
+	}
+
+	return ctx.JSON(204, nil)
 }

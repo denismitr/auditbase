@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/jmoiron/sqlx"
@@ -44,9 +43,10 @@ func (r *EventRepository) Create(e model.Event) error {
 		)
 	`
 
-	jsBytes, _ := json.Marshal(e.Delta)
-	// js := types.JSONText{}
-	// js.MarshalJSON()
+	jsBytes, err := json.Marshal(e.Delta)
+	if err != nil {
+		return errors.Wrap(err, "could not serialize DELTA")
+	}
 
 	dbEvent := event{
 		ID:              e.ID,
@@ -62,7 +62,7 @@ func (r *EventRepository) Create(e model.Event) error {
 		RegisteredAt:    e.RegisteredAt,
 		Delta:           types.JSONText(jsBytes),
 	}
-	fmt.Printf("\n%#v", dbEvent)
+
 	if _, err := r.Conn.NamedExec(stmt, &dbEvent); err != nil {
 		return errors.Wrapf(err, "could not insert new event with ID %s", e.ID)
 	}
@@ -70,24 +70,57 @@ func (r *EventRepository) Create(e model.Event) error {
 	return nil
 }
 
-func (r *EventRepository) Update(int, model.Event) error {
+func (r *EventRepository) Delete(ID string) error {
+	stmt := `DELETE FROM events WHERE id = UUID_TO_BIN(?)`
+
+	if _, err := r.Conn.Exec(stmt, ID); err != nil {
+		return errors.Wrapf(err, "could not delete event with ID %s", ID)
+	}
+
 	return nil
 }
 
-func (r *EventRepository) Delete(int) error {
-	return nil
-}
+func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
+	stmt := `
+		SELECT 
+			BIN_TO_UUID(id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
+			actor_id, actor_type, BIN_TO_UUID(actor_service_id) as actor_service_id, target_id,
+			target_type, BIN_TO_UUID(target_service_id) as target_service_id, event_name, 
+			emitted_at, registered_at, delta 
+		FROM events WHERE id = ?
+	`
 
-func (r *EventRepository) FindOneByID(int) (model.Event, error) {
-	return model.Event{}, nil
+	e := event{}
+
+	if err := r.Conn.Select(&e, stmt); err != nil {
+		return model.Event{}, errors.Wrapf(err, "could not get a list of events from db")
+	}
+
+	var d map[string][]interface{}
+	json.Unmarshal(e.Delta, &d)
+
+	return model.Event{
+		ID:              e.ID,
+		ParentEventID:   e.ParentEventID,
+		ActorID:         e.ActorID,
+		ActorType:       e.ActorType,
+		ActorServiceID:  e.ActorServiceID,
+		TargetID:        e.TargetID,
+		TargetType:      e.TargetType,
+		TargetServiceID: e.TargetServiceID,
+		EventName:       e.EventName,
+		EmittedAt:       e.EmittedAt,
+		RegisteredAt:    e.RegisteredAt,
+		Delta:           d,
+	}, nil
 }
 
 func (r *EventRepository) SelectAll() ([]model.Event, error) {
 	stmt := `
 		SELECT 
 			BIN_TO_UUID(id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-			actor_id, actor_type, BIN_TO_UUID(actor_service_id), target_id,
-			target_type, BIN_TO_UUID(target_service_id), event_name, 
+			actor_id, actor_type, BIN_TO_UUID(actor_service_id) as actor_service_id, target_id,
+			target_type, BIN_TO_UUID(target_service_id) as target_service_id, event_name, 
 			emitted_at, registered_at, delta 
 		FROM events
 	`

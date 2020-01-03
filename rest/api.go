@@ -34,12 +34,17 @@ func New(cfg Config, ee model.EventExchange, mr model.MicroserviceRepository, er
 		exchange: ee,
 	}
 
+	// Microservices
 	e.GET("/api/v1/microservices", mc.SelectMicroservices)
 	e.POST("/api/v1/microservices", mc.CreateMicroservice)
 	e.PUT("/api/v1/microservices/:id", mc.UpdateMicroservice)
 	e.GET("/api/v1/microservices/:id", mc.GetMicroservice)
 
+	// Events
 	e.POST("/api/v1/events", ec.CreateEvent)
+	e.GET("/api/v1/events", ec.SelectEvents)
+	e.DELETE("/api/v1/events/:id", ec.DeleteEvent)
+	e.GET("/api/v1/events/:id", ec.GetEvent)
 
 	return &API{
 		e:   e,

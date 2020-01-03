@@ -17,9 +17,8 @@ type Event struct {
 
 type EventRepository interface {
 	Create(Event) error
-	Update(int, Event) error
-	Delete(int) error
-	FindOneByID(int) (Event, error)
+	Delete(string) error
+	FindOneByID(string) (Event, error)
 	SelectAll() ([]Event, error)
 }
 

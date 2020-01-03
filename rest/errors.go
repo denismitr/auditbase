@@ -31,6 +31,10 @@ func internalError(err error) (int, *errorResponse) {
 	return http.StatusInternalServerError, newErrorResponseWithDetails(http.StatusInternalServerError, "Whoops", err.Error())
 }
 
+func notFound(err error) (int, *errorResponse) {
+	return http.StatusNotFound, newErrorResponseWithDetails(http.StatusBadRequest, "Not found", err.Error())
+}
+
 func validationFailed(details string) *errorResponse {
 	return newErrorResponseWithDetails(http.StatusUnprocessableEntity, "Validation failed", details)
 }
