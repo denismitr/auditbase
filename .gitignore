@@ -2,3 +2,4 @@ vendor/
 auditbase
 .vscode/
 cmd/rest/rest
+cmd/consumer/consumer
