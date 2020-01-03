@@ -53,10 +53,22 @@ func (r *MicroserviceRepository) SelectAll() ([]model.Microservice, error) {
 }
 
 func (r *MicroserviceRepository) Delete(ID string) error {
+	stmt := `DELETE FROM microservices WHERE id = UUID_TO_BIN(?)`
+
+	if _, err := r.Conn.Exec(stmt, ID); err != nil {
+		return errors.Wrapf(err, "could not delete microservice with ID %s", ID)
+	}
+
 	return nil
 }
 
-func (r *MicroserviceRepository) Update(m model.Microservice) error {
+func (r *MicroserviceRepository) Update(ID string, m model.Microservice) error {
+	stmt := `UPDATE microservices SET name = ?, description = ? WHERE id = UUID_TO_BIN(?)`
+
+	if _, err := r.Conn.Exec(stmt, m.Name, m.Description, ID); err != nil {
+		return errors.Wrapf(err, "could not update microservice with ID %s", m.ID)
+	}
+
 	return nil
 }
 

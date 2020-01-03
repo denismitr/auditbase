@@ -17,21 +17,29 @@ type API struct {
 	cfg Config
 }
 
-func New(cfg Config, q queue.MQ, mr model.MicroserviceRepository) *API {
+func New(cfg Config, q queue.MQ, mr model.MicroserviceRepository, er model.EventRepository) *API {
 	e := echo.New()
 
 	e.Use(middleware.BodyLimit("250K"))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	h := handlers{
+	mc := microservicesController{
 		logger:        e.Logger,
 		microservices: mr,
 	}
 
-	e.POST("/events", h.CreateEvent)
-	e.GET("/api/v1/microservices", h.SelectMicroservices)
-	e.POST("/api/v1/microservices", h.CreateMicroservice)
+	ec := eventsController{
+		logger: e.Logger,
+		events: er,
+	}
+
+	e.GET("/api/v1/microservices", mc.SelectMicroservices)
+	e.POST("/api/v1/microservices", mc.CreateMicroservice)
+	e.PUT("/api/v1/microservices/:id", mc.UpdateMicroservice)
+	e.GET("/api/v1/microservices/:id", mc.GetMicroservice)
+
+	e.POST("/api/v1/events", ec.CreateEvent)
 
 	return &API{
 		e:   e,

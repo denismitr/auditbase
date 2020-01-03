@@ -13,21 +13,22 @@ import (
 
 func main() {
 	fmt.Println("Waiting for DB connection")
-	time.Sleep(10)
+	time.Sleep(20)
 
 	dbConn, err := sqlx.Connect("mysql", "auditbase:secret@(auditbase_db:3306)/auditbase")
 	if err != nil {
 		panic(err)
 	}
 
-	mysqlRepo := &mysql.MicroserviceRepository{Conn: dbConn}
+	microservices := &mysql.MicroserviceRepository{Conn: dbConn}
+	events := &mysql.EventRepository{Conn: dbConn}
 
 	logger := logrus.New()
 	queue := queue.NewRabbitQueue("amqp://auditbase:secret@auditbase_rabbit:5672/", logger, 3)
 	queue.WaitForConnection()
 	rest := rest.New(rest.Config{
 		Port: ":3000",
-	}, queue, mysqlRepo)
+	}, queue, microservices, events)
 
 	rest.Start()
 }

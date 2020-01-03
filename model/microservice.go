@@ -11,7 +11,7 @@ type Microservice struct {
 type MicroserviceRepository interface {
 	Create(Microservice) error
 	Delete(ID string) error
-	Update(Microservice) error
+	Update(ID string, m Microservice) error
 	GetOneByID(ID string) (Microservice, error)
 	SelectAll() ([]Microservice, error)
 }

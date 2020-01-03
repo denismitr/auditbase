@@ -1,24 +1,26 @@
 package model
 
 type Event struct {
-	ID              int                    `json:"id"`
-	ActorID         int                    `json:"actorId"`
-	ActorType       string                 `json:"actorType"`
-	ActorServiceID  int                    `json:"actorServiceId"`
-	TargetID        int                    `json:"targetId"`
-	TargetType      string                 `json:"targetType"`
-	TargetServiceID int                    `json:"targetServiceId"`
-	EventType       string                 `json:"eventType"`
-	EmittedAt       string                 `json:"emittedAt"`
-	RegisteredAt    string                 `json:"registeredAt"`
-	Delta           map[string]interface{} `json:"delta"`
+	ID              string                   `json:"id"`
+	ParentEventID   string                   `json:"parentEventId"`
+	ActorID         string                   `json:"actorId"`
+	ActorType       string                   `json:"actorType"`
+	ActorServiceID  string                   `json:"actorServiceId"`
+	TargetID        string                   `json:"targetId"`
+	TargetType      string                   `json:"targetType"`
+	TargetServiceID string                   `json:"targetServiceId"`
+	EventName       string                   `json:"eventName"`
+	EmittedAt       string                   `json:"emittedAt"`
+	RegisteredAt    string                   `json:"registeredAt"`
+	Delta           map[string][]interface{} `json:"delta"`
 }
 
 type EventRepository interface {
 	Create(Event) error
-	Update(Event) error
+	Update(int, Event) error
 	Delete(int) error
 	FindOneByID(int) (Event, error)
+	SelectAll() ([]Event, error)
 }
 
 type EventExchange interface {
