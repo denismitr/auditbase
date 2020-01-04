@@ -5,8 +5,8 @@ const microservicesSchema = `
 		id binary(16) PRIMARY KEY,
 		name VARCHAR(36),
 		description VARCHAR(255),
-		created_at timestamp default current_timestamp,
-		updated_at timestamp default current_timestamp on update current_timestamp,
+		created_at TIMESTAMP default CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		UNIQUE KEY unique_name (name)
 	);
 `
@@ -22,8 +22,8 @@ const eventsSchema = `
 		target_type VARCHAR(36),
 		target_service_id binary(16) NOT NULL,
 		event_name VARCHAR(36) NOT NULL,
-		emitted_at DATETIME NOT NULL,
-		registered_at DATETIME NOT NULL,
+		emitted_at TIMESTAMP NOT NULL,
+		registered_at TIMESTAMP NOT NULL,
 		delta JSON DEFAULT NULL
 	);
 `

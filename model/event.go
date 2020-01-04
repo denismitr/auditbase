@@ -10,8 +10,8 @@ type Event struct {
 	TargetType      string                   `json:"targetType"`
 	TargetServiceID string                   `json:"targetServiceId"`
 	EventName       string                   `json:"eventName"`
-	EmittedAt       string                   `json:"emittedAt"`
-	RegisteredAt    string                   `json:"registeredAt"`
+	EmittedAt       int64                    `json:"emittedAt"`
+	RegisteredAt    int64                    `json:"registeredAt"`
 	Delta           map[string][]interface{} `json:"delta"`
 }
 

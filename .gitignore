@@ -3,3 +3,4 @@ auditbase
 .vscode/
 cmd/rest/rest
 cmd/consumer/consumer
+.env

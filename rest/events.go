@@ -26,11 +26,11 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 	}
 
 	// TODO: add validation, should not be empty
-	if e.EmittedAt == "" {
-		e.EmittedAt = time.Now().Format(time.RFC3339)
+	if e.EmittedAt == 0 {
+		e.EmittedAt = time.Now().Unix()
 	}
 
-	e.RegisteredAt = time.Now().Format(time.RFC3339)
+	e.RegisteredAt = time.Now().Unix()
 
 	if err := ec.exchange.Publish(e); err != nil {
 		return ctx.JSON(internalError(err))

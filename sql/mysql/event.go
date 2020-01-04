@@ -1,7 +1,9 @@
 package mysql
 
 import (
+	"database/sql"
 	"encoding/json"
+	"time"
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/jmoiron/sqlx"
@@ -11,7 +13,7 @@ import (
 
 type event struct {
 	ID              string         `db:"id"`
-	ParentEventID   string         `db:"parent_event_id"`
+	ParentEventID   sql.NullString `db:"parent_event_id"`
 	ActorID         string         `db:"actor_id"`
 	ActorType       string         `db:"actor_type"`
 	ActorServiceID  string         `db:"actor_service_id"`
@@ -19,8 +21,8 @@ type event struct {
 	TargetType      string         `db:"target_type"`
 	TargetServiceID string         `db:"target_service_id"`
 	EventName       string         `db:"event_name"`
-	EmittedAt       string         `db:"emitted_at"`
-	RegisteredAt    string         `db:"registered_at"`
+	EmittedAt       time.Time      `db:"emitted_at"`
+	RegisteredAt    time.Time      `db:"registered_at"`
 	Delta           types.JSONText `db:"delta"`
 }
 
@@ -50,7 +52,6 @@ func (r *EventRepository) Create(e model.Event) error {
 
 	dbEvent := event{
 		ID:              e.ID,
-		ParentEventID:   e.ParentEventID,
 		ActorID:         e.ActorID,
 		ActorType:       e.ActorType,
 		ActorServiceID:  e.ActorServiceID,
@@ -58,9 +59,15 @@ func (r *EventRepository) Create(e model.Event) error {
 		TargetType:      e.TargetType,
 		TargetServiceID: e.TargetServiceID,
 		EventName:       e.EventName,
-		EmittedAt:       e.EmittedAt,
-		RegisteredAt:    e.RegisteredAt,
+		EmittedAt:       time.Unix(e.EmittedAt, 0),
+		RegisteredAt:    time.Unix(e.RegisteredAt, 0),
 		Delta:           types.JSONText(jsBytes),
+	}
+
+	if e.ParentEventID == "" {
+		dbEvent.ParentEventID = sql.NullString{"", false}
+	} else {
+		dbEvent.ParentEventID = sql.NullString{e.ParentEventID, true}
 	}
 
 	if _, err := r.Conn.NamedExec(stmt, &dbEvent); err != nil {
@@ -101,7 +108,7 @@ func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 
 	return model.Event{
 		ID:              e.ID,
-		ParentEventID:   e.ParentEventID,
+		ParentEventID:   e.ParentEventID.String,
 		ActorID:         e.ActorID,
 		ActorType:       e.ActorType,
 		ActorServiceID:  e.ActorServiceID,
@@ -109,8 +116,8 @@ func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 		TargetType:      e.TargetType,
 		TargetServiceID: e.TargetServiceID,
 		EventName:       e.EventName,
-		EmittedAt:       e.EmittedAt,
-		RegisteredAt:    e.RegisteredAt,
+		EmittedAt:       e.EmittedAt.Unix(),
+		RegisteredAt:    e.RegisteredAt.Unix(),
 		Delta:           d,
 	}, nil
 }
@@ -137,7 +144,7 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 		json.Unmarshal(events[i].Delta, &d)
 		result[i] = model.Event{
 			ID:              events[i].ID,
-			ParentEventID:   events[i].ParentEventID,
+			ParentEventID:   events[i].ParentEventID.String,
 			ActorID:         events[i].ActorID,
 			ActorType:       events[i].ActorType,
 			ActorServiceID:  events[i].ActorServiceID,
@@ -145,8 +152,8 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 			TargetType:      events[i].TargetType,
 			TargetServiceID: events[i].TargetServiceID,
 			EventName:       events[i].EventName,
-			EmittedAt:       events[i].EmittedAt,
-			RegisteredAt:    events[i].RegisteredAt,
+			EmittedAt:       events[i].EmittedAt.Unix(),
+			RegisteredAt:    events[i].RegisteredAt.Unix(),
 			Delta:           d,
 		}
 	}
