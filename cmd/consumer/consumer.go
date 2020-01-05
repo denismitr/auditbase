@@ -27,6 +27,8 @@ func main() {
 
 	microservices := &mysql.MicroserviceRepository{Conn: dbConn}
 	events := &mysql.EventRepository{Conn: dbConn}
+	targetTypes := &mysql.TargetTypeRepository{Conn: dbConn}
+	actorTypes := &mysql.ActorTypeRepository{Conn: dbConn}
 
 	logger := logrus.New()
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
@@ -43,7 +45,7 @@ func main() {
 		QueueName:  queueName,
 	}
 
-	consumer := consumer.New(logger, ee, microservices, events)
+	consumer := consumer.New(logger, ee, microservices, events, targetTypes, actorTypes)
 
 	consumer.Start()
 }

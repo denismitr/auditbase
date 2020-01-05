@@ -1,8 +1,6 @@
 package rest
 
 import (
-	"time"
-
 	"github.com/denismitr/auditbase/model"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
@@ -21,16 +19,11 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 		return ctx.JSON(badRequest(errors.New("unparsable event payload")))
 	}
 
-	if e.ID == "" {
-		e.ID = uuid4()
+	v := model.NewValidator()
+	errors := e.Validate(v)
+	if errors.HasErrors() {
+		return ctx.JSON(validationFailed(errors, "event object validation failed"))
 	}
-
-	// TODO: add validation, should not be empty
-	if e.EmittedAt == 0 {
-		e.EmittedAt = time.Now().Unix()
-	}
-
-	e.RegisteredAt = time.Now().Unix()
 
 	if err := ec.exchange.Publish(e); err != nil {
 		return ctx.JSON(internalError(err))

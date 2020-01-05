@@ -10,6 +10,7 @@ COPY cmd/ ./cmd
 COPY rest/ ./rest
 COPY queue/ ./queue
 COPY model/ ./model
+COPY utils/ ./utils
 COPY sql/ ./sql
 COPY .env ./
 

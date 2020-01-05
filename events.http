@@ -7,15 +7,20 @@ POST http://localhost:8888/api/v1/events
 Content-Type: application/json
 
 {
-    "targetId": "fffffffffffffffffffff",
-	"targetType": "transaction 123",
-	"targetServiceId": "ef00da4c-f228-4753-8b18-c979cc2c94f3",
-	"actorId": "74901",
-	"actorType": "user",
-	"actorServiceId": "ef00da4c-f111-4753-8b18-c979cc2c94f3",
-    "eventName": "transactionRevoked",
-    "emittedAt": 1578176065,
+    "targetId": "12899",
+	"targetType": {
+		"name": "process"
+	},
+	"targetServiceId": "7367322d-056a-4052-a0c4-cfa886fc5d3c",
+	"actorId": "749201",
+	"actorType": {
+		"name": "employee"
+	},
+	"actorServiceId": "35e46ed5-fe56-4445-878e-9c32ae54bfd0",
+    "eventName": "transactionReactivated",
+    "emittedAt": 1578176012,
 	"delta": {
-		"status": ["CONFIRMED", "REVOKED"]
+		"status": ["REVOKED", "REACTIVATE"],
+		"price": [1000, 2000]
 	}
 }

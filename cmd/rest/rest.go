@@ -25,6 +25,10 @@ func main() {
 		panic(err)
 	}
 
+	if err := mysql.Scaffold(dbConn); err != nil {
+		panic(err)
+	}
+
 	microservices := &mysql.MicroserviceRepository{Conn: dbConn}
 	events := &mysql.EventRepository{Conn: dbConn}
 

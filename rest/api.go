@@ -52,6 +52,7 @@ func New(cfg Config, ee model.EventExchange, mr model.MicroserviceRepository, er
 	}
 }
 
+// Start rest Server
 func (a *API) Start() {
 	go func() {
 		if err := a.e.Start(a.cfg.Port); err != nil {

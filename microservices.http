@@ -1,21 +1,23 @@
-GET http://localhost:8888/api/v1/microservices
+@host = http://localhost:8888
+
+GET {{host}}/api/v1/microservices
 
 ###
 
-POST http://localhost:8888/api/v1/microservices HTTP/1.1
+POST {{host}}/api/v1/microservices HTTP/1.1
 content-type: application/json
 
 {
-    "name": "BAZ29",
-    "description": "ABC 12345"
+    "name": "nessie",
+    "description": "Nessie serv"
 }
 
 ###
 
-PUT http://localhost:8888/api/v1/microservices/04a07184-653a-42db-9334-62b45aa83bde
+PUT {{host}}/api/v1/microservices/35e46ed5-fe56-4445-878e-9c32ae54bfd0
 content-type: application/json
 
 {
-    "name": "FOO",
+    "name": "FOO-2",
     "description": "Baaaaaaaaar"
 }

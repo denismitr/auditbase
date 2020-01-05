@@ -15,10 +15,10 @@ type event struct {
 	ID              string         `db:"id"`
 	ParentEventID   sql.NullString `db:"parent_event_id"`
 	ActorID         string         `db:"actor_id"`
-	ActorType       string         `db:"actor_type"`
+	ActorTypeID     string         `db:"actor_type_id"`
 	ActorServiceID  string         `db:"actor_service_id"`
 	TargetID        string         `db:"target_id"`
-	TargetType      string         `db:"target_type"`
+	TargetTypeID    string         `db:"target_type_id"`
 	TargetServiceID string         `db:"target_service_id"`
 	EventName       string         `db:"event_name"`
 	EmittedAt       time.Time      `db:"emitted_at"`
@@ -34,14 +34,14 @@ func (r *EventRepository) Create(e model.Event) error {
 	stmt := `
 		INSERT INTO events (
 			id, parent_event_id, actor_id, 
-			actor_type, actor_service_id, target_id, 
-			target_type, target_service_id, event_name,
+			actor_type_id, actor_service_id, target_id, 
+			target_type_id, target_service_id, event_name,
 			emitted_at, registered_at, delta
 		) VALUES (
 			UUID_TO_BIN(:id), UUID_TO_BIN(:parent_event_id), :actor_id, 
-			:actor_type, UUID_TO_BIN(:actor_service_id), :target_id, :target_type, 
-			UUID_TO_BIN(:target_service_id), :event_name, :emitted_at, 
-			:registered_at, :delta
+			UUID_TO_BIN(:actor_type_id), :actor_service_id, :target_id, 
+			UUID_TO_BIN(:target_type_id), :target_service_id, :event_name, 
+			:emitted_at, :registered_at, :delta
 		)
 	`
 
@@ -53,10 +53,10 @@ func (r *EventRepository) Create(e model.Event) error {
 	dbEvent := event{
 		ID:              e.ID,
 		ActorID:         e.ActorID,
-		ActorType:       e.ActorType,
+		ActorTypeID:     e.ActorType.ID,
 		ActorServiceID:  e.ActorServiceID,
 		TargetID:        e.TargetID,
-		TargetType:      e.TargetType,
+		TargetTypeID:    e.TargetType.ID,
 		TargetServiceID: e.TargetServiceID,
 		EventName:       e.EventName,
 		EmittedAt:       time.Unix(e.EmittedAt, 0),
@@ -91,9 +91,9 @@ func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 	stmt := `
 		SELECT 
 			BIN_TO_UUID(id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-			actor_id, actor_type, BIN_TO_UUID(actor_service_id) as actor_service_id, target_id,
-			target_type, BIN_TO_UUID(target_service_id) as target_service_id, event_name, 
-			emitted_at, registered_at, delta 
+			actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, actor_service_id, 
+			target_id, BIN_TO_UUID(target_type_id) as target_type_id, target_service_id,
+			event_name, emitted_at, registered_at, delta 
 		FROM events WHERE id = ?
 	`
 
@@ -106,14 +106,24 @@ func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 	var d map[string][]interface{}
 	json.Unmarshal(e.Delta, &d)
 
+	// TODO: inner join name and description
+	at := model.ActorType{
+		ID: e.ActorTypeID,
+	}
+
+	// TODO: inner join name and description
+	tt := model.TargetType{
+		ID: e.TargetTypeID,
+	}
+
 	return model.Event{
 		ID:              e.ID,
 		ParentEventID:   e.ParentEventID.String,
 		ActorID:         e.ActorID,
-		ActorType:       e.ActorType,
+		ActorType:       at,
 		ActorServiceID:  e.ActorServiceID,
 		TargetID:        e.TargetID,
-		TargetType:      e.TargetType,
+		TargetType:      tt,
 		TargetServiceID: e.TargetServiceID,
 		EventName:       e.EventName,
 		EmittedAt:       e.EmittedAt.Unix(),
@@ -126,9 +136,9 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 	stmt := `
 		SELECT 
 			BIN_TO_UUID(id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-			actor_id, actor_type, BIN_TO_UUID(actor_service_id) as actor_service_id, target_id,
-			target_type, BIN_TO_UUID(target_service_id) as target_service_id, event_name, 
-			emitted_at, registered_at, delta 
+			actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, actor_service_id, 
+			target_id, BIN_TO_UUID(target_type_id) as target_type_id, target_service_id, 
+			event_name, emitted_at, registered_at, delta 
 		FROM events
 	`
 	events := []event{}
@@ -142,14 +152,25 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 	for i := range events {
 		var d map[string][]interface{}
 		json.Unmarshal(events[i].Delta, &d)
+
+		// TODO: inner join name and description
+		at := model.ActorType{
+			ID: events[i].ActorTypeID,
+		}
+
+		// TODO: inner join name and description
+		tt := model.TargetType{
+			ID: events[i].TargetTypeID,
+		}
+
 		result[i] = model.Event{
 			ID:              events[i].ID,
 			ParentEventID:   events[i].ParentEventID.String,
 			ActorID:         events[i].ActorID,
-			ActorType:       events[i].ActorType,
+			ActorType:       at,
 			ActorServiceID:  events[i].ActorServiceID,
 			TargetID:        events[i].TargetID,
-			TargetType:      events[i].TargetType,
+			TargetType:      tt,
 			TargetServiceID: events[i].TargetServiceID,
 			EventName:       events[i].EventName,
 			EmittedAt:       events[i].EmittedAt.Unix(),
