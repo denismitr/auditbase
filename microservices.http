@@ -8,8 +8,29 @@ POST {{host}}/api/v1/microservices HTTP/1.1
 content-type: application/json
 
 {
-    "name": "nessie",
-    "description": "Nessie serv"
+    "name": "accounting",
+    "description": "Accounting service"
+}
+
+###
+
+POST {{host}}/api/v1/microservices HTTP/1.1
+content-type: application/json
+
+{
+    "name": "users-service",
+    "description": "Users service"
+}
+
+###
+
+POST {{host}}/api/v1/microservices HTTP/1.1
+content-type: application/json
+
+{
+    "id": "35e46ed5-fe56-4445-878e-9c32ae54bfd0",
+    "name": "log",
+    "description": "Log service"
 }
 
 ###
@@ -18,6 +39,6 @@ PUT {{host}}/api/v1/microservices/35e46ed5-fe56-4445-878e-9c32ae54bfd0
 content-type: application/json
 
 {
-    "name": "FOO-2",
-    "description": "Baaaaaaaaar"
+    "name": "LOG",
+    "description": "The Log service"
 }

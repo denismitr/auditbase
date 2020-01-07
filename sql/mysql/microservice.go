@@ -89,3 +89,27 @@ func (r *MicroserviceRepository) GetOneByID(ID string) (model.Microservice, erro
 		UpdatedAt:   m.UpdatedAt,
 	}, nil
 }
+
+func (r *MicroserviceRepository) GetOneByName(name string) (model.Microservice, error) {
+	m := new(microservice)
+
+	stmt := `
+		SELECT 
+			BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
+		FROM microservices 
+			WHERE name = ?
+	`
+
+	if err := r.Conn.Get(m, stmt, name); err != nil {
+		return model.Microservice{},
+			errors.Wrapf(err, "could not get microservice with name %s from database", name)
+	}
+
+	return model.Microservice{
+		ID:          m.ID,
+		Name:        m.Name,
+		Description: m.Description,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
+	}, nil
+}

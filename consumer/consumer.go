@@ -80,9 +80,6 @@ func (c *Consumer) processEvent(e model.Event) {
 		// Refactor to FirstOrCreateByName
 		at, err := c.actorTypes.FirstByName(e.ActorType.Name)
 		if err != nil {
-			fmt.Println(err)
-			c.logger.Error(err)
-
 			at = model.ActorType{
 				ID:          utils.UUID4(),
 				Name:        e.ActorType.Name,
@@ -97,6 +94,44 @@ func (c *Consumer) processEvent(e model.Event) {
 		}
 
 		e.ActorType = at
+	}
+
+	if e.ActorService.ID == "" {
+		as, err := c.microservices.GetOneByName(e.ActorService.Name)
+		if err != nil {
+			as = model.Microservice{
+				ID:          utils.UUID4(),
+				Name:        e.ActorService.Name,
+				Description: "",
+			}
+
+			if err := c.microservices.Create(as); err != nil {
+				fmt.Println(err)
+				c.logger.Error(err)
+				return
+			}
+		}
+
+		e.ActorService = as
+	}
+
+	if e.TargetService.ID == "" {
+		ts, err := c.microservices.GetOneByName(e.TargetService.Name)
+		if err != nil {
+			ts = model.Microservice{
+				ID:          utils.UUID4(),
+				Name:        e.TargetService.Name,
+				Description: "",
+			}
+
+			if err := c.microservices.Create(ts); err != nil {
+				fmt.Println(err)
+				c.logger.Error(err)
+				return
+			}
+		}
+
+		e.TargetService = ts
 	}
 
 	if err := c.events.Create(e); err != nil {

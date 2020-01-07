@@ -11,19 +11,50 @@ import (
 	"github.com/pkg/errors"
 )
 
+const selectEvents = `
+	SELECT 
+	BIN_TO_UUID(e.id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
+	actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, 
+	BIN_TO_UUID(actor_service_id) as actor_service_id, 
+	target_id, BIN_TO_UUID(target_type_id) as target_type_id, 
+	BIN_TO_UUID(target_service_id) as target_service_id, 
+	event_name, emitted_at, registered_at, delta,
+	ams.name as actor_service_name, tms.name as target_service_name,
+	ams.description as actor_service_description, tms.description as target_service_description,
+	at.name as actor_type_name, at.description as actor_type_description,
+	tt.name as target_type_name, tt.description as target_type_description 
+	FROM events as e
+	INNER JOIN microservices as ams
+	ON ams.id = UUID_TO_BIN(e.actor_service_id)
+	INNER JOIN microservices as tms
+	ON tms.id = UUID_TO_BIN(e.target_service_id)
+	INNER JOIN actor_types as at
+	ON at.id = e.actor_type_id
+	INNER JOIN target_types as tt
+	ON tt.id = e.target_type_id
+`
+
 type event struct {
-	ID              string         `db:"id"`
-	ParentEventID   sql.NullString `db:"parent_event_id"`
-	ActorID         string         `db:"actor_id"`
-	ActorTypeID     string         `db:"actor_type_id"`
-	ActorServiceID  string         `db:"actor_service_id"`
-	TargetID        string         `db:"target_id"`
-	TargetTypeID    string         `db:"target_type_id"`
-	TargetServiceID string         `db:"target_service_id"`
-	EventName       string         `db:"event_name"`
-	EmittedAt       time.Time      `db:"emitted_at"`
-	RegisteredAt    time.Time      `db:"registered_at"`
-	Delta           types.JSONText `db:"delta"`
+	ID                       string         `db:"id"`
+	ParentEventID            sql.NullString `db:"parent_event_id"`
+	ActorID                  string         `db:"actor_id"`
+	ActorTypeID              string         `db:"actor_type_id"`
+	ActorServiceID           string         `db:"actor_service_id"`
+	ActorServiceName         string         `db:"actor_service_name"`
+	ActorServiceDescription  string         `db:"actor_service_description"`
+	ActorTypeName            string         `db:"actor_type_name"`
+	ActorTypeDescription     string         `db:"actor_type_description"`
+	TargetID                 string         `db:"target_id"`
+	TargetTypeID             string         `db:"target_type_id"`
+	TargetTypeName           string         `db:"target_type_name"`
+	TargetTypeDescription    string         `db:"target_type_description"`
+	TargetServiceID          string         `db:"target_service_id"`
+	TargetServiceName        string         `db:"target_service_name"`
+	TargetServiceDescription string         `db:"target_service_description"`
+	EventName                string         `db:"event_name"`
+	EmittedAt                time.Time      `db:"emitted_at"`
+	RegisteredAt             time.Time      `db:"registered_at"`
+	Delta                    types.JSONText `db:"delta"`
 }
 
 type EventRepository struct {
@@ -39,8 +70,8 @@ func (r *EventRepository) Create(e model.Event) error {
 			emitted_at, registered_at, delta
 		) VALUES (
 			UUID_TO_BIN(:id), UUID_TO_BIN(:parent_event_id), :actor_id, 
-			UUID_TO_BIN(:actor_type_id), :actor_service_id, :target_id, 
-			UUID_TO_BIN(:target_type_id), :target_service_id, :event_name, 
+			UUID_TO_BIN(:actor_type_id), UUID_TO_BIN(:actor_service_id), :target_id, 
+			UUID_TO_BIN(:target_type_id), UUID_TO_BIN(:target_service_id), :event_name, 
 			:emitted_at, :registered_at, :delta
 		)
 	`
@@ -54,10 +85,10 @@ func (r *EventRepository) Create(e model.Event) error {
 		ID:              e.ID,
 		ActorID:         e.ActorID,
 		ActorTypeID:     e.ActorType.ID,
-		ActorServiceID:  e.ActorServiceID,
+		ActorServiceID:  e.ActorService.ID,
 		TargetID:        e.TargetID,
 		TargetTypeID:    e.TargetType.ID,
-		TargetServiceID: e.TargetServiceID,
+		TargetServiceID: e.TargetService.ID,
 		EventName:       e.EventName,
 		EmittedAt:       time.Unix(e.EmittedAt, 0),
 		RegisteredAt:    time.Unix(e.RegisteredAt, 0),
@@ -88,18 +119,11 @@ func (r *EventRepository) Delete(ID string) error {
 }
 
 func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
-	stmt := `
-		SELECT 
-			BIN_TO_UUID(id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-			actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, actor_service_id, 
-			target_id, BIN_TO_UUID(target_type_id) as target_type_id, target_service_id,
-			event_name, emitted_at, registered_at, delta 
-		FROM events WHERE id = ?
-	`
+	stmt := selectEvents + " WHERE e.id = UUID_TO_BIN(?)"
 
 	e := event{}
 
-	if err := r.Conn.Select(&e, stmt); err != nil {
+	if err := r.Conn.Get(&e, stmt, ID); err != nil {
 		return model.Event{}, errors.Wrapf(err, "could not get a list of events from db")
 	}
 
@@ -108,39 +132,49 @@ func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 
 	// TODO: inner join name and description
 	at := model.ActorType{
-		ID: e.ActorTypeID,
+		ID:          e.ActorTypeID,
+		Name:        e.ActorTypeName,
+		Description: e.ActorTypeDescription,
 	}
 
 	// TODO: inner join name and description
 	tt := model.TargetType{
-		ID: e.TargetTypeID,
+		ID:          e.TargetTypeID,
+		Name:        e.TargetTypeName,
+		Description: e.TargetTypeDescription,
+	}
+
+	as := model.Microservice{
+		ID:          e.ActorServiceID,
+		Name:        e.ActorServiceName,
+		Description: e.ActorServiceDescription,
+	}
+
+	ts := model.Microservice{
+		ID:          e.TargetServiceID,
+		Name:        e.TargetServiceName,
+		Description: e.TargetServiceDescription,
 	}
 
 	return model.Event{
-		ID:              e.ID,
-		ParentEventID:   e.ParentEventID.String,
-		ActorID:         e.ActorID,
-		ActorType:       at,
-		ActorServiceID:  e.ActorServiceID,
-		TargetID:        e.TargetID,
-		TargetType:      tt,
-		TargetServiceID: e.TargetServiceID,
-		EventName:       e.EventName,
-		EmittedAt:       e.EmittedAt.Unix(),
-		RegisteredAt:    e.RegisteredAt.Unix(),
-		Delta:           d,
+		ID:            e.ID,
+		ParentEventID: e.ParentEventID.String,
+		ActorID:       e.ActorID,
+		ActorType:     at,
+		ActorService:  as,
+		TargetID:      e.TargetID,
+		TargetType:    tt,
+		TargetService: ts,
+		EventName:     e.EventName,
+		EmittedAt:     e.EmittedAt.Unix(),
+		RegisteredAt:  e.RegisteredAt.Unix(),
+		Delta:         d,
 	}, nil
 }
 
 func (r *EventRepository) SelectAll() ([]model.Event, error) {
-	stmt := `
-		SELECT 
-			BIN_TO_UUID(id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-			actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, actor_service_id, 
-			target_id, BIN_TO_UUID(target_type_id) as target_type_id, target_service_id, 
-			event_name, emitted_at, registered_at, delta 
-		FROM events
-	`
+	stmt := selectEvents
+
 	events := []event{}
 
 	if err := r.Conn.Select(&events, stmt); err != nil {
@@ -155,27 +189,43 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 
 		// TODO: inner join name and description
 		at := model.ActorType{
-			ID: events[i].ActorTypeID,
+			ID:          events[i].ActorTypeID,
+			Name:        events[i].ActorTypeName,
+			Description: events[i].ActorTypeDescription,
 		}
 
 		// TODO: inner join name and description
 		tt := model.TargetType{
-			ID: events[i].TargetTypeID,
+			ID:          events[i].TargetTypeID,
+			Name:        events[i].TargetTypeName,
+			Description: events[i].TargetTypeDescription,
+		}
+
+		as := model.Microservice{
+			ID:          events[i].ActorServiceID,
+			Name:        events[i].ActorServiceName,
+			Description: events[i].ActorServiceDescription,
+		}
+
+		ts := model.Microservice{
+			ID:          events[i].TargetServiceID,
+			Name:        events[i].TargetServiceName,
+			Description: events[i].TargetServiceDescription,
 		}
 
 		result[i] = model.Event{
-			ID:              events[i].ID,
-			ParentEventID:   events[i].ParentEventID.String,
-			ActorID:         events[i].ActorID,
-			ActorType:       at,
-			ActorServiceID:  events[i].ActorServiceID,
-			TargetID:        events[i].TargetID,
-			TargetType:      tt,
-			TargetServiceID: events[i].TargetServiceID,
-			EventName:       events[i].EventName,
-			EmittedAt:       events[i].EmittedAt.Unix(),
-			RegisteredAt:    events[i].RegisteredAt.Unix(),
-			Delta:           d,
+			ID:            events[i].ID,
+			ParentEventID: events[i].ParentEventID.String,
+			ActorID:       events[i].ActorID,
+			ActorType:     at,
+			ActorService:  as,
+			TargetID:      events[i].TargetID,
+			TargetType:    tt,
+			TargetService: ts,
+			EventName:     events[i].EventName,
+			EmittedAt:     events[i].EmittedAt.Unix(),
+			RegisteredAt:  events[i].RegisteredAt.Unix(),
+			Delta:         d,
 		}
 	}
 

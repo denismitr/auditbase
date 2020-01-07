@@ -3,24 +3,32 @@ Content-Type: application/json
 
 ###
 
+GET http://localhost:8888/api/v1/events/897fe984-4445-43b0-9c71-797da1da242b
+Content-Type: application/json
+
+###
+
 POST http://localhost:8888/api/v1/events
 Content-Type: application/json
 
 {
-    "targetId": "12899",
+    "targetId": "121289123",
 	"targetType": {
-		"name": "process"
+		"name": "subscription"
 	},
-	"targetServiceId": "7367322d-056a-4052-a0c4-cfa886fc5d3c",
-	"actorId": "749201",
+	"targetService": {
+		"name": "billing"
+	},
+	"actorId": "749212201",
 	"actorType": {
-		"name": "employee"
+		"name": "user"
 	},
-	"actorServiceId": "35e46ed5-fe56-4445-878e-9c32ae54bfd0",
-    "eventName": "transactionReactivated",
+	"actorService": {
+		"name": "front-end"
+	},
+    "eventName": "transactionActivated",
     "emittedAt": 1578176012,
 	"delta": {
-		"status": ["REVOKED", "REACTIVATE"],
-		"price": [1000, 2000]
+		"status": [null, "ACTIVATED"]
 	}
 }

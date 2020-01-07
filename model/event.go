@@ -7,18 +7,18 @@ import (
 )
 
 type Event struct {
-	ID              string                   `json:"id"`
-	ParentEventID   string                   `json:"parentEventId"`
-	ActorID         string                   `json:"actorId"`
-	ActorType       ActorType                `json:"actorType"`
-	ActorServiceID  string                   `json:"actorServiceId"`
-	TargetID        string                   `json:"targetId"`
-	TargetType      TargetType               `json:"targetType"`
-	TargetServiceID string                   `json:"targetServiceId"`
-	EventName       string                   `json:"eventName"`
-	EmittedAt       int64                    `json:"emittedAt"`
-	RegisteredAt    int64                    `json:"registeredAt"`
-	Delta           map[string][]interface{} `json:"delta"`
+	ID            string                   `json:"id"`
+	ParentEventID string                   `json:"parentEventId"`
+	ActorID       string                   `json:"actorId"`
+	ActorType     ActorType                `json:"actorType"`
+	ActorService  Microservice             `json:"actorService"`
+	TargetID      string                   `json:"targetId"`
+	TargetType    TargetType               `json:"targetType"`
+	TargetService Microservice             `json:"targetService"`
+	EventName     string                   `json:"eventName"`
+	EmittedAt     int64                    `json:"emittedAt"`
+	RegisteredAt  int64                    `json:"registeredAt"`
+	Delta         map[string][]interface{} `json:"delta"`
 }
 
 func (e *Event) Validate(v Validator) ValidationErrors {
@@ -35,11 +35,19 @@ func (e *Event) Validate(v Validator) ValidationErrors {
 	}
 
 	if v.IsEmptyString(e.ActorType.Name) {
-		v.Add("actorType.ID", ":actorType.ID must not be empty")
+		v.Add("actorType.Name", ":actorType.ID must not be empty")
 	}
 
 	if v.IsEmptyString(e.TargetType.Name) {
-		v.Add("targetType.ID", ":targetType.ID must not be empty")
+		v.Add("targetType.Name", ":targetType.ID must not be empty")
+	}
+
+	if v.IsEmptyString(e.ActorService.Name) {
+		v.Add("actorService.Name", ":actorService.Name must not be empty")
+	}
+
+	if v.IsEmptyString(e.TargetService.Name) {
+		v.Add("targetService.Name", ":targetService.Name must not be empty")
 	}
 
 	// TODO: add validation, should not be empty

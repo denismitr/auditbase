@@ -14,7 +14,7 @@ const microservicesSchema = `
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		UNIQUE KEY unique_name (name),
 		INDEX name_index (name)
-	);
+	) ENGINE=INNODB;
 `
 
 const eventsSchema = `
@@ -23,15 +23,31 @@ const eventsSchema = `
 		parent_event_id binary(16) DEFAULT NULL,
 		actor_id VARCHAR(36) NOT NULL,
 		actor_type_id binary(16) NOT NULL,
-		actor_service_id VARCHAR(36) NOT NULL,
+		actor_service_id binary(16) NOT NULL,
 		target_id VARCHAR(36) NOT NULL,
 		target_type_id binary(16),
-		target_service_id VARCHAR(36) NOT NULL,
+		target_service_id binary(16) NOT NULL,
 		event_name VARCHAR(36) NOT NULL,
 		emitted_at TIMESTAMP NOT NULL,
 		registered_at TIMESTAMP NOT NULL,
-		delta JSON DEFAULT NULL
-	);
+		delta JSON DEFAULT NULL,
+
+		FOREIGN KEY (actor_service_id)
+        REFERENCES microservices(id)
+		ON DELETE CASCADE,
+
+		FOREIGN KEY (target_service_id)
+        REFERENCES microservices(id)
+		ON DELETE CASCADE,
+		
+		FOREIGN KEY (actor_type_id)
+        REFERENCES actor_types(id)
+		ON DELETE CASCADE,
+		
+		FOREIGN KEY (target_type_id)
+        REFERENCES target_types(id)
+        ON DELETE CASCADE
+	) ENGINE=INNODB;
 `
 
 const actorTypeSchema = `
@@ -43,7 +59,7 @@ const actorTypeSchema = `
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		UNIQUE KEY unique_name (name),
 		INDEX name_index (name)
-	);
+	) ENGINE=INNODB;
 `
 
 const targetTypeSchema = `
@@ -55,7 +71,7 @@ const targetTypeSchema = `
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		UNIQUE KEY unique_name (name),
 		INDEX name_index (name)
-	);		
+	) ENGINE=INNODB;		
 `
 
 func Scaffold(conn *sqlx.DB) error {
