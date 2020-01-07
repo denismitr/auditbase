@@ -17,10 +17,19 @@ const (
 	AuditLogMessages = "audit_log_messages"
 )
 
-// MQ is the message queu
+// Scaffolder - scaffolds the Message Queue,
+// getting it ready for work
+type Scaffolder interface {
+	DeclareExchange(name, kind string) error
+	DeclareQueue(name string) error
+	Bind(queue, exhange, routingKey string) error
+}
+
+// MQ is the message queue
 type MQ interface {
+	Scaffolder
+
 	Publish(interface{}, delivery) error
-	Declare(name string) error
 	OpenAndKeepConnection() error
 	ListenOnQueue(name string)
 	Consume() <-chan []byte
@@ -59,6 +68,8 @@ func (q *RabbitQueue) Stop() {
 
 func (q *RabbitQueue) Publish(msg interface{}, d delivery) error {
 	ch, err := q.conn.Channel()
+	defer ch.Close()
+
 	if err != nil {
 		return errors.Wrapf(err, "could not publish message to %s with routing key %s", d.Exchange, d.RoutingKey)
 	}
@@ -80,21 +91,73 @@ func (q *RabbitQueue) Publish(msg interface{}, d delivery) error {
 	return nil
 }
 
-func (q *RabbitQueue) Declare(name string) error {
+// DeclareExchange - declares RabbitMQ exchange
+func (q *RabbitQueue) DeclareExchange(name, kind string) error {
+	ch, err := q.conn.Channel()
+	defer ch.Close()
+
+	if err != nil {
+		return errors.Wrap(err, "failed to get a channel from connection")
+	}
+
+	if err := ch.ExchangeDeclare(name, kind, true, false, false, false, nil); err != nil {
+		return errors.Wrapf(err, "failed to declare exchange %s of kind %s", name, kind)
+	}
+
+	return nil
+}
+
+// DeclareQueue - declares a new queue if not exists
+func (q *RabbitQueue) DeclareQueue(name string) error {
+	ch, err := q.conn.Channel()
+	defer ch.Close()
+
+	if err != nil {
+		return errors.Wrap(err, "failed to get a channel from connection")
+	}
+
+	if _, err := ch.QueueDeclare(name, true, false, false, false, nil); err != nil {
+		return errors.Wrapf(err, "failed to declare queue %s", name)
+	}
+
+	return nil
+}
+
+// Bind queue to exchange with routingKey
+func (q *RabbitQueue) Bind(queue, exhange, routingKey string) error {
+	ch, err := q.conn.Channel()
+	defer ch.Close()
+
+	if err != nil {
+		return errors.Wrap(err, "failed to get a channel from connection")
+	}
+
+	if err := ch.QueueBind(queue, routingKey, exhange, false, nil); err != nil {
+		return errors.Wrapf(
+			err,
+			"failed to bind queue %s to exchange %s with routing key %s",
+			queue,
+			routingKey,
+			exhange,
+		)
+	}
+
 	return nil
 }
 
 func (q *RabbitQueue) OpenAndKeepConnection() error {
+	// TODO: implement reconnection - maybe
 	return nil
 }
 
 func (q *RabbitQueue) ListenOnQueue(name string) {
-	c, err := q.conn.Channel()
+	ch, err := q.conn.Channel()
+	defer ch.Close()
 	if err != nil {
-		panic(err)
+		panic(errors.Wrapf(err, "could not get channel for listening queue %s", name))
 	}
 
-	msgs, err := c.Consume(
+	msgs, err := ch.Consume(
 		name,  // queue
 		"",    // consumer
 		true,  // auto-ack
@@ -107,7 +170,9 @@ func (q *RabbitQueue) ListenOnQueue(name string) {
 	if err != nil {
 		panic(err)
 	}
+
 	fmt.Println("Waiting for messages")
+
 	for msg := range msgs {
 		q.receiveCh <- msg.Body
 	}

@@ -38,11 +38,17 @@ func main() {
 
 	exchange := os.Getenv("EVENTS_EXCHANGE")
 	routingKey := os.Getenv("EVENTS_ROUTING_KEY")
+	queueName := os.Getenv("EVENTS_QUEUE_NAME")
+	port := ":" + os.Getenv("REST_API_PORT")
 
-	ee := &queue.DirectEventExchange{MQ: mq, Exchange: exchange, RoutingKey: routingKey}
+	if err := queue.Scaffold(mq, exchange, queueName, routingKey); err != nil {
+		panic(err)
+	}
+
+	ee := queue.NewDirectEventExchange(mq, exchange, queueName, routingKey)
 
 	rest := rest.New(rest.Config{
-		Port: ":" + os.Getenv("REST_API_PORT"),
+		Port: port,
 	}, ee, microservices, events)
 
 	rest.Start()

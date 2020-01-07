@@ -57,7 +57,6 @@ func (c *Consumer) processEvent(e model.Event) {
 		// Refactor to FirstOrCreateByName
 		tt, err := c.targetTypes.FirstByName(e.TargetType.Name)
 		if err != nil {
-			fmt.Println(err)
 			c.logger.Error(err)
 
 			tt = model.TargetType{

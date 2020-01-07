@@ -38,12 +38,11 @@ func main() {
 	routingKey := os.Getenv("EVENTS_ROUTING_KEY")
 	queueName := os.Getenv("EVENTS_QUEUE_NAME")
 
-	ee := &queue.DirectEventExchange{
-		MQ:         mq,
-		Exchange:   exchange,
-		RoutingKey: routingKey,
-		QueueName:  queueName,
+	if err := queue.Scaffold(mq, exchange, queueName, routingKey); err != nil {
+		panic(err)
 	}
+
+	ee := queue.NewDirectEventExchange(mq, exchange, routingKey, queueName)
 
 	consumer := consumer.New(logger, ee, microservices, events, targetTypes, actorTypes)
 

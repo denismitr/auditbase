@@ -12,23 +12,23 @@ POST http://localhost:8888/api/v1/events
 Content-Type: application/json
 
 {
-    "targetId": "121289123",
+    "targetId": "33323",
 	"targetType": {
-		"name": "subscription"
+		"name": "publication"
 	},
 	"targetService": {
-		"name": "billing"
+		"name": "events-service"
 	},
-	"actorId": "749212201",
+	"actorId": "90211201",
 	"actorType": {
-		"name": "user"
+		"name": "promoter"
 	},
 	"actorService": {
-		"name": "front-end"
+		"name": "backoffice"
 	},
-    "eventName": "transactionActivated",
-    "emittedAt": 1578176012,
+    "eventName": "eventDepublished",
+    "emittedAt": 1578173212,
 	"delta": {
-		"status": [null, "ACTIVATED"]
+		"status": ["PUBLISHED", "DEPUBLISHED"]
 	}
 }
