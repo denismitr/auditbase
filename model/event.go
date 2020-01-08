@@ -66,8 +66,3 @@ type EventRepository interface {
 	FindOneByID(string) (Event, error)
 	SelectAll() ([]Event, error)
 }
-
-type EventExchange interface {
-	Publish(Event) error
-	Consume() <-chan Event
-}

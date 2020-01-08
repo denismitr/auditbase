@@ -32,7 +32,7 @@ type MQ interface {
 	Publish(interface{}, delivery) error
 	OpenAndKeepConnection() error
 	ListenOnQueue(name string)
-	Consume() <-chan []byte
+	Consume() <-chan ReceivedMessage
 	Stop()
 }
 
@@ -43,7 +43,7 @@ type RabbitQueue struct {
 	logger    *logrus.Logger
 	stopCh    chan struct{}
 	errorCh   chan error
-	receiveCh chan []byte
+	receiveCh chan ReceivedMessage
 
 	maxConnRetries int
 
@@ -56,14 +56,14 @@ func NewRabbitQueue(dsn string, logger *logrus.Logger, maxConnRetries int) *Rabb
 		conn:           nil,
 		logger:         logger,
 		stopCh:         make(chan struct{}),
-		receiveCh:      make(chan []byte),
+		receiveCh:      make(chan ReceivedMessage),
 		maxConnRetries: maxConnRetries,
 		mu:             &sync.RWMutex{},
 	}
 }
 
 func (q *RabbitQueue) Stop() {
-
+	close(q.stopCh)
 }
 
 func (q *RabbitQueue) Publish(msg interface{}, d delivery) error {
@@ -150,9 +150,12 @@ func (q *RabbitQueue) OpenAndKeepConnection() error {
 	return nil
 }
 
+// ListenOnQueue and consume messages sending them
+// to receiveCh
 func (q *RabbitQueue) ListenOnQueue(name string) {
 	ch, err := q.conn.Channel()
 	defer ch.Close()
+
 	if err != nil {
 		panic(errors.Wrapf(err, "could not get channel for listening queue %s", name))
 	}
@@ -160,7 +163,7 @@ func (q *RabbitQueue) ListenOnQueue(name string) {
 	msgs, err := ch.Consume(
 		name,  // queue
 		"",    // consumer
-		true,  // auto-ack
+		false, // auto-ack
 		false, // exclusive
 		false, // no-local
 		false, // no-wait
@@ -174,14 +177,17 @@ func (q *RabbitQueue) ListenOnQueue(name string) {
 	fmt.Println("Waiting for messages")
 
 	for msg := range msgs {
-		q.receiveCh <- msg.Body
+		q.receiveCh <- newRabbitMQReceivedMessage(name, msg)
 	}
 }
 
-func (q *RabbitQueue) Consume() <-chan []byte {
+// Consume returns chan of ReceivedMessages
+func (q *RabbitQueue) Consume() <-chan ReceivedMessage {
 	return q.receiveCh
 }
 
+// WaitForConnection waits for RabbitMQ to start up
+// and makes attempts to connect to irt
 func (q *RabbitQueue) WaitForConnection() {
 	attempt := 1
 
@@ -192,7 +198,7 @@ func (q *RabbitQueue) WaitForConnection() {
 		if err != nil {
 			log.Printf("\nattempt %d failed: %s", attempt, err)
 			attempt++
-			time.Sleep(5 * time.Second)
+			time.Sleep(5 * time.Second * time.Duration(attempt))
 			continue
 		}
 

@@ -2,6 +2,7 @@ package rest
 
 import (
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/queue"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
@@ -9,7 +10,7 @@ import (
 type eventsController struct {
 	logger   echo.Logger
 	events   model.EventRepository
-	exchange model.EventExchange
+	exchange queue.EventExchange
 }
 
 func (ec *eventsController) CreateEvent(ctx echo.Context) error {

@@ -1,10 +1,6 @@
 package queue
 
-import (
-	"encoding/json"
-
-	"github.com/pkg/errors"
-)
+import "github.com/streadway/amqp"
 
 type Message interface {
 	Body() ([]byte, error)
@@ -17,33 +13,37 @@ type delivery struct {
 	IsPeristent bool
 }
 
-type QueueMessage struct {
-	Namespace     string                 `json:"namespace"`
-	ActorID       string                 `json:"actorId"`
-	ActorType     string                 `json:"actorType"`
-	ActorService  string                 `json:"actorService"`
-	TargetID      string                 `json:"targetId"`
-	TargetType    string                 `json:"targetType"`
-	TargetService string                 `json:"targetService"`
-	Operation     string                 `json:"operation"`
-	EmittedAt     string                 `json:"emittedAt"`
-	Delta         map[string]interface{} `json:"delta"`
+type ReceivedMessage interface {
+	Body() []byte
+	Queue() string
+	Ack() error
+	Reject(requeue bool) error
 }
 
-type ReceivedMessage struct {
-	Queue   string
-	Message QueueMessage
+type RabbitMQReceivedMessage struct {
+	queueName string
+	msg       amqp.Delivery
 }
 
-func (m QueueMessage) ContentType() string {
-	return "application/json"
+func (m *RabbitMQReceivedMessage) Queue() string {
+	return m.queueName
 }
 
-func (m QueueMessage) Body() ([]byte, error) {
-	b, err := json.Marshal(m)
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not serialize message body in namespace %s", m.Namespace)
+func (m *RabbitMQReceivedMessage) Body() []byte {
+	return m.msg.Body
+}
+
+func (m *RabbitMQReceivedMessage) Ack() error {
+	return m.msg.Ack(false)
+}
+
+func (m *RabbitMQReceivedMessage) Reject(requeue bool) error {
+	return m.msg.Reject(requeue)
+}
+
+func newRabbitMQReceivedMessage(queueName string, msg amqp.Delivery) *RabbitMQReceivedMessage {
+	return &RabbitMQReceivedMessage{
+		queueName: queueName,
+		msg:       msg,
 	}
-
-	return b, nil
 }

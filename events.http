@@ -32,3 +32,31 @@ Content-Type: application/json
 		"status": ["PUBLISHED", "DEPUBLISHED"]
 	}
 }
+
+###
+
+POST http://localhost:8888/api/v1/events
+Content-Type: application/json
+
+{
+	"id": "64e1d8fb-b065-436d-afd0-5fbcb752a4e2",
+    "targetId": "12345",
+	"targetType": {
+		"name": "subscription"
+	},
+	"targetService": {
+		"name": "billing"
+	},
+	"actorId": "999999",
+	"actorType": {
+		"name": "promoter"
+	},
+	"actorService": {
+		"name": "backoffice"
+	},
+    "eventName": "subscriptionAcquired",
+    "emittedAt": 1578173212,
+	"delta": {
+		"status": [null, "ACTIVATED"]
+	}
+}

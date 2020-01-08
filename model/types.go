@@ -19,9 +19,11 @@ type TargetType struct {
 type TargetTypeRepository interface {
 	Create(TargetType) error
 	FirstByName(string) (TargetType, error)
+	FirstByID(string) (TargetType, error)
 }
 
 type ActorTypeRepository interface {
 	Create(ActorType) error
 	FirstByName(string) (ActorType, error)
+	FirstByID(string) (ActorType, error)
 }

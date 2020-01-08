@@ -84,6 +84,24 @@ func (r *TargetTypeRepository) FirstByName(name string) (model.TargetType, error
 	return tt.ToModel(), nil
 }
 
+func (r *TargetTypeRepository) FirstByID(ID string) (model.TargetType, error) {
+	stmt := `
+		SELECT 
+			BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
+		FROM target_types
+			WHERE id = UUID_TO_BIN(?)
+		LIMIT 1
+	`
+
+	tt := targetType{}
+
+	if err := r.Conn.Get(&tt, stmt, ID); err != nil {
+		return tt.ToModel(), errors.Wrapf(err, "could not find target type with ID %s", ID)
+	}
+
+	return tt.ToModel(), nil
+}
+
 type ActorTypeRepository struct {
 	Conn *sqlx.DB
 }
@@ -121,6 +139,24 @@ func (r *ActorTypeRepository) FirstByName(name string) (model.ActorType, error) 
 
 	if err := r.Conn.Get(&at, stmt, name); err != nil {
 		return at.ToModel(), errors.Wrapf(err, "could not find actor type with name %s", name)
+	}
+
+	return at.ToModel(), nil
+}
+
+func (r *ActorTypeRepository) FirstByID(ID string) (model.ActorType, error) {
+	stmt := `
+		SELECT 
+			BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
+		FROM actor_types
+			WHERE id = UUID_TO_BIN(?)
+		LIMIT 1
+	`
+
+	at := actorType{}
+
+	if err := r.Conn.Get(&at, stmt, ID); err != nil {
+		return at.ToModel(), errors.Wrapf(err, "could not find actor type with ID %s", ID)
 	}
 
 	return at.ToModel(), nil

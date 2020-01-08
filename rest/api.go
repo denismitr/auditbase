@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/queue"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
@@ -16,7 +17,7 @@ type API struct {
 	cfg Config
 }
 
-func New(cfg Config, ee model.EventExchange, mr model.MicroserviceRepository, er model.EventRepository) *API {
+func New(cfg Config, ee queue.EventExchange, mr model.MicroserviceRepository, er model.EventRepository) *API {
 	e := echo.New()
 
 	e.Use(middleware.BodyLimit("250K"))

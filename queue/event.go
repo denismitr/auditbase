@@ -1,11 +1,7 @@
 package queue
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/denismitr/auditbase/model"
-	"github.com/labstack/gommon/log"
 	"github.com/pkg/errors"
 )
 
@@ -16,6 +12,12 @@ type DirectEventExchange struct {
 	QueueName  string
 }
 
+type EventExchange interface {
+	Publish(model.Event) error
+	Consume() <-chan ReceivedMessage
+}
+
+// Publish event
 func (ex *DirectEventExchange) Publish(e model.Event) error {
 	d := delivery{Exchange: ex.Exchange, RoutingKey: ex.RoutingKey}
 
@@ -26,26 +28,11 @@ func (ex *DirectEventExchange) Publish(e model.Event) error {
 	return nil
 }
 
-func (e *DirectEventExchange) Consume() <-chan model.Event {
-	go e.MQ.ListenOnQueue(e.QueueName)
+// Consume messages
+func (ex *DirectEventExchange) Consume() <-chan ReceivedMessage {
+	go ex.MQ.ListenOnQueue(ex.QueueName)
 
-	ch := make(chan model.Event)
-
-	go func() {
-		defer log.Error("Whoops!")
-		for b := range e.MQ.Consume() {
-			evt := model.Event{}
-			if err := json.Unmarshal(b, &evt); err != nil {
-				log.Error(err)
-				continue
-			}
-			fmt.Println("Received message from QUEUE")
-			ch <- evt
-			fmt.Println("Sent message to consumer")
-		}
-	}()
-
-	return ch
+	return ex.MQ.Consume()
 }
 
 func NewDirectEventExchange(
@@ -62,6 +49,7 @@ func NewDirectEventExchange(
 	}
 }
 
+// Scaffold RabbitMQ exchange, queue and binding
 func Scaffold(s Scaffolder, exchange, queue, routingKey string) error {
 	if err := s.DeclareExchange(exchange, "direct"); err != nil {
 		return errors.Wrap(err, "could not scaffold DirectEventExchange on exchage declaration")
