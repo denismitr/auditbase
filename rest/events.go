@@ -22,11 +22,16 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 
 	v := model.NewValidator()
 	errors := e.Validate(v)
-	if errors.HasErrors() {
+	if errors.NotEmpty() {
 		return ctx.JSON(validationFailed(errors, "event object validation failed"))
 	}
 
-	if err := ec.exchange.Publish(e); err != nil {
+	msg, err := queue.NewJSONMessage(e)
+	if err != nil {
+		return ctx.JSON(badRequest(err))
+	}
+
+	if err := ec.exchange.Publish(msg); err != nil {
 		return ctx.JSON(internalError(err))
 	}
 

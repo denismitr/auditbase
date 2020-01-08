@@ -1,27 +1,23 @@
 package queue
 
 import (
-	"github.com/denismitr/auditbase/model"
 	"github.com/pkg/errors"
 )
 
 type DirectEventExchange struct {
-	MQ         MQ
-	Exchange   string
-	RoutingKey string
-	QueueName  string
+	mq MQ
+	d  Delivery
 }
 
 type EventExchange interface {
-	Publish(model.Event) error
+	Publish(Message) error
 	Consume() <-chan ReceivedMessage
 }
 
 // Publish event
-func (ex *DirectEventExchange) Publish(e model.Event) error {
-	d := delivery{Exchange: ex.Exchange, RoutingKey: ex.RoutingKey}
+func (ex *DirectEventExchange) Publish(msg Message) error {
 
-	if err := ex.MQ.Publish(e, d); err != nil {
+	if err := ex.mq.Publish(msg, ex.d); err != nil {
 		return err
 	}
 
@@ -30,36 +26,29 @@ func (ex *DirectEventExchange) Publish(e model.Event) error {
 
 // Consume messages
 func (ex *DirectEventExchange) Consume() <-chan ReceivedMessage {
-	go ex.MQ.ListenOnQueue(ex.QueueName)
+	go ex.mq.ListenOnQueue(ex.d.Queue)
 
-	return ex.MQ.Consume()
+	return ex.mq.Consume()
 }
 
-func NewDirectEventExchange(
-	mq MQ,
-	exchange string,
-	queueName string,
-	routingKey string,
-) *DirectEventExchange {
+func NewDirectEventExchange(mq MQ, d Delivery) *DirectEventExchange {
 	return &DirectEventExchange{
-		MQ:         mq,
-		Exchange:   exchange,
-		RoutingKey: routingKey,
-		QueueName:  queueName,
+		mq: mq,
+		d:  d,
 	}
 }
 
 // Scaffold RabbitMQ exchange, queue and binding
-func Scaffold(s Scaffolder, exchange, queue, routingKey string) error {
-	if err := s.DeclareExchange(exchange, "direct"); err != nil {
+func (ex *DirectEventExchange) Scaffold() error {
+	if err := ex.mq.DeclareExchange(ex.d.Exchange, ex.d.ExchangeType); err != nil {
 		return errors.Wrap(err, "could not scaffold DirectEventExchange on exchage declaration")
 	}
 
-	if err := s.DeclareQueue(queue); err != nil {
+	if err := ex.mq.DeclareQueue(ex.d.Queue); err != nil {
 		return errors.Wrap(err, "could not scaffold DirectEventExchange on queue declaration")
 	}
 
-	if err := s.Bind(queue, exchange, routingKey); err != nil {
+	if err := ex.mq.Bind(ex.d.Queue, ex.d.Exchange, ex.d.RoutingKey); err != nil {
 		return errors.Wrap(err, "could not scaffold DirectEventExchange on queue binding")
 	}
 

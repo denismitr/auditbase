@@ -29,7 +29,7 @@ type Scaffolder interface {
 type MQ interface {
 	Scaffolder
 
-	Publish(interface{}, delivery) error
+	Publish(Message, Delivery) error
 	OpenAndKeepConnection() error
 	ListenOnQueue(name string)
 	Consume() <-chan ReceivedMessage
@@ -62,11 +62,13 @@ func NewRabbitQueue(dsn string, logger *logrus.Logger, maxConnRetries int) *Rabb
 	}
 }
 
+// Stop all the interaction with the Queue
 func (q *RabbitQueue) Stop() {
 	close(q.stopCh)
 }
 
-func (q *RabbitQueue) Publish(msg interface{}, d delivery) error {
+// Publish message to Queue
+func (q *RabbitQueue) Publish(msg Message, d Delivery) error {
 	ch, err := q.conn.Channel()
 	defer ch.Close()
 

@@ -12,7 +12,7 @@ var (
 
 type ValidationErrors map[string][]string
 
-func (e ValidationErrors) HasErrors() bool {
+func (e ValidationErrors) NotEmpty() bool {
 	return len(e) > 0
 }
 

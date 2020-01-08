@@ -1,16 +1,36 @@
 package queue
 
-import "github.com/streadway/amqp"
+import (
+	"encoding/json"
+
+	"github.com/pkg/errors"
+	"github.com/streadway/amqp"
+)
 
 type Message interface {
-	Body() ([]byte, error)
+	Body() []byte
 	ContentType() string
 }
 
-type delivery struct {
-	Exchange    string
-	RoutingKey  string
-	IsPeristent bool
+type JSONMessage struct {
+	body []byte
+}
+
+func (m *JSONMessage) Body() []byte {
+	return m.body
+}
+
+func (m *JSONMessage) ContentType() string {
+	return "application/json"
+}
+
+func NewJSONMessage(v interface{}) (*JSONMessage, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create JSON queue message")
+	}
+
+	return &JSONMessage{b}, nil
 }
 
 type ReceivedMessage interface {

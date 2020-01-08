@@ -41,11 +41,12 @@ func main() {
 	queueName := os.Getenv("EVENTS_QUEUE_NAME")
 	port := ":" + os.Getenv("REST_API_PORT")
 
-	if err := queue.Scaffold(mq, exchange, queueName, routingKey); err != nil {
+	d := queue.NewDelivery(queueName, exchange, routingKey, "direct", true)
+	ee := queue.NewDirectEventExchange(mq, d)
+
+	if err := ee.Scaffold(); err != nil {
 		panic(err)
 	}
-
-	ee := queue.NewDirectEventExchange(mq, exchange, queueName, routingKey)
 
 	rest := rest.New(rest.Config{
 		Port: port,
