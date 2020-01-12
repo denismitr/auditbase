@@ -3,7 +3,8 @@ package rest
 import "strings"
 
 type Config struct {
-	Port string
+	Port      string
+	BodyLimit string
 }
 
 func ResolvePort(port string) string {

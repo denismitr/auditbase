@@ -10,6 +10,7 @@ COPY cmd/consumer ./cmd/consumer
 COPY consumer/ ./consumer
 COPY queue/ ./queue
 COPY model/ ./model
+COPY flow/ ./flow
 COPY utils/ ./utils
 COPY sql/ ./sql
 COPY .env ./

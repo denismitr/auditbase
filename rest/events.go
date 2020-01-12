@@ -1,16 +1,28 @@
 package rest
 
 import (
+	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/queue"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
 
 type eventsController struct {
-	logger   echo.Logger
-	events   model.EventRepository
-	exchange queue.EventExchange
+	logger echo.Logger
+	events model.EventRepository
+	ef     flow.EventFlow
+}
+
+func newEventsController(
+	l echo.Logger,
+	events model.EventRepository,
+	ef flow.EventFlow,
+) *eventsController {
+	return &eventsController{
+		logger: l,
+		events: events,
+		ef:     ef,
+	}
 }
 
 func (ec *eventsController) CreateEvent(ctx echo.Context) error {
@@ -21,12 +33,13 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 	}
 
 	v := model.NewValidator()
+
 	errors := e.Validate(v)
 	if errors.HasErrors() {
 		return ctx.JSON(validationFailed(errors, "event object validation failed"))
 	}
 
-	if err := ec.exchange.Publish(e); err != nil {
+	if err := ec.ef.Send(e); err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
@@ -55,6 +68,17 @@ func (ec *eventsController) GetEvent(ctx echo.Context) error {
 
 	return ctx.JSON(200, map[string]interface{}{
 		"data": event,
+	})
+}
+
+func (ec *eventsController) Count(ctx echo.Context) error {
+	count, err := ec.events.Count()
+	if err != nil {
+		return ctx.JSON(notFound(err))
+	}
+
+	return ctx.JSON(200, map[string]interface{}{
+		"data": map[string]int{"count": count},
 	})
 }
 

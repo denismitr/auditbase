@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"encoding/json"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -22,70 +20,66 @@ const (
 type Scaffolder interface {
 	DeclareExchange(name, kind string) error
 	DeclareQueue(name string) error
-	Bind(queue, exhange, routingKey string) error
+	Bind(queue, exchange, routingKey string) error
 }
 
 // MQ is the message queue
 type MQ interface {
 	Scaffolder
 
-	Publish(interface{}, delivery) error
-	OpenAndKeepConnection() error
-	ListenOnQueue(name string)
-	Consume() <-chan ReceivedMessage
+	Publish(msg Message, exchange, routingKey string) error
+	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
 	Stop()
 }
 
 // RabbitQueue handles message queue
 type RabbitQueue struct {
-	dsn       string
-	conn      *amqp.Connection
-	logger    *logrus.Logger
-	stopCh    chan struct{}
-	errorCh   chan error
-	receiveCh chan ReceivedMessage
+	dsn     string
+	conn    *amqp.Connection
+	logger  *logrus.Logger
+	stopCh  chan struct{}
+	errorCh chan error
 
 	maxConnRetries int
 
 	mu *sync.RWMutex
 }
 
+// NewRabbitQueue - creates a new message queue with RabbitMQ implementation
 func NewRabbitQueue(dsn string, logger *logrus.Logger, maxConnRetries int) *RabbitQueue {
 	return &RabbitQueue{
 		dsn:            dsn,
 		conn:           nil,
 		logger:         logger,
 		stopCh:         make(chan struct{}),
-		receiveCh:      make(chan ReceivedMessage),
 		maxConnRetries: maxConnRetries,
 		mu:             &sync.RWMutex{},
 	}
 }
 
+// Stop the MessageQueue
 func (q *RabbitQueue) Stop() {
 	close(q.stopCh)
 }
 
-func (q *RabbitQueue) Publish(msg interface{}, d delivery) error {
+// Publish message to message queue
+func (q *RabbitQueue) Publish(msg Message, exchange, routingKey string) error {
 	ch, err := q.conn.Channel()
 	defer ch.Close()
 
 	if err != nil {
-		return errors.Wrapf(err, "could not publish message to %s with routing key %s", d.Exchange, d.RoutingKey)
-	}
-
-	b, err := json.Marshal(msg)
-	if err != nil {
-		return errors.Wrapf(err, "failed to convert message to JSON before sending to RabbitMQ")
+		return errors.Wrapf(
+			err, "could not publish message to %s with routing key %s", exchange, routingKey)
 	}
 
 	p := amqp.Publishing{
-		ContentType: "application/json",
-		Body:        b,
+		ContentType: msg.ContentType(),
+		Body:        msg.Body(),
 	}
 
-	if err := ch.Publish(d.Exchange, d.RoutingKey, false, false, p); err != nil {
-		return errors.Wrapf(err, "failed to send message to exchange %s with routing key %s", d.Exchange, d.RoutingKey)
+	if err := ch.Publish(exchange, routingKey, false, false, p); err != nil {
+		return errors.Wrapf(
+			err, "failed to send message to exchange %s with routing key %s", exchange, routingKey)
 	}
 
 	return nil
@@ -124,7 +118,7 @@ func (q *RabbitQueue) DeclareQueue(name string) error {
 }
 
 // Bind queue to exchange with routingKey
-func (q *RabbitQueue) Bind(queue, exhange, routingKey string) error {
+func (q *RabbitQueue) Bind(queue, exchange, routingKey string) error {
 	ch, err := q.conn.Channel()
 	defer ch.Close()
 
@@ -132,42 +126,37 @@ func (q *RabbitQueue) Bind(queue, exhange, routingKey string) error {
 		return errors.Wrap(err, "failed to get a channel from connection")
 	}
 
-	if err := ch.QueueBind(queue, routingKey, exhange, false, nil); err != nil {
+	if err := ch.QueueBind(queue, routingKey, exchange, false, nil); err != nil {
 		return errors.Wrapf(
 			err,
 			"failed to bind queue %s to exchange %s with routing key %s",
 			queue,
 			routingKey,
-			exhange,
+			exchange,
 		)
 	}
 
 	return nil
 }
 
-func (q *RabbitQueue) OpenAndKeepConnection() error {
-	// TODO: implement reconnection - maybe
-	return nil
-}
-
-// ListenOnQueue and consume messages sending them
+// Subscribe and consume messages sending them
 // to receiveCh
-func (q *RabbitQueue) ListenOnQueue(name string) {
+func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage) {
 	ch, err := q.conn.Channel()
 	defer ch.Close()
 
 	if err != nil {
-		panic(errors.Wrapf(err, "could not get channel for listening queue %s", name))
+		panic(errors.Wrapf(err, "could not get channel for listening queue %s", queue))
 	}
 
 	msgs, err := ch.Consume(
-		name,  // queue
-		"",    // consumer
-		false, // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,   // args
+		queue,    // queue
+		consumer, // consumer
+		false,    // auto-ack
+		false,    // exclusive
+		false,    // no-local
+		false,    // no-wait
+		nil,      // args
 	)
 
 	if err != nil {
@@ -176,14 +165,14 @@ func (q *RabbitQueue) ListenOnQueue(name string) {
 
 	fmt.Println("Waiting for messages")
 
-	for msg := range msgs {
-		q.receiveCh <- newRabbitMQReceivedMessage(name, msg)
+	for {
+		select {
+		case msg := <-msgs:
+			receiveCh <- newRabbitMQReceivedMessage(queue, msg)
+		case <-q.stopCh:
+			close(receiveCh)
+		}
 	}
-}
-
-// Consume returns chan of ReceivedMessages
-func (q *RabbitQueue) Consume() <-chan ReceivedMessage {
-	return q.receiveCh
 }
 
 // WaitForConnection waits for RabbitMQ to start up
