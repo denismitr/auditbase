@@ -2,6 +2,7 @@ package rest
 
 import (
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
@@ -26,7 +27,7 @@ func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
 	}
 
 	if m.ID == "" {
-		m.ID = uuid4()
+		m.ID = utils.UUID4()
 	}
 
 	if err := mc.microservices.Create(m); err != nil {

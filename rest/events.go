@@ -35,7 +35,7 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 	v := model.NewValidator()
 
 	errors := e.Validate(v)
-	if errors.HasErrors() {
+	if !errors.IsEmpty() {
 		return ctx.JSON(validationFailed(errors, "event object validation failed"))
 	}
 
