@@ -1,10 +1,10 @@
 package consumer
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"sync"
 
+	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/utils"
@@ -12,85 +12,106 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type StopFunc func(ctx context.Context) error
+
 type Consumer struct {
 	logger        *logrus.Logger
-	exchange      queue.EventExchange
+	f             flow.EventFlow
 	microservices model.MicroserviceRepository
 	events        model.EventRepository
 	targetTypes   model.TargetTypeRepository
 	actorTypes    model.ActorTypeRepository
+
+	receiveCh chan queue.ReceivedMessage
+	stopCh    chan struct{}
 }
 
 func New(
+	f flow.EventFlow,
 	l *logrus.Logger,
-	ee queue.EventExchange,
+	mq queue.MQ,
 	ms model.MicroserviceRepository,
 	evt model.EventRepository,
 	tts model.TargetTypeRepository,
 	ats model.ActorTypeRepository,
 ) *Consumer {
 	return &Consumer{
+		f:             f,
 		logger:        l,
-		exchange:      ee,
 		microservices: ms,
 		events:        evt,
 		targetTypes:   tts,
 		actorTypes:    ats,
+		receiveCh:     make(chan queue.ReceivedMessage),
+		stopCh:        make(chan struct{}),
 	}
 }
 
 // Start consumer
-func (c *Consumer) Start() error {
-	var wg sync.WaitGroup
-
-	wg.Add(1)
+func (c *Consumer) Start(consumerName string) StopFunc {
+	events := c.f.Receive(consumerName)
 
 	go func() {
-		for e := range c.exchange.Consume() {
-			go c.processEvent(e)
+		for {
+			select {
+			case e := <-events:
+				go c.processEvent(e)
+			case <-c.stopCh:
+				c.f.Stop()
+				return
+			}
 		}
-		wg.Done()
 	}()
 
-	wg.Wait()
+	return func(ctx context.Context) error {
+		close(c.stopCh)
 
-	return nil
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-c.receiveCh:
+			return nil
+		}
+	}
 }
 
-func (c *Consumer) processEvent(msg queue.ReceivedMessage) {
-	e := model.Event{}
+func (c *Consumer) processEvent(re flow.ReceivedEvent) {
+	if re == nil {
+		return
+	}
 
-	if err := json.Unmarshal(msg.Body(), &e); err != nil {
-		c.handleFailedMsg(msg, err)
+	e, err := re.Event()
+	if err != nil {
+		c.handleFailedEvent(re, err)
 		return
 	}
 
 	if err := c.assignActorTypeTo(&e); err != nil {
-		c.handleFailedMsg(msg, err)
+		c.handleFailedEvent(re, err)
 		return
 	}
 
 	if err := c.assignActorServiceTo(&e); err != nil {
-		c.handleFailedMsg(msg, err)
+		c.handleFailedEvent(re, err)
 		return
 	}
 
 	if err := c.assignTargetTypeTo(&e); err != nil {
-		c.handleFailedMsg(msg, err)
+		c.handleFailedEvent(re, err)
 		return
 	}
 
 	if err := c.assignTargetServiceTo(&e); err != nil {
-		c.handleFailedMsg(msg, err)
+		c.handleFailedEvent(re, err)
 		return
 	}
 
 	if err := c.events.Create(e); err != nil {
-		c.handleFailedMsg(msg, err)
+		c.handleFailedEvent(re, err)
 		return
 	}
 
-	msg.Ack()
+	re.Ack()
 }
 
 func (c *Consumer) assignTargetTypeTo(e *model.Event) error {
@@ -207,8 +228,8 @@ func (c *Consumer) assignActorServiceTo(e *model.Event) error {
 	return nil
 }
 
-func (c *Consumer) handleFailedMsg(msg queue.ReceivedMessage, err error) {
+func (c *Consumer) handleFailedEvent(re flow.ReceivedEvent, err error) {
 	fmt.Println(err)
 	c.logger.Error(err)
-	msg.Reject(false)
+	re.Reject()
 }

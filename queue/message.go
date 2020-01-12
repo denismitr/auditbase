@@ -1,16 +1,30 @@
 package queue
 
-import "github.com/streadway/amqp"
+import (
+	"github.com/streadway/amqp"
+)
 
 type Message interface {
-	Body() ([]byte, error)
+	Body() []byte
 	ContentType() string
 }
 
-type delivery struct {
-	Exchange    string
-	RoutingKey  string
-	IsPeristent bool
+type JSONMessage struct {
+	body []byte
+}
+
+func NewJSONMessage(b []byte) *JSONMessage {
+	return &JSONMessage{
+		body: b,
+	}
+}
+
+func (e *JSONMessage) Body() []byte {
+	return e.body
+}
+
+func (e *JSONMessage) ContentType() string {
+	return "application/json"
 }
 
 type ReceivedMessage interface {

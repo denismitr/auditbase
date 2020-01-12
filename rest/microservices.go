@@ -11,6 +11,13 @@ type microservicesController struct {
 	microservices model.MicroserviceRepository
 }
 
+func newMicroservicesController(l echo.Logger, m model.MicroserviceRepository) *microservicesController {
+	return &microservicesController{
+		logger:        l,
+		microservices: m,
+	}
+}
+
 func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
 	m := model.Microservice{}
 

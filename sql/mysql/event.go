@@ -118,6 +118,17 @@ func (r *EventRepository) Delete(ID string) error {
 	return nil
 }
 
+func (r *EventRepository) Count() (int, error) {
+	stmt := `SELECT COUNT(*) FROM events`
+	var count int
+
+	if err := r.Conn.Get(&count, stmt); err != nil {
+		return 0, errors.Wrap(err, "could not count events")
+	}
+
+	return count, nil
+}
+
 func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 	stmt := selectEvents + " WHERE e.id = UUID_TO_BIN(?)"
 

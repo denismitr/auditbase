@@ -11,6 +11,7 @@ COPY rest/ ./rest
 COPY queue/ ./queue
 COPY model/ ./model
 COPY utils/ ./utils
+COPY flow/ ./flow
 COPY sql/ ./sql
 COPY .env ./
 

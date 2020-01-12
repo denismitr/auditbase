@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/denismitr/auditbase/consumer"
+	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/sql/mysql"
 	"github.com/jmoiron/sqlx"
@@ -37,16 +40,45 @@ func main() {
 	exchange := os.Getenv("EVENTS_EXCHANGE")
 	routingKey := os.Getenv("EVENTS_ROUTING_KEY")
 	queueName := os.Getenv("EVENTS_QUEUE_NAME")
+	exchangeType := os.Getenv("EVENTS_EXCHANGE_TYPE")
 
-	if err := queue.Scaffold(mq, exchange, queueName, routingKey); err != nil {
+	cfg := flow.NewConfig(exchange, exchangeType, routingKey, queueName, true)
+	ef := flow.NewMQEventFlow(mq, cfg)
+
+	if err := ef.Scaffold(); err != nil {
 		panic(err)
 	}
 
-	ee := queue.NewDirectEventExchange(mq, exchange, routingKey, queueName)
+	consumer := consumer.New(
+		ef,
+		logger,
+		mq,
+		microservices,
+		events,
+		targetTypes,
+		actorTypes)
 
-	consumer := consumer.New(logger, ee, microservices, events, targetTypes, actorTypes)
+	quit := make(chan os.Signal, 1)
+	done := make(chan struct{})
+	signal.Notify(quit, os.Interrupt)
+	stop := consumer.Start("event_consumer")
 
-	consumer.Start()
+	go gracefulShutdown(quit, done, stop)
+
+	<-done
+}
+
+func gracefulShutdown(quit chan os.Signal, done chan struct{}, stop consumer.StopFunc) {
+	<-quit
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	stop(ctx)
+
+	close(done)
+
+	fmt.Println("Graceful shutdown is done")
 }
 
 func loadEnvVars() {

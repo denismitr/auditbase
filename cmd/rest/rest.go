@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/rest"
 	"github.com/denismitr/auditbase/sql/mysql"
@@ -39,17 +40,20 @@ func main() {
 	exchange := os.Getenv("EVENTS_EXCHANGE")
 	routingKey := os.Getenv("EVENTS_ROUTING_KEY")
 	queueName := os.Getenv("EVENTS_QUEUE_NAME")
+	exchangeType := os.Getenv("EVENTS_EXCHANGE_TYPE")
 	port := ":" + os.Getenv("REST_API_PORT")
 
-	if err := queue.Scaffold(mq, exchange, queueName, routingKey); err != nil {
+	cfg := flow.NewConfig(exchange, exchangeType, routingKey, queueName, true)
+	ef := flow.NewMQEventFlow(mq, cfg)
+
+	if err := ef.Scaffold(); err != nil {
 		panic(err)
 	}
 
-	ee := queue.NewDirectEventExchange(mq, exchange, queueName, routingKey)
-
 	rest := rest.New(rest.Config{
-		Port: port,
-	}, ee, microservices, events)
+		Port:      port,
+		BodyLimit: "250K",
+	}, ef, microservices, events)
 
 	rest.Start()
 }

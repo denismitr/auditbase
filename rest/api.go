@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/queue"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
@@ -17,23 +17,20 @@ type API struct {
 	cfg Config
 }
 
-func New(cfg Config, ee queue.EventExchange, mr model.MicroserviceRepository, er model.EventRepository) *API {
+func New(
+	cfg Config,
+	ef flow.EventFlow,
+	mr model.MicroserviceRepository,
+	er model.EventRepository,
+) *API {
 	e := echo.New()
 
-	e.Use(middleware.BodyLimit("250K"))
+	e.Use(middleware.BodyLimit(cfg.BodyLimit))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	mc := microservicesController{
-		logger:        e.Logger,
-		microservices: mr,
-	}
-
-	ec := eventsController{
-		logger:   e.Logger,
-		events:   er,
-		exchange: ee,
-	}
+	mc := newMicroservicesController(e.Logger, mr)
+	ec := newEventsController(e.Logger, er, ef)
 
 	// Microservices
 	e.GET("/api/v1/microservices", mc.SelectMicroservices)
@@ -44,6 +41,7 @@ func New(cfg Config, ee queue.EventExchange, mr model.MicroserviceRepository, er
 	// Events
 	e.POST("/api/v1/events", ec.CreateEvent)
 	e.GET("/api/v1/events", ec.SelectEvents)
+	e.GET("/api/v1/events/count", ec.Count)
 	e.DELETE("/api/v1/events/:id", ec.DeleteEvent)
 	e.GET("/api/v1/events/:id", ec.GetEvent)
 
