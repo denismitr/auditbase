@@ -82,6 +82,20 @@ func (ec *eventsController) Count(ctx echo.Context) error {
 	})
 }
 
+func (ec *eventsController) Inspect(ctx echo.Context) error {
+	messages, consumers, err := ec.ef.Inspect()
+	if err != nil {
+		return ctx.JSON(internalError(err))
+	}
+
+	i := inspectResource{
+		Messages:  messages,
+		Consumers: consumers,
+	}
+
+	return ctx.JSON(200, i.ToJSON())
+}
+
 func (ec *eventsController) DeleteEvent(ctx echo.Context) error {
 	ID := ctx.Param("id")
 	err := ec.events.Delete(ID)

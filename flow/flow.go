@@ -12,6 +12,7 @@ import (
 type EventFlow interface {
 	Send(e model.Event) error
 	Receive(consumer string) <-chan ReceivedEvent
+	Inspect() (int, int, error)
 	Scaffold() error
 	Stop() error
 }
@@ -65,6 +66,19 @@ func (ef *MQEventFlow) Receive(consumer string) <-chan ReceivedEvent {
 	return ef.eventCh
 }
 
+func (ef *MQEventFlow) Inspect() (messages int, consumers int, err error) {
+	i, err := ef.mq.Inspect(ef.cfg.QueueName)
+	if err != nil {
+		return
+	}
+
+	messages = i.Messages
+	consumers = i.Consumers
+
+	return
+}
+
+// Stop event flow
 func (ef *MQEventFlow) Stop() error {
 	close(ef.stopCh)
 	return nil

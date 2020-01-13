@@ -42,6 +42,7 @@ func New(
 	e.POST("/api/v1/events", ec.CreateEvent)
 	e.GET("/api/v1/events", ec.SelectEvents)
 	e.GET("/api/v1/events/count", ec.Count)
+	e.GET("/api/v1/events/queue", ec.Inspect)
 	e.DELETE("/api/v1/events/:id", ec.DeleteEvent)
 	e.GET("/api/v1/events/:id", ec.GetEvent)
 

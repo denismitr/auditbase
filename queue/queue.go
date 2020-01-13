@@ -27,6 +27,7 @@ type Scaffolder interface {
 type MQ interface {
 	Scaffolder
 
+	Inspect(queueName string) (Inspection, error)
 	Publish(msg Message, exchange, routingKey string) error
 	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
 	Stop()
@@ -120,11 +121,12 @@ func (q *RabbitQueue) DeclareQueue(name string) error {
 // Bind queue to exchange with routingKey
 func (q *RabbitQueue) Bind(queue, exchange, routingKey string) error {
 	ch, err := q.conn.Channel()
-	defer ch.Close()
 
 	if err != nil {
 		return errors.Wrap(err, "failed to get a channel from connection")
 	}
+
+	defer ch.Close()
 
 	if err := ch.QueueBind(queue, routingKey, exchange, false, nil); err != nil {
 		return errors.Wrapf(
@@ -137,6 +139,29 @@ func (q *RabbitQueue) Bind(queue, exchange, routingKey string) error {
 	}
 
 	return nil
+}
+
+// Inspect queue, check number of messages waiting to be consumed
+// and a number of consumers for that given queue
+func (q *RabbitQueue) Inspect(queueName string) (Inspection, error) {
+	i := Inspection{}
+
+	ch, err := q.conn.Channel()
+	if err != nil {
+		return i, errors.Wrapf(err, "failed to get a channel to inspect a queue %s", queueName)
+	}
+
+	defer ch.Close()
+
+	queue, err := ch.QueueInspect(queueName)
+	if err != nil {
+		return i, errors.Wrapf(err, "could not inspect a queue %s", queueName)
+	}
+
+	i.Messages = queue.Messages
+	i.Consumers = queue.Consumers
+
+	return i, nil
 }
 
 // Subscribe and consume messages sending them
