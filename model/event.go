@@ -1,9 +1,5 @@
 package model
 
-import (
-	"time"
-)
-
 type Event struct {
 	ID            string                   `json:"id"`
 	ParentEventID string                   `json:"parentEventId"`
@@ -43,13 +39,6 @@ func (e *Event) Validate(v Validator) ValidationErrors {
 	if v.IsEmptyString(e.TargetService.Name) {
 		v.Add("targetService.Name", ":targetService.Name must not be empty")
 	}
-
-	// TODO: add validation, should not be empty
-	if e.EmittedAt == 0 {
-		e.EmittedAt = time.Now().Unix()
-	}
-
-	e.RegisteredAt = time.Now().Unix()
 
 	return v.Errors()
 }

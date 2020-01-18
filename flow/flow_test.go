@@ -62,6 +62,10 @@ func (f fakeMQ) Publish(msg queue.Message, exchange, routingKey string) error {
 func (f fakeMQ) Subscribe(queue, consumer string, receiveCh chan<- queue.ReceivedMessage) {
 }
 
+func (f fakeMQ) Inspect(queueName string) (queue.Inspection, error) {
+	return queue.Inspection{}, nil
+}
+
 func (f fakeMQ) Stop() {
 
 }

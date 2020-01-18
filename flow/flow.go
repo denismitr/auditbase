@@ -12,7 +12,7 @@ import (
 type EventFlow interface {
 	Send(e model.Event) error
 	Receive(consumer string) <-chan ReceivedEvent
-	Inspect() (int, int, error)
+	Inspect() (messages int, consumers int, err error)
 	Scaffold() error
 	Stop() error
 }

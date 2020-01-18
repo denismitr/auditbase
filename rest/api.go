@@ -34,7 +34,7 @@ func New(
 	uuid4 := utils.NewUUID4Generator()
 
 	mc := newMicroservicesController(logger, uuid4, mr)
-	ec := newEventsController(logger, uuid4, er, ef)
+	ec := newEventsController(logger, uuid4, utils.NewClock(), er, ef)
 
 	// Microservices
 	e.GET("/api/v1/microservices", mc.SelectMicroservices)

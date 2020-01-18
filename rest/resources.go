@@ -1,10 +1,10 @@
 package rest
 
 type resourceSerializer interface {
-	ToJSON() respource
+	ToJSON() response
 }
 
-type respource struct {
+type response struct {
 	Data interface{} `json:"data"`
 }
 
@@ -13,6 +13,6 @@ type inspectResource struct {
 	Consumers int `json:"consumers"`
 }
 
-func (ir inspectResource) ToJSON() respource {
-	return respource{Data: ir}
+func (ir inspectResource) ToJSON() response {
+	return response{Data: ir}
 }

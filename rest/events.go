@@ -13,16 +13,19 @@ type eventsController struct {
 	uuid4  utils.UUID4Generatgor
 	events model.EventRepository
 	ef     flow.EventFlow
+	clock  utils.Clock
 }
 
 func newEventsController(
 	l utils.Logger,
 	uuid4 utils.UUID4Generatgor,
+	clock utils.Clock,
 	events model.EventRepository,
 	ef flow.EventFlow,
 ) *eventsController {
 	return &eventsController{
 		logger: l,
+		clock:  clock,
 		uuid4:  uuid4,
 		events: events,
 		ef:     ef,
@@ -40,6 +43,13 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 		e.ID = ec.uuid4.Generate()
 	}
 
+	// TODO: add validation, should not be empty
+	if e.EmittedAt == 0 {
+		e.EmittedAt = ec.clock.CurrentTimestamp()
+	}
+
+	e.RegisteredAt = ec.clock.CurrentTimestamp()
+
 	v := model.NewValidator()
 
 	errors := e.Validate(v)
@@ -51,9 +61,7 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(202, map[string]string{
-		"status": "Accepted",
-	})
+	return ctx.JSON(respondAccepted())
 }
 
 func (ec *eventsController) SelectEvents(ctx echo.Context) error {
