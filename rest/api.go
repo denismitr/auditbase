@@ -8,6 +8,7 @@ import (
 
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
@@ -19,6 +20,7 @@ type API struct {
 
 func New(
 	cfg Config,
+	logger utils.Logger,
 	ef flow.EventFlow,
 	mr model.MicroserviceRepository,
 	er model.EventRepository,
@@ -29,8 +31,10 @@ func New(
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	mc := newMicroservicesController(e.Logger, mr)
-	ec := newEventsController(e.Logger, er, ef)
+	uuid4 := utils.NewUUID4Generator()
+
+	mc := newMicroservicesController(logger, uuid4, mr)
+	ec := newEventsController(logger, uuid4, er, ef)
 
 	// Microservices
 	e.GET("/api/v1/microservices", mc.SelectMicroservices)

@@ -3,23 +3,27 @@ package rest
 import (
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
 
 type eventsController struct {
-	logger echo.Logger
+	logger utils.Logger
+	uuid4  utils.UUID4Generatgor
 	events model.EventRepository
 	ef     flow.EventFlow
 }
 
 func newEventsController(
-	l echo.Logger,
+	l utils.Logger,
+	uuid4 utils.UUID4Generatgor,
 	events model.EventRepository,
 	ef flow.EventFlow,
 ) *eventsController {
 	return &eventsController{
 		logger: l,
+		uuid4:  uuid4,
 		events: events,
 		ef:     ef,
 	}
@@ -30,6 +34,10 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 
 	if err := ctx.Bind(&e); err != nil {
 		return ctx.JSON(badRequest(errors.New("unparsable event payload")))
+	}
+
+	if e.ID == "" {
+		e.ID = ec.uuid4.Generate()
 	}
 
 	v := model.NewValidator()

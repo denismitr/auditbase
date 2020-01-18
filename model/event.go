@@ -2,8 +2,6 @@ package model
 
 import (
 	"time"
-
-	"github.com/denismitr/auditbase/utils"
 )
 
 type Event struct {
@@ -22,10 +20,6 @@ type Event struct {
 }
 
 func (e *Event) Validate(v Validator) ValidationErrors {
-	if v.IsEmptyString(e.ID) {
-		e.ID = utils.UUID4()
-	}
-
 	if !v.IsUUID4(e.ID) {
 		v.Add("id", ":id is not a valid UUID4")
 	}

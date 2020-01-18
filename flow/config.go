@@ -1,5 +1,7 @@
 package flow
 
+import "os"
+
 // Config of the event exchange
 type Config struct {
 	ExchangeName string
@@ -17,5 +19,15 @@ func NewConfig(exchangeName, exchangeType, routingKey, queue string, isPersisten
 		QueueName:    queue,
 		ExchangeType: exchangeType,
 		IsPeristent:  isPersistent,
+	}
+}
+
+func NewConfigFromGlobals() Config {
+	return Config {
+		ExchangeName: os.Getenv("EVENTS_EXCHANGE"),
+		RoutingKey:   os.Getenv("EVENTS_ROUTING_KEY"),
+		QueueName:    os.Getenv("EVENTS_QUEUE_NAME"),
+		ExchangeType: os.Getenv("EVENTS_EXCHANGE_TYPE"),
+		IsPeristent:  true,
 	}
 }

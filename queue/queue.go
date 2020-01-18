@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/denismitr/auditbase/utils"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -37,7 +37,7 @@ type MQ interface {
 type RabbitQueue struct {
 	dsn     string
 	conn    *amqp.Connection
-	logger  *logrus.Logger
+	logger  utils.Logger
 	stopCh  chan struct{}
 	errorCh chan error
 
@@ -47,7 +47,7 @@ type RabbitQueue struct {
 }
 
 // NewRabbitQueue - creates a new message queue with RabbitMQ implementation
-func NewRabbitQueue(dsn string, logger *logrus.Logger, maxConnRetries int) *RabbitQueue {
+func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *RabbitQueue {
 	return &RabbitQueue{
 		dsn:            dsn,
 		conn:           nil,
@@ -202,25 +202,28 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 
 // WaitForConnection waits for RabbitMQ to start up
 // and makes attempts to connect to irt
-func (q *RabbitQueue) WaitForConnection() {
+func (q *RabbitQueue) WaitForConnection() error {
 	attempt := 1
 
 	for attempt <= q.maxConnRetries {
-		log.Printf("Waiting for RabbitMQ: attempt %d", attempt)
+		q.logger.Debugf("Waiting for RabbitMQ: attempt %d", attempt)
 
 		conn, err := amqp.Dial(q.dsn)
 		if err != nil {
-			log.Printf("\nattempt %d failed: %s", attempt, err)
+			q.logger.Error(
+				errors.Wrapf(err, "attempt %d failed", attempt),
+			)
+
 			attempt++
 			time.Sleep(5 * time.Second * time.Duration(attempt))
 			continue
 		}
 
 		q.conn = conn
-		return
+		return nil
 	}
 
-	log.Fatal("Failed to connect to Rabbit: too many attempts")
+	return errors.New("failed to connect to rabbitMQ - too many attempts")
 }
 
 func failOnError(err error, msg string) {

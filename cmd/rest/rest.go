@@ -10,9 +10,9 @@ import (
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/rest"
 	"github.com/denismitr/auditbase/sql/mysql"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -20,6 +20,8 @@ func main() {
 
 	fmt.Println("Waiting for DB connection")
 	time.Sleep(20)
+
+	uuid4 := utils.NewUUID4Generator()
 
 	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
 	if err != nil {
@@ -30,30 +32,31 @@ func main() {
 		panic(err)
 	}
 
-	microservices := &mysql.MicroserviceRepository{Conn: dbConn}
-	events := &mysql.EventRepository{Conn: dbConn}
+	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
+	events := mysql.NewEventRepository(dbConn, uuid4)
 
-	logger := logrus.New()
-	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
-	mq.WaitForConnection()
+	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_rest_api")
+	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 4)
 
-	exchange := os.Getenv("EVENTS_EXCHANGE")
-	routingKey := os.Getenv("EVENTS_ROUTING_KEY")
-	queueName := os.Getenv("EVENTS_QUEUE_NAME")
-	exchangeType := os.Getenv("EVENTS_EXCHANGE_TYPE")
+	if err := mq.WaitForConnection(); err != nil {
+		panic(err)
+	}
+
 	port := ":" + os.Getenv("REST_API_PORT")
 
-	cfg := flow.NewConfig(exchange, exchangeType, routingKey, queueName, true)
-	ef := flow.NewMQEventFlow(mq, cfg)
+	flowCfg := flow.NewConfigFromGlobals()
+	ef := flow.NewMQEventFlow(mq, flowCfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)
 	}
 
-	rest := rest.New(rest.Config{
+	restCfg := rest.Config{
 		Port:      port,
 		BodyLimit: "250K",
-	}, ef, microservices, events)
+	}
+
+	rest := rest.New(restCfg, logger, ef, microservices, events)
 
 	rest.Start()
 }

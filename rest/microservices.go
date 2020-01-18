@@ -8,13 +8,19 @@ import (
 )
 
 type microservicesController struct {
-	logger        echo.Logger
+	logger        utils.Logger
+	uuid4         utils.UUID4Generatgor
 	microservices model.MicroserviceRepository
 }
 
-func newMicroservicesController(l echo.Logger, m model.MicroserviceRepository) *microservicesController {
+func newMicroservicesController(
+	l utils.Logger,
+	uuid4 utils.UUID4Generatgor,
+	m model.MicroserviceRepository,
+) *microservicesController {
 	return &microservicesController{
 		logger:        l,
+		uuid4:         uuid4,
 		microservices: m,
 	}
 }
@@ -27,14 +33,19 @@ func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
 	}
 
 	if m.ID == "" {
-		m.ID = utils.UUID4()
+		m.ID = mc.uuid4.Generate()
+	}
+
+	errors := m.Validate(model.NewValidator())
+	if errors.NotEmpty() {
+		return ctx.JSON(validationFailed(errors, "could not create a microservice"))
 	}
 
 	if err := mc.microservices.Create(m); err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
-	savedMicroservice, err := mc.microservices.GetOneByID(m.ID)
+	savedMicroservice, err := mc.microservices.FirstByID(m.ID)
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
@@ -71,7 +82,7 @@ func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
 		return ctx.JSON(badRequest(err))
 	}
 
-	updatedM, err := mc.microservices.GetOneByID(ID)
+	updatedM, err := mc.microservices.FirstByID(ID)
 	if err != nil {
 		return ctx.JSON(badRequest(err))
 	}
@@ -88,7 +99,7 @@ func (mc *microservicesController) GetMicroservice(ctx echo.Context) error {
 		return ctx.JSON(badRequest(errors.New("ID is empty")))
 	}
 
-	m, err := mc.microservices.GetOneByID(ID)
+	m, err := mc.microservices.FirstByID(ID)
 	if err != nil {
 		return ctx.JSON(badRequest(err)) // TODO: refactor to not found
 	}

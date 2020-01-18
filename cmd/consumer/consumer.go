@@ -12,9 +12,9 @@ import (
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/sql/mysql"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -23,17 +23,19 @@ func main() {
 	fmt.Println("Waiting for DB connection")
 	time.Sleep(20)
 
+	uuid4 := utils.NewUUID4Generator()
+
 	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
 	if err != nil {
 		panic(err)
 	}
 
-	microservices := &mysql.MicroserviceRepository{Conn: dbConn}
-	events := &mysql.EventRepository{Conn: dbConn}
-	targetTypes := &mysql.TargetTypeRepository{Conn: dbConn}
-	actorTypes := &mysql.ActorTypeRepository{Conn: dbConn}
+	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
+	events := mysql.NewEventRepository(dbConn, uuid4)
+	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
+	actorTypes := mysql.NewActorTypeRepository(dbConn, uuid4)
 
-	logger := logrus.New()
+	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_consumer")
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
 	mq.WaitForConnection()
 
@@ -56,11 +58,13 @@ func main() {
 		microservices,
 		events,
 		targetTypes,
-		actorTypes)
+		actorTypes,
+	)
 
 	quit := make(chan os.Signal, 1)
 	done := make(chan struct{})
 	signal.Notify(quit, os.Interrupt)
+
 	stop := consumer.Start("event_consumer")
 
 	go gracefulShutdown(quit, done, stop)
