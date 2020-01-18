@@ -13,26 +13,31 @@ Content-Type: application/json
 
 ###
 
+GET http://localhost:8888/api/v1/events/queue
+Content-Type: application/json
+
+###
+
 POST http://localhost:8888/api/v1/events
 Content-Type: application/json
 
 {
-    "targetId": "33323",
+    "targetId": "9999992",
 	"targetType": {
-		"name": "publication"
+		"name": "article"
 	},
 	"targetService": {
-		"name": "events-service"
+		"name": "article-storage"
 	},
-	"actorId": "90211201",
+	"actorId": "0000009",
 	"actorType": {
-		"name": "promoter"
+		"name": "actor"
 	},
 	"actorService": {
-		"name": "backoffice"
+		"name": "back-office"
 	},
-    "eventName": "eventDepublished",
-    "emittedAt": 1578173212,
+    "eventName": "articlePublished",
+    "emittedAt": 1578173213,
 	"delta": {
 		"status": ["PUBLISHED", "DEPUBLISHED"]
 	}

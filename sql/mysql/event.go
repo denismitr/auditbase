@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/pkg/errors"
@@ -13,24 +14,24 @@ import (
 
 const selectEvents = `
 	SELECT 
-	BIN_TO_UUID(e.id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-	actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, 
-	BIN_TO_UUID(actor_service_id) as actor_service_id, 
-	target_id, BIN_TO_UUID(target_type_id) as target_type_id, 
-	BIN_TO_UUID(target_service_id) as target_service_id, 
-	event_name, emitted_at, registered_at, delta,
-	ams.name as actor_service_name, tms.name as target_service_name,
-	ams.description as actor_service_description, tms.description as target_service_description,
-	at.name as actor_type_name, at.description as actor_type_description,
-	tt.name as target_type_name, tt.description as target_type_description 
+		BIN_TO_UUID(e.id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
+		actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, 
+		BIN_TO_UUID(actor_service_id) as actor_service_id, 
+		target_id, BIN_TO_UUID(target_type_id) as target_type_id, 
+		BIN_TO_UUID(target_service_id) as target_service_id, 
+		event_name, emitted_at, registered_at, delta,
+		ams.name as actor_service_name, tms.name as target_service_name,
+		ams.description as actor_service_description, tms.description as target_service_description,
+		at.name as actor_type_name, at.description as actor_type_description,
+		tt.name as target_type_name, tt.description as target_type_description 
 	FROM events as e
-	INNER JOIN microservices as ams
-	ON ams.id = UUID_TO_BIN(e.actor_service_id)
-	INNER JOIN microservices as tms
-	ON tms.id = UUID_TO_BIN(e.target_service_id)
-	INNER JOIN actor_types as at
+		INNER JOIN microservices as ams
+	ON ams.id = e.actor_service_id
+		INNER JOIN microservices as tms
+	ON tms.id = e.target_service_id
+		INNER JOIN actor_types as at
 	ON at.id = e.actor_type_id
-	INNER JOIN target_types as tt
+		INNER JOIN target_types as tt
 	ON tt.id = e.target_type_id
 `
 
@@ -58,7 +59,15 @@ type event struct {
 }
 
 type EventRepository struct {
-	Conn *sqlx.DB
+	conn  *sqlx.DB
+	uuid4 utils.UUID4Generatgor
+}
+
+func NewEventRepository(conn *sqlx.DB, uuid4 utils.UUID4Generatgor) *EventRepository {
+	return &EventRepository{
+		conn:  conn,
+		uuid4: uuid4,
+	}
 }
 
 func (r *EventRepository) Create(e model.Event) error {
@@ -101,7 +110,7 @@ func (r *EventRepository) Create(e model.Event) error {
 		dbEvent.ParentEventID = sql.NullString{e.ParentEventID, true}
 	}
 
-	if _, err := r.Conn.NamedExec(stmt, &dbEvent); err != nil {
+	if _, err := r.conn.NamedExec(stmt, &dbEvent); err != nil {
 		return errors.Wrapf(err, "could not insert new event with ID %s", e.ID)
 	}
 
@@ -111,7 +120,7 @@ func (r *EventRepository) Create(e model.Event) error {
 func (r *EventRepository) Delete(ID string) error {
 	stmt := `DELETE FROM events WHERE id = UUID_TO_BIN(?)`
 
-	if _, err := r.Conn.Exec(stmt, ID); err != nil {
+	if _, err := r.conn.Exec(stmt, ID); err != nil {
 		return errors.Wrapf(err, "could not delete event with ID %s", ID)
 	}
 
@@ -122,7 +131,7 @@ func (r *EventRepository) Count() (int, error) {
 	stmt := `SELECT COUNT(*) FROM events`
 	var count int
 
-	if err := r.Conn.Get(&count, stmt); err != nil {
+	if err := r.conn.Get(&count, stmt); err != nil {
 		return 0, errors.Wrap(err, "could not count events")
 	}
 
@@ -134,7 +143,7 @@ func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 
 	e := event{}
 
-	if err := r.Conn.Get(&e, stmt, ID); err != nil {
+	if err := r.conn.Get(&e, stmt, ID); err != nil {
 		return model.Event{}, errors.Wrapf(err, "could not get a list of events from db")
 	}
 
@@ -188,7 +197,7 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 
 	events := []event{}
 
-	if err := r.Conn.Select(&events, stmt); err != nil {
+	if err := r.conn.Select(&events, stmt); err != nil {
 		return []model.Event{}, errors.Wrapf(err, "could not get a list of events from db")
 	}
 

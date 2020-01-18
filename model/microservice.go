@@ -1,7 +1,5 @@
 package model
 
-import "github.com/denismitr/auditbase/utils"
-
 type Microservice struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -14,17 +12,16 @@ type MicroserviceRepository interface {
 	Create(Microservice) error
 	Delete(ID string) error
 	Update(ID string, m Microservice) error
-	GetOneByID(ID string) (Microservice, error)
-	GetOneByName(name string) (Microservice, error)
+	FirstByID(ID string) (Microservice, error)
+	FirstByName(name string) (Microservice, error)
+	FirstOrCreateByName(name string) (Microservice, error)
 	SelectAll() ([]Microservice, error)
 }
 
-func (m *Microservice) Validate() ValidationErrors {
-	if m.ID == "" {
-		m.ID = utils.UUID4()
+func (m *Microservice) Validate(ve Validator) ValidationErrors {
+	if !ve.IsUUID4(m.ID) {
+		ve.Add("ID", ":id must be a valid UUID4 or be null for auto assigning")
 	}
-
-	ve := NewValidator()
 
 	if m.Name == "" {
 		ve.Add("name", ":name field is required")

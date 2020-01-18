@@ -1,11 +1,5 @@
 package model
 
-import (
-	"time"
-
-	"github.com/denismitr/auditbase/utils"
-)
-
 type Event struct {
 	ID            string                   `json:"id"`
 	ParentEventID string                   `json:"parentEventId"`
@@ -22,10 +16,6 @@ type Event struct {
 }
 
 func (e *Event) Validate(v Validator) ValidationErrors {
-	if v.IsEmptyString(e.ID) {
-		e.ID = utils.UUID4()
-	}
-
 	if !v.IsUUID4(e.ID) {
 		v.Add("id", ":id is not a valid UUID4")
 	}
@@ -49,13 +39,6 @@ func (e *Event) Validate(v Validator) ValidationErrors {
 	if v.IsEmptyString(e.TargetService.Name) {
 		v.Add("targetService.Name", ":targetService.Name must not be empty")
 	}
-
-	// TODO: add validation, should not be empty
-	if e.EmittedAt == 0 {
-		e.EmittedAt = time.Now().Unix()
-	}
-
-	e.RegisteredAt = time.Now().Unix()
 
 	return v.Errors()
 }

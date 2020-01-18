@@ -3,23 +3,30 @@ package rest
 import (
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
 
 type eventsController struct {
-	logger echo.Logger
+	logger utils.Logger
+	uuid4  utils.UUID4Generatgor
 	events model.EventRepository
 	ef     flow.EventFlow
+	clock  utils.Clock
 }
 
 func newEventsController(
-	l echo.Logger,
+	l utils.Logger,
+	uuid4 utils.UUID4Generatgor,
+	clock utils.Clock,
 	events model.EventRepository,
 	ef flow.EventFlow,
 ) *eventsController {
 	return &eventsController{
 		logger: l,
+		clock:  clock,
+		uuid4:  uuid4,
 		events: events,
 		ef:     ef,
 	}
@@ -32,10 +39,21 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 		return ctx.JSON(badRequest(errors.New("unparsable event payload")))
 	}
 
+	if e.ID == "" {
+		e.ID = ec.uuid4.Generate()
+	}
+
+	// TODO: add validation, should not be empty
+	if e.EmittedAt == 0 {
+		e.EmittedAt = ec.clock.CurrentTimestamp()
+	}
+
+	e.RegisteredAt = ec.clock.CurrentTimestamp()
+
 	v := model.NewValidator()
 
 	errors := e.Validate(v)
-	if errors.HasErrors() {
+	if !errors.IsEmpty() {
 		return ctx.JSON(validationFailed(errors, "event object validation failed"))
 	}
 
@@ -43,9 +61,7 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(202, map[string]string{
-		"status": "Accepted",
-	})
+	return ctx.JSON(respondAccepted())
 }
 
 func (ec *eventsController) SelectEvents(ctx echo.Context) error {
@@ -80,6 +96,20 @@ func (ec *eventsController) Count(ctx echo.Context) error {
 	return ctx.JSON(200, map[string]interface{}{
 		"data": map[string]int{"count": count},
 	})
+}
+
+func (ec *eventsController) Inspect(ctx echo.Context) error {
+	messages, consumers, err := ec.ef.Inspect()
+	if err != nil {
+		return ctx.JSON(internalError(err))
+	}
+
+	i := inspectResource{
+		Messages:  messages,
+		Consumers: consumers,
+	}
+
+	return ctx.JSON(200, i.ToJSON())
 }
 
 func (ec *eventsController) DeleteEvent(ctx echo.Context) error {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/denismitr/auditbase/utils"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -27,6 +27,7 @@ type Scaffolder interface {
 type MQ interface {
 	Scaffolder
 
+	Inspect(queueName string) (Inspection, error)
 	Publish(msg Message, exchange, routingKey string) error
 	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
 	Stop()
@@ -36,7 +37,7 @@ type MQ interface {
 type RabbitQueue struct {
 	dsn     string
 	conn    *amqp.Connection
-	logger  *logrus.Logger
+	logger  utils.Logger
 	stopCh  chan struct{}
 	errorCh chan error
 
@@ -46,7 +47,7 @@ type RabbitQueue struct {
 }
 
 // NewRabbitQueue - creates a new message queue with RabbitMQ implementation
-func NewRabbitQueue(dsn string, logger *logrus.Logger, maxConnRetries int) *RabbitQueue {
+func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *RabbitQueue {
 	return &RabbitQueue{
 		dsn:            dsn,
 		conn:           nil,
@@ -120,11 +121,12 @@ func (q *RabbitQueue) DeclareQueue(name string) error {
 // Bind queue to exchange with routingKey
 func (q *RabbitQueue) Bind(queue, exchange, routingKey string) error {
 	ch, err := q.conn.Channel()
-	defer ch.Close()
 
 	if err != nil {
 		return errors.Wrap(err, "failed to get a channel from connection")
 	}
+
+	defer ch.Close()
 
 	if err := ch.QueueBind(queue, routingKey, exchange, false, nil); err != nil {
 		return errors.Wrapf(
@@ -137,6 +139,29 @@ func (q *RabbitQueue) Bind(queue, exchange, routingKey string) error {
 	}
 
 	return nil
+}
+
+// Inspect queue, check number of messages waiting to be consumed
+// and a number of consumers for that given queue
+func (q *RabbitQueue) Inspect(queueName string) (Inspection, error) {
+	i := Inspection{}
+
+	ch, err := q.conn.Channel()
+	if err != nil {
+		return i, errors.Wrapf(err, "failed to get a channel to inspect a queue %s", queueName)
+	}
+
+	defer ch.Close()
+
+	queue, err := ch.QueueInspect(queueName)
+	if err != nil {
+		return i, errors.Wrapf(err, "could not inspect a queue %s", queueName)
+	}
+
+	i.Messages = queue.Messages
+	i.Consumers = queue.Consumers
+
+	return i, nil
 }
 
 // Subscribe and consume messages sending them
@@ -177,25 +202,28 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 
 // WaitForConnection waits for RabbitMQ to start up
 // and makes attempts to connect to irt
-func (q *RabbitQueue) WaitForConnection() {
+func (q *RabbitQueue) WaitForConnection() error {
 	attempt := 1
 
 	for attempt <= q.maxConnRetries {
-		log.Printf("Waiting for RabbitMQ: attempt %d", attempt)
+		q.logger.Debugf("Waiting for RabbitMQ: attempt %d", attempt)
 
 		conn, err := amqp.Dial(q.dsn)
 		if err != nil {
-			log.Printf("\nattempt %d failed: %s", attempt, err)
+			q.logger.Error(
+				errors.Wrapf(err, "attempt %d failed", attempt),
+			)
+
 			attempt++
 			time.Sleep(5 * time.Second * time.Duration(attempt))
 			continue
 		}
 
 		q.conn = conn
-		return
+		return nil
 	}
 
-	log.Fatal("Failed to connect to Rabbit: too many attempts")
+	return errors.New("failed to connect to rabbitMQ - too many attempts")
 }
 
 func failOnError(err error, msg string) {
