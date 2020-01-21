@@ -28,7 +28,7 @@ type Consumer struct {
 	stopCh    chan struct{}
 	errorCh   chan error
 
-	mu       *sync.RWMutex
+	mu       sync.RWMutex
 	statusOK bool
 }
 
@@ -51,7 +51,7 @@ func New(
 		receiveCh:     make(chan queue.ReceivedMessage),
 		stopCh:        make(chan struct{}),
 		errorCh:       make(chan error),
-		mu:            &sync.RWMutex{},
+		mu:            sync.RWMutex{},
 		statusOK:      true,
 	}
 }
@@ -92,23 +92,31 @@ func (c *Consumer) Start(consumerName string) StopFunc {
 	}
 }
 
+func (c *Consumer) statusIsOK() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.statusOK
+}
+
 func (c *Consumer) healthCheck() {
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		c.mu.RLock()
-		defer c.mu.Unlock()
-
-		if c.statusOK {
+		if c.statusIsOK() {
 			w.WriteHeader(200)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		} else {
+			c.logger.Debugf("Health check failed")
 			w.WriteHeader(500)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "error"})
 		}
 	})
 
-	http.ListenAndServe(":"+os.Getenv("HEALTH_PORT"), nil)
+	c.logger.Debugf("\nStarting healthcheck on port %s", os.Getenv("HEALTH_PORT"))
+	err := http.ListenAndServe(":"+os.Getenv("HEALTH_PORT"), nil)
+	if err != nil {
+		c.logger.Error(errors.Wrap(err, "helthcheck endpoint failed"))
+	}
 }
 
 func (c *Consumer) collectErrors() {
@@ -258,7 +266,6 @@ func (c *Consumer) panicOnFailedEvent(e flow.ReceivedEvent, err error) {
 	c.logger.Error(err)
 	c.markAsFailed()
 	e.Reject()
-	panic(err)
 }
 
 func (c *Consumer) handleFailedEvent(e flow.ReceivedEvent, err error) {

@@ -51,7 +51,7 @@ type RabbitQueue struct {
 
 	maxConnRetries int
 
-	mu *sync.RWMutex
+	mu sync.RWMutex
 }
 
 // NewRabbitQueue - creates a new message queue with RabbitMQ implementation
@@ -62,7 +62,7 @@ func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *Rabbit
 		logger:         logger,
 		stopCh:         make(chan struct{}),
 		maxConnRetries: maxConnRetries,
-		mu:             &sync.RWMutex{},
+		mu:             sync.RWMutex{},
 	}
 }
 
@@ -210,7 +210,7 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 		panic(err)
 	}
 
-	fmt.Println("Waiting for messages")
+	fmt.Println("Waiting for messages...")
 
 	for {
 		select {
