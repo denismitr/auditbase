@@ -30,6 +30,8 @@ func main() {
 		panic(err)
 	}
 
+	dbConn.SetMaxOpenConns(100)
+
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
 	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
@@ -67,6 +69,7 @@ func main() {
 
 	stop := consumer.Start("event_consumer")
 
+	// TODO: fix context cancel
 	go gracefulShutdown(quit, done, stop)
 
 	<-done

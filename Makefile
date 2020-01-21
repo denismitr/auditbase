@@ -13,7 +13,7 @@ vars:
 	@echo PERCONA_PORT=${PERCONA_PORT}
 
 up: vars
-	docker-compose -f docker-compose-dev.yml up --build --force-recreate -d
+	docker-compose -f docker-compose-dev.yml up --build --force-recreate
 
 down:
 	docker-compose -f docker-compose-dev.yml down --remove-orphans

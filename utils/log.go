@@ -15,6 +15,7 @@ type Logger interface {
 
 func NewStdoutLogger(env, namespace string) *StdLogger {
 	logger := log.New(os.Stdout, namespace, log.Ldate|log.Ltime|log.Lshortfile)
+
 	return &StdLogger{
 		l:   logger,
 		env: env,
@@ -36,8 +37,5 @@ func (l *StdLogger) Debugf(format string, args ...interface{}) {
 		return
 	}
 
-	var allArgs []interface{}
-	allArgs = append(allArgs, l.env)
-	allArgs = append(allArgs, args...)
-	l.l.Printf("debug info in [%s] env: "+format, allArgs)
+	l.l.Printf("debug info in ["+l.env+"] "+format, args...)
 }

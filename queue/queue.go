@@ -15,6 +15,13 @@ const (
 	AuditLogMessages = "audit_log_messages"
 )
 
+type ConnectionStatus int
+
+const (
+	ActiveConnection = iota
+	DroppedConnection
+)
+
 // Scaffolder - scaffolds the Message Queue,
 // getting it ready for work
 type Scaffolder interface {
@@ -30,6 +37,7 @@ type MQ interface {
 	Inspect(queueName string) (Inspection, error)
 	Publish(msg Message, exchange, routingKey string) error
 	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
+	Status() (bool, error)
 	Stop()
 }
 
@@ -61,6 +69,20 @@ func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *Rabbit
 // Stop the MessageQueue
 func (q *RabbitQueue) Stop() {
 	close(q.stopCh)
+}
+
+// Status - checks connection status
+func (q *RabbitQueue) Status() (bool, error) {
+	ch, err := q.conn.Channel()
+	if err != nil {
+		return false, errors.Wrap(err, "could not check RabbitMQ connection status")
+	}
+
+	if err := ch.Close(); err != nil {
+		return false, errors.Wrap(err, "problem with channel closing on Rabbit connection status check")
+	}
+
+	return true, nil
 }
 
 // Publish message to message queue

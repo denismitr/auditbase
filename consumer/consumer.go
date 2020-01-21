@@ -2,6 +2,10 @@ package consumer
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"os"
+	"sync"
 
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
@@ -22,6 +26,10 @@ type Consumer struct {
 
 	receiveCh chan queue.ReceivedMessage
 	stopCh    chan struct{}
+	errorCh   chan error
+
+	mu       *sync.RWMutex
+	statusOK bool
 }
 
 func New(
@@ -42,17 +50,28 @@ func New(
 		actorTypes:    ats,
 		receiveCh:     make(chan queue.ReceivedMessage),
 		stopCh:        make(chan struct{}),
+		errorCh:       make(chan error),
+		mu:            &sync.RWMutex{},
+		statusOK:      true,
 	}
 }
 
 // Start consumer
 func (c *Consumer) Start(consumerName string) StopFunc {
+	go c.collectErrors()
+	go c.healthCheck()
+
 	events := c.f.Receive(consumerName)
 
 	go func() {
 		for {
 			select {
 			case e := <-events:
+				if e == nil {
+					c.errorCh <- connectionError
+					continue
+				}
+
 				go c.processEvent(e)
 			case <-c.stopCh:
 				c.f.Stop()
@@ -73,11 +92,49 @@ func (c *Consumer) Start(consumerName string) StopFunc {
 	}
 }
 
-func (c *Consumer) processEvent(re flow.ReceivedEvent) {
-	if re == nil {
-		return
-	}
+func (c *Consumer) healthCheck() {
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		c.mu.RLock()
+		defer c.mu.Unlock()
 
+		if c.statusOK {
+			w.WriteHeader(200)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		} else {
+			w.WriteHeader(500)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "error"})
+		}
+	})
+
+	http.ListenAndServe(":"+os.Getenv("HEALTH_PORT"), nil)
+}
+
+func (c *Consumer) collectErrors() {
+	for {
+		select {
+		case err := <-c.errorCh:
+			if err == connectionError {
+				c.logger.Error(err)
+				c.markAsFailed()
+				continue
+			}
+		case <-c.stopCh:
+			c.logger.Debugf("Received on stop channel")
+			c.markAsFailed()
+			return
+		}
+	}
+}
+
+func (c *Consumer) markAsFailed() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.statusOK = false
+}
+
+func (c *Consumer) processEvent(re flow.ReceivedEvent) {
 	e, err := re.Event()
 	if err != nil {
 		c.handleFailedEvent(re, err)
@@ -113,6 +170,7 @@ func (c *Consumer) processEvent(re flow.ReceivedEvent) {
 }
 
 func (c *Consumer) assignTargetTypeTo(e *model.Event) error {
+	// TODO: cache these checks
 	if e.TargetType.ID != "" {
 		tt, err := c.targetTypes.FirstByID(e.TargetType.ID)
 		if err != nil {
@@ -133,6 +191,7 @@ func (c *Consumer) assignTargetTypeTo(e *model.Event) error {
 }
 
 func (c *Consumer) assignTargetServiceTo(e *model.Event) error {
+	// TODO: cache these checks
 	if e.TargetService.ID != "" {
 		ts, err := c.microservices.FirstByID(e.TargetService.ID)
 		if err != nil {
@@ -154,6 +213,7 @@ func (c *Consumer) assignTargetServiceTo(e *model.Event) error {
 }
 
 func (c *Consumer) assignActorTypeTo(e *model.Event) error {
+	// TODO: cache these checks
 	if e.ActorType.ID != "" {
 		at, err := c.actorTypes.FirstByID(e.ActorType.ID)
 		if err != nil {
@@ -174,6 +234,7 @@ func (c *Consumer) assignActorTypeTo(e *model.Event) error {
 }
 
 func (c *Consumer) assignActorServiceTo(e *model.Event) error {
+	// TODO: cache these checks
 	if e.ActorService.ID != "" {
 		as, err := c.microservices.FirstByID(e.ActorService.ID)
 		if err != nil {
@@ -193,7 +254,9 @@ func (c *Consumer) assignActorServiceTo(e *model.Event) error {
 	return nil
 }
 
-func (c *Consumer) handleFailedEvent(re flow.ReceivedEvent, err error) {
+func (c *Consumer) handleFailedEvent(e flow.ReceivedEvent, err error) {
 	c.logger.Error(err)
-	re.Reject()
+	c.markAsFailed()
+	e.Reject()
+	panic(err)
 }

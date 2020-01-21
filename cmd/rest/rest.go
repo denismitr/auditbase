@@ -18,7 +18,7 @@ import (
 func main() {
 	loadEnvVars()
 
-	fmt.Println("Waiting for DB connection")
+	fmt.Println("Waiting for DB connection...")
 	time.Sleep(20)
 
 	uuid4 := utils.NewUUID4Generator()

@@ -40,7 +40,7 @@ func NewMQEventFlow(mq queue.MQ, cfg Config) *MQEventFlow {
 func (ef *MQEventFlow) Send(e model.Event) error {
 	b, err := json.Marshal(&e)
 	if err != nil {
-		return errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID)
+		panic(errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID))
 	}
 
 	msg := queue.NewJSONMessage(b)
@@ -56,6 +56,11 @@ func (ef *MQEventFlow) Receive(consumer string) <-chan ReceivedEvent {
 		for {
 			select {
 			case msg := <-ef.msgCh:
+				if msg == nil {
+					ef.Stop()
+					continue
+				}
+
 				ef.eventCh <- &QueueReceivedEvent{msg}
 			case <-ef.stopCh:
 				close(ef.eventCh)

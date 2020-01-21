@@ -22,7 +22,7 @@ POST http://localhost:8888/api/v1/events
 Content-Type: application/json
 
 {
-    "targetId": "9999992",
+    "targetId": "9999995",
 	"targetType": {
 		"name": "article"
 	},

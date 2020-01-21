@@ -14,6 +14,7 @@ func TestFlow(t *testing.T) {
 
 type declareExchangeExpectations func(exchangeName, exchangeType string)
 
+// TODO: refactor to mockgen
 type fakeMQ struct {
 	cfg                         Config
 	shouldFailOnDeclareExchange bool
@@ -68,6 +69,10 @@ func (f fakeMQ) Inspect(queueName string) (queue.Inspection, error) {
 
 func (f fakeMQ) Stop() {
 
+}
+
+func (f fakeMQ) Status() (bool, error) {
+	return true, nil
 }
 
 func TestScaffold(t *testing.T) {
