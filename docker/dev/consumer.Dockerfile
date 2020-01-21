@@ -32,6 +32,6 @@ COPY --from=builder /app/.env .
 RUN chmod +x ./consumer
 RUN chmod +x ./healthcheck
 
-HEALTHCHECK --interval=1s --timeout=1s --start-period=60s --retries=3 CMD [ "/healthcheck" ] || exit 1
+HEALTHCHECK --interval=1s --timeout=1s --start-period=60s --retries=3 CMD [ "./healthcheck" ] || exit 1
 
 ENTRYPOINT ["./consumer"]

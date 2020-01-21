@@ -137,7 +137,7 @@ func (c *Consumer) markAsFailed() {
 func (c *Consumer) processEvent(re flow.ReceivedEvent) {
 	e, err := re.Event()
 	if err != nil {
-		c.handleFailedEvent(re, err)
+		c.panicOnFailedEvent(re, err)
 		return
 	}
 
@@ -254,9 +254,14 @@ func (c *Consumer) assignActorServiceTo(e *model.Event) error {
 	return nil
 }
 
-func (c *Consumer) handleFailedEvent(e flow.ReceivedEvent, err error) {
+func (c *Consumer) panicOnFailedEvent(e flow.ReceivedEvent, err error) {
 	c.logger.Error(err)
 	c.markAsFailed()
 	e.Reject()
 	panic(err)
+}
+
+func (c *Consumer) handleFailedEvent(e flow.ReceivedEvent, err error) {
+	c.logger.Error(err)
+	e.Reject()
 }
