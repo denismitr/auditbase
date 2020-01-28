@@ -39,7 +39,10 @@ func main() {
 
 	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_consumer")
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
-	mq.WaitForConnection()
+
+	if err := mq.Connect(); err != nil {
+		panic(err)
+	}
 
 	exchange := os.Getenv("EVENTS_EXCHANGE")
 	routingKey := os.Getenv("EVENTS_ROUTING_KEY")

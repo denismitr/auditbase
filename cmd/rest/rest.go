@@ -38,7 +38,7 @@ func main() {
 	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_rest_api")
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 4)
 
-	if err := mq.WaitForConnection(); err != nil {
+	if err := mq.Connect(); err != nil {
 		panic(err)
 	}
 
