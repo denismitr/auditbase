@@ -1,5 +1,35 @@
 package model
 
+type Order string
+
+const DESCOrder Order = "DESC"
+const ASCOrder Order = "ASC"
+
+type Sort struct {
+	Items []map[string]Order
+}
+
+type Pagination struct {
+	Page    int
+	PerPage int
+}
+
+type EventFilter struct {
+	ActorID         string
+	ActorTypeID     string
+	TargetID        string
+	TargetTypeID    string
+	ActorServiceID  string
+	TargetServiceID string
+	EventName       string
+	EmittedAtGt     int64
+	EmittedAtLt     int64
+}
+
+func (ef EventFilter) Empty() bool {
+	return ef.ActorID == "" && ef.ActorTypeID == ""
+}
+
 type Event struct {
 	ID            string                   `json:"id"`
 	ParentEventID string                   `json:"parentEventId"`
@@ -48,5 +78,5 @@ type EventRepository interface {
 	Delete(string) error
 	Count() (int, error)
 	FindOneByID(string) (Event, error)
-	SelectAll() ([]Event, error)
+	Select(EventFilter, Sort, Pagination) ([]Event, error)
 }

@@ -2,45 +2,93 @@ package flow
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/pkg/errors"
 )
 
-// EventFlow ...
+// EventFlow interface
 type EventFlow interface {
 	Send(e model.Event) error
 	Receive(consumer string) <-chan ReceivedEvent
-	Inspect() (messages int, consumers int, err error)
+	Inspect() (Status, error)
 	Scaffold() error
+	NotifyOnStateChange(chan State)
+	Start()
 	Stop() error
 }
 
 // MQEventFlow - message queue event flow
 type MQEventFlow struct {
-	mq      queue.MQ
-	cfg     Config
-	stopCh  chan struct{}
-	msgCh   chan queue.ReceivedMessage
-	eventCh chan ReceivedEvent
+	mq             queue.MQ
+	cfg            Config
+	state          State
+	mu             sync.RWMutex
+	stateListeners []chan State
+	stopCh         chan struct{}
+	msgCh          chan queue.ReceivedMessage
+	eventCh        chan ReceivedEvent
 }
 
-func NewMQEventFlow(mq queue.MQ, cfg Config) *MQEventFlow {
+// New event flow
+func New(mq queue.MQ, cfg Config) *MQEventFlow {
 	return &MQEventFlow{
-		mq:      mq,
-		cfg:     cfg,
-		stopCh:  make(chan struct{}),
-		msgCh:   make(chan queue.ReceivedMessage),
-		eventCh: make(chan ReceivedEvent),
+		mq:             mq,
+		cfg:            cfg,
+		state:          Idle,
+		mu:             sync.RWMutex{},
+		stateListeners: make([]chan State, 0),
+		stopCh:         make(chan struct{}),
+		msgCh:          make(chan queue.ReceivedMessage),
+		eventCh:        make(chan ReceivedEvent),
 	}
+}
+
+func (ef *MQEventFlow) updateState(state State) {
+	ef.mu.Lock()
+	defer ef.mu.Unlock()
+	ef.state = state
+}
+
+func (ef *MQEventFlow) closeStateChangeListeners() {
+	ef.mu.Lock()
+	defer ef.mu.Unlock()
+	for _, l := range ef.stateListeners {
+		close(l)
+	}
+}
+
+// Start event flow
+func (ef *MQEventFlow) Start() {
+	listener := make(chan queue.ConnectionStatus)
+	ef.mq.NotifyStatusChange(listener)
+
+	go func() {
+		for {
+			select {
+			case status := <-listener:
+				ef.updateState(queueStatusToFlowState(status))
+			case <-ef.stopCh:
+				ef.closeStateChangeListeners()
+			}
+		}
+	}()
+}
+
+// NotifyOnStateChange - registers a state change listener
+func (ef *MQEventFlow) NotifyOnStateChange(l chan State) {
+	ef.mu.Lock()
+	defer ef.mu.Unlock()
+	ef.stateListeners = append(ef.stateListeners, l)
 }
 
 // Send event to the event flow
 func (ef *MQEventFlow) Send(e model.Event) error {
 	b, err := json.Marshal(&e)
 	if err != nil {
-		panic(errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID))
+		return errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID)
 	}
 
 	msg := queue.NewJSONMessage(b)
@@ -71,16 +119,21 @@ func (ef *MQEventFlow) Receive(consumer string) <-chan ReceivedEvent {
 	return ef.eventCh
 }
 
-func (ef *MQEventFlow) Inspect() (messages int, consumers int, err error) {
+// Inspect event flow
+func (ef *MQEventFlow) Inspect() (Status, error) {
 	i, err := ef.mq.Inspect(ef.cfg.QueueName)
 	if err != nil {
-		return
+		return Status{}, err
 	}
 
-	messages = i.Messages
-	consumers = i.Consumers
+	ef.mu.RLock()
+	defer ef.mu.RUnlock()
 
-	return
+	return Status{
+		Messages:  i.Messages,
+		Consumers: i.Consumers,
+		State:     ef.state,
+	}, nil
 }
 
 // Stop event flow

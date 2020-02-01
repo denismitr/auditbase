@@ -24,6 +24,7 @@ func New(
 	ef flow.EventFlow,
 	mr model.MicroserviceRepository,
 	er model.EventRepository,
+	atr model.ActorTypeRepository,
 ) *API {
 	e := echo.New()
 
@@ -35,6 +36,7 @@ func New(
 
 	mc := newMicroservicesController(logger, uuid4, mr)
 	ec := newEventsController(logger, uuid4, utils.NewClock(), er, ef)
+	atc := newActorTypes(logger, uuid4, utils.NewClock(), atr)
 
 	// Microservices
 	e.GET("/api/v1/microservices", mc.SelectMicroservices)
@@ -49,6 +51,10 @@ func New(
 	e.GET("/api/v1/events/queue", ec.Inspect)
 	e.DELETE("/api/v1/events/:id", ec.DeleteEvent)
 	e.GET("/api/v1/events/:id", ec.GetEvent)
+
+	// Actor types
+	e.GET("/api/v1/actor-types", atc.index)
+	e.GET("/api/v1/actor-types/:id", atc.show)
 
 	return &API{
 		e:   e,

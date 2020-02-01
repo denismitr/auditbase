@@ -26,7 +26,9 @@ type TargetTypeRepository interface {
 	FirstOrCreateByName(string) (TargetType, error)
 }
 
+// ActorTypeRepository governs actor types schema
 type ActorTypeRepository interface {
+	Select() ([]ActorType, error)
 	Create(ActorType) error
 	FirstByName(string) (ActorType, error)
 	FirstByID(string) (ActorType, error)

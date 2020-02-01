@@ -1,25 +1,33 @@
-GET http://localhost:8888/api/v1/events
+@host = http://localhost:8888
+
+GET {{host}}/api/v1/events?filter[targetServiceId]=0b3781ae-cc31-4287-b679-dee5cb5f6520
 Content-Type: application/json
+Accept: application/json
+
 
 ###
 
-GET http://localhost:8888/api/v1/events/64e1d8fb-b065-436d-afd0-5fbcb752a4e2
+GET {{host}}/api/v1/events/64e1d8fb-b065-436d-afd0-5fbcb752a4e2
 Content-Type: application/json
+Accept: application/json
 
 ###
 
-GET http://localhost:8888/api/v1/events/count
+GET {{host}}/api/v1/events/count
 Content-Type: application/json
+Accept: application/json
 
 ###
 
-GET http://localhost:8888/api/v1/events/queue
+GET {{host}}/api/v1/events/queue
 Content-Type: application/json
+Accept: application/json
 
 ###
 
-POST http://localhost:8888/api/v1/events
+POST {{host}}/api/v1/events
 Content-Type: application/json
+Accept: application/json
 
 {
     "targetId": "9999995",
@@ -45,11 +53,12 @@ Content-Type: application/json
 
 ###
 
-POST http://localhost:8888/api/v1/events
+POST {{host}}/api/v1/events
 Content-Type: application/json
+Accept: application/json
 
 {
-	"id": "64e1d8fb-b065-436d-afd0-5fbcb752a4e1",
+	"id": "34e1d8fb-b065-436d-afd0-5fbcb752a4e1",
     "targetId": "12345",
 	"targetType": {
 		"name": "subscription"

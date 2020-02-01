@@ -9,8 +9,9 @@ type response struct {
 }
 
 type inspectResource struct {
-	Messages  int `json:"messages"`
-	Consumers int `json:"consumers"`
+	ConnectionStatus string `json:"connectionStatus"`
+	Messages         int    `json:"messages"`
+	Consumers        int    `json:"consumers"`
 }
 
 func (ir inspectResource) ToJSON() response {

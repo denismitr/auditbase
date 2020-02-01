@@ -10,14 +10,11 @@ import (
 	"github.com/streadway/amqp"
 )
 
-const (
-	AuditLogMessages = "audit_log_messages"
-)
-
 type ConnectionStatus int
 
 const (
-	Connected = iota
+	Idle = iota
+	Connected
 	Connecting
 	ConnectionDropped
 	ConnectionClosed
@@ -82,7 +79,7 @@ func (q *RabbitQueue) Stop() {
 // Status - returns current connection status
 func (q *RabbitQueue) Status() ConnectionStatus {
 	q.mu.RLock()
-	defer q.mu.Unlock()
+	defer q.mu.RUnlock()
 
 	return q.status
 }
@@ -293,6 +290,7 @@ func (q *RabbitQueue) Maintain() {
 			}
 
 			q.updateStatus(ConnectionClosed)
+			q.closeStatusListeners()
 		}
 	}
 }
@@ -300,16 +298,18 @@ func (q *RabbitQueue) Maintain() {
 func (q *RabbitQueue) updateStatus(s ConnectionStatus) {
 	q.mu.Lock()
 	q.status = s
-	q.mu.Unlock()
-
-	q.mu.RLock()
-	defer q.mu.RUnlock()
+	defer q.mu.Unlock()
 
 	for _, l := range q.statusListeners {
-		if s == ConnectionClosed {
-			close(l)
-		} else {
-			l <- s
-		}
+		l <- s
+	}
+}
+
+func (q *RabbitQueue) closeStatusListeners() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	for _, l := range q.statusListeners {
+		close(l)
 	}
 }

@@ -121,7 +121,7 @@ func TestScaffold(t *testing.T) {
 				shouldFailOnBind:            f.shouldFailOnBind,
 			}
 
-			fl := NewMQEventFlow(fmq, cfg)
+			fl := New(fmq, cfg)
 
 			err := fl.Scaffold()
 

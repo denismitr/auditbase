@@ -27,6 +27,7 @@ type Consumer struct {
 	receiveCh chan queue.ReceivedMessage
 	stopCh    chan struct{}
 	errorCh   chan error
+	efStateCh chan flow.State
 
 	mu       sync.RWMutex
 	statusOK bool
@@ -51,6 +52,7 @@ func New(
 		receiveCh:     make(chan queue.ReceivedMessage),
 		stopCh:        make(chan struct{}),
 		errorCh:       make(chan error),
+		efStateCh:     make(chan flow.State),
 		mu:            sync.RWMutex{},
 		statusOK:      true,
 	}
@@ -60,25 +62,7 @@ func New(
 func (c *Consumer) Start(consumerName string) StopFunc {
 	go c.collectErrors()
 	go c.healthCheck()
-
-	events := c.f.Receive(consumerName)
-
-	go func() {
-		for {
-			select {
-			case e := <-events:
-				if e == nil {
-					c.errorCh <- connectionError
-					continue
-				}
-
-				go c.processEvent(e)
-			case <-c.stopCh:
-				c.f.Stop()
-				return
-			}
-		}
-	}()
+	go c.receiveEventsAs(consumerName)
 
 	return func(ctx context.Context) error {
 		close(c.stopCh)
@@ -88,6 +72,31 @@ func (c *Consumer) Start(consumerName string) StopFunc {
 			return ctx.Err()
 		case <-c.receiveCh:
 			return nil
+		}
+	}
+}
+
+func (c *Consumer) receiveEventsAs(consumerName string) {
+	c.f.NotifyOnStateChange(c.efStateCh)
+
+	events := c.f.Receive(consumerName)
+
+	for {
+		select {
+		case e := <-events:
+			if e == nil {
+				c.errorCh <- connectionError
+				continue
+			}
+
+			go c.processEvent(e)
+		case efState := <-c.efStateCh:
+			if efState == flow.Failed || efState == flow.Stopped {
+				c.markAsFailed()
+			}
+		case <-c.stopCh:
+			c.f.Stop()
+			return
 		}
 	}
 }

@@ -50,7 +50,7 @@ func main() {
 	exchangeType := os.Getenv("EVENTS_EXCHANGE_TYPE")
 
 	cfg := flow.NewConfig(exchange, exchangeType, routingKey, queueName, true)
-	ef := flow.NewMQEventFlow(mq, cfg)
+	ef := flow.New(mq, cfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)
