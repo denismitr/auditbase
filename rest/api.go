@@ -13,11 +13,13 @@ import (
 	"github.com/labstack/echo/middleware"
 )
 
+// API - rest API of auditbase
 type API struct {
 	e   *echo.Echo
 	cfg Config
 }
 
+// New API
 func New(
 	cfg Config,
 	logger utils.Logger,
@@ -25,6 +27,7 @@ func New(
 	mr model.MicroserviceRepository,
 	er model.EventRepository,
 	atr model.ActorTypeRepository,
+	ttr model.TargetTypeRepository,
 ) *API {
 	e := echo.New()
 
@@ -37,6 +40,7 @@ func New(
 	mc := newMicroservicesController(logger, uuid4, mr)
 	ec := newEventsController(logger, uuid4, utils.NewClock(), er, ef)
 	atc := newActorTypes(logger, uuid4, utils.NewClock(), atr)
+	ttc := newTargetTypes(logger, uuid4, utils.NewClock(), ttr)
 
 	// Microservices
 	e.GET("/api/v1/microservices", mc.SelectMicroservices)
@@ -55,6 +59,10 @@ func New(
 	// Actor types
 	e.GET("/api/v1/actor-types", atc.index)
 	e.GET("/api/v1/actor-types/:id", atc.show)
+
+	// Target types
+	e.GET("/api/v1/target-types", ttc.index)
+	e.GET("/api/v1/target-types/:id", ttc.show)
 
 	return &API{
 		e:   e,

@@ -19,7 +19,10 @@ type TargetType struct {
 	UpdatedAt   string `json:"updatedAt,omitempty"`
 }
 
+// TargetTypeRepository - abstracts away the methods for woring with
+// target types
 type TargetTypeRepository interface {
+	Select() ([]TargetType, error)
 	Create(TargetType) error
 	FirstByName(string) (TargetType, error)
 	FirstByID(string) (TargetType, error)

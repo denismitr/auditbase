@@ -35,6 +35,7 @@ func main() {
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
 	actorTypes := mysql.NewActorTypeRepository(dbConn, uuid4)
+	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
 
 	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_rest_api")
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 4)
@@ -57,7 +58,15 @@ func main() {
 		BodyLimit: "250K",
 	}
 
-	rest := rest.New(restCfg, logger, ef, microservices, events, actorTypes)
+	rest := rest.New(
+		restCfg,
+		logger,
+		ef,
+		microservices,
+		events,
+		actorTypes,
+		targetTypes,
+	)
 
 	rest.Start()
 }

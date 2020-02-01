@@ -37,33 +37,23 @@ func NewActorTypeRepository(conn *sqlx.DB, uuid4 utils.UUID4Generatgor) *ActorTy
 	}
 }
 
+// Select all actor types
 func (r *ActorTypeRepository) Select() ([]model.ActorType, error) {
-	stmt := `
-		SELECT 
-			BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
-		FROM actor_types
-	`
-
 	actorTypes := []actorType{}
 	result := []model.ActorType{}
 
-	if err := r.conn.Select(&actorTypes, stmt); err != nil {
+	if err := r.conn.Select(&actorTypes, selectActorTypes); err != nil {
 		return result, errors.Wrap(err, "could not select all actor types")
 	}
 
 	for i := range actorTypes {
-		result = append(result, model.ActorType{
-			ID:          actorTypes[i].ID,
-			Name:        actorTypes[i].Name,
-			Description: actorTypes[i].Description,
-			CreatedAt:   actorTypes[i].CreatedAt,
-			UpdatedAt:   actorTypes[i].UpdatedAt,
-		})
+		result = append(result, actorTypes[i].ToModel())
 	}
 
 	return result, nil
 }
 
+// Create an actor type
 func (r *ActorTypeRepository) Create(mat model.ActorType) error {
 	stmt := `
 		INSERT INTO actor_types (id, name, description) VALUES (

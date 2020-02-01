@@ -36,3 +36,15 @@ const selectEvents = `
 		INNER JOIN target_types as tt
 	ON tt.id = e.target_type_id
 `
+
+const selectTargetTypes = `
+	SELECT 
+		BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
+	FROM target_types
+`
+
+const selectActorTypes = `
+	SELECT 
+		BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
+	FROM actor_types
+`

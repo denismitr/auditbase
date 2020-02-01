@@ -51,7 +51,7 @@ func internalError(err error) (int, *errorResponse) {
 }
 
 func notFound(err error) (int, *errorResponse) {
-	return http.StatusNotFound, newErrorResponseWithDetails(http.StatusBadRequest, "Not found", err.Error())
+	return http.StatusNotFound, newErrorResponseWithDetails(http.StatusNotFound, "Not found", err.Error())
 }
 
 func validationFailed(errors model.ValidationErrors, details string) (int, *errorResponse) {

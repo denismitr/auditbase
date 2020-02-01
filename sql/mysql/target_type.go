@@ -25,6 +25,7 @@ func (tt targetType) ToModel() model.TargetType {
 	}
 }
 
+// TargetTypeRepository - implements model.TargetTypeRepository
 type TargetTypeRepository struct {
 	conn  *sqlx.DB
 	uuid4 utils.UUID4Generatgor
@@ -37,6 +38,23 @@ func NewTargetTypeRepository(conn *sqlx.DB, uuid4 utils.UUID4Generatgor) *Target
 	}
 }
 
+// Select all target types in DB
+func (r *TargetTypeRepository) Select() ([]model.TargetType, error) {
+	targetTypes := []targetType{}
+	result := []model.TargetType{}
+
+	if err := r.conn.Select(&targetTypes, selectTargetTypes); err != nil {
+		return result, errors.Wrap(err, "could not select all target types")
+	}
+
+	for i := range targetTypes {
+		result = append(result, targetTypes[i].ToModel())
+	}
+
+	return result, nil
+}
+
+// Create a new target type from model DTO
 func (r *TargetTypeRepository) Create(mtt model.TargetType) error {
 	stmt := `
 		INSERT INTO target_types (id, name, description) VALUES (
@@ -75,6 +93,7 @@ func (r *TargetTypeRepository) FirstByName(name string) (model.TargetType, error
 	return tt.ToModel(), nil
 }
 
+// FirstByID - fetches a target type by ID
 func (r *TargetTypeRepository) FirstByID(ID string) (model.TargetType, error) {
 	stmt := `
 		SELECT 
