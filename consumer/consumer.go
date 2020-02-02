@@ -16,53 +16,67 @@ import (
 
 type StopFunc func(ctx context.Context) error
 
+// Consumer - consumers from the event flow and
+// persists events to the permanent storage
 type Consumer struct {
-	logger        utils.Logger
-	f             flow.EventFlow
-	microservices model.MicroserviceRepository
-	events        model.EventRepository
-	targetTypes   model.TargetTypeRepository
-	actorTypes    model.ActorTypeRepository
+	logger utils.Logger
+	f      flow.EventFlow
 
-	receiveCh chan queue.ReceivedMessage
-	stopCh    chan struct{}
-	errorCh   chan error
-	efStateCh chan flow.State
+	receiveCh           chan queue.ReceivedMessage
+	stopCh              chan struct{}
+	efStateCh           chan flow.State
+	persistenceResultCh chan persistenceResult
+
+	persistedEvents int
+	failedEvents    int
+
+	tasks *tasks
 
 	mu       sync.RWMutex
 	statusOK bool
 }
 
+// New consumer
 func New(
-	f flow.EventFlow,
-	l utils.Logger,
+	eventFlow flow.EventFlow,
+	logger utils.Logger,
 	mq queue.MQ,
-	ms model.MicroserviceRepository,
-	evt model.EventRepository,
-	tts model.TargetTypeRepository,
-	ats model.ActorTypeRepository,
+	microservices model.MicroserviceRepository,
+	events model.EventRepository,
+	targetTypes model.TargetTypeRepository,
+	actorTypes model.ActorTypeRepository,
 ) *Consumer {
+	resultCh := make(chan persistenceResult)
+
+	persister := newDBPersister(
+		microservices,
+		events,
+		targetTypes,
+		actorTypes,
+		logger,
+		resultCh,
+	)
+
+	tasks := newTasks(10, persister)
+
 	return &Consumer{
-		f:             f,
-		logger:        l,
-		microservices: ms,
-		events:        evt,
-		targetTypes:   tts,
-		actorTypes:    ats,
-		receiveCh:     make(chan queue.ReceivedMessage),
-		stopCh:        make(chan struct{}),
-		errorCh:       make(chan error),
-		efStateCh:     make(chan flow.State),
-		mu:            sync.RWMutex{},
-		statusOK:      true,
+		f:                   eventFlow,
+		tasks:               tasks,
+		logger:              logger,
+		persistenceResultCh: resultCh,
+		receiveCh:           make(chan queue.ReceivedMessage),
+		stopCh:              make(chan struct{}),
+		efStateCh:           make(chan flow.State),
+		mu:                  sync.RWMutex{},
+		statusOK:            true,
 	}
 }
 
 // Start consumer
 func (c *Consumer) Start(consumerName string) StopFunc {
-	go c.collectErrors()
 	go c.healthCheck()
-	go c.receiveEventsAs(consumerName)
+	go c.tasks.run()
+	go c.processEvents(consumerName)
 
 	return func(ctx context.Context) error {
 		close(c.stopCh)
@@ -76,7 +90,7 @@ func (c *Consumer) Start(consumerName string) StopFunc {
 	}
 }
 
-func (c *Consumer) receiveEventsAs(consumerName string) {
+func (c *Consumer) processEvents(consumerName string) {
 	c.f.NotifyOnStateChange(c.efStateCh)
 
 	events := c.f.Receive(consumerName)
@@ -84,20 +98,39 @@ func (c *Consumer) receiveEventsAs(consumerName string) {
 	for {
 		select {
 		case e := <-events:
+			// event flow failed
 			if e == nil {
-				c.errorCh <- connectionError
+				c.markAsFailed()
 				continue
 			}
 
-			go c.processEvent(e)
+			c.tasks.process(e)
 		case efState := <-c.efStateCh:
 			if efState == flow.Failed || efState == flow.Stopped {
 				c.markAsFailed()
 			}
+		case result := <-c.persistenceResultCh:
+			c.registerResult(result)
 		case <-c.stopCh:
+			c.logger.Debugf("Received on stop channel")
+			c.markAsFailed()
 			c.f.Stop()
 			return
 		}
+	}
+}
+
+func (c *Consumer) registerResult(r persistenceResult) {
+	switch r {
+	case eventFlowFailed:
+		c.incrementFailedEvents()
+		c.markAsFailed()
+	case success:
+		c.incrementPersistedEvents()
+	case databaseFailed:
+		c.incrementFailedEvents()
+	case eventCouldNotBeProcessed:
+		c.incrementFailedEvents()
 	}
 }
 
@@ -128,156 +161,20 @@ func (c *Consumer) healthCheck() {
 	}
 }
 
-func (c *Consumer) collectErrors() {
-	for {
-		select {
-		case err := <-c.errorCh:
-			if err == connectionError {
-				c.logger.Error(err)
-				c.markAsFailed()
-				continue
-			}
-		case <-c.stopCh:
-			c.logger.Debugf("Received on stop channel")
-			c.markAsFailed()
-			return
-		}
-	}
-}
-
 func (c *Consumer) markAsFailed() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.statusOK = false
 }
 
-func (c *Consumer) processEvent(re flow.ReceivedEvent) {
-	e, err := re.Event()
-	if err != nil {
-		c.panicOnFailedEvent(re, err)
-		return
-	}
-
-	if err := c.assignActorTypeTo(&e); err != nil {
-		c.handleFailedEvent(re, err)
-		return
-	}
-
-	if err := c.assignActorServiceTo(&e); err != nil {
-		c.handleFailedEvent(re, err)
-		return
-	}
-
-	if err := c.assignTargetTypeTo(&e); err != nil {
-		c.handleFailedEvent(re, err)
-		return
-	}
-
-	if err := c.assignTargetServiceTo(&e); err != nil {
-		c.handleFailedEvent(re, err)
-		return
-	}
-
-	if err := c.events.Create(e); err != nil {
-		c.handleFailedEvent(re, err)
-		return
-	}
-
-	re.Ack()
+func (c *Consumer) incrementFailedEvents() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.failedEvents++
 }
 
-func (c *Consumer) assignTargetTypeTo(e *model.Event) error {
-	// TODO: cache these checks
-	if e.TargetType.ID != "" {
-		tt, err := c.targetTypes.FirstByID(e.TargetType.ID)
-		if err != nil {
-			return errors.Wrapf(err, "target type with ID %s does not exist", e.TargetType.ID)
-		}
-
-		e.TargetType = tt
-		return nil
-	}
-
-	tt, err := c.targetTypes.FirstOrCreateByName(e.TargetType.Name)
-	if err != nil {
-		return err
-	}
-
-	e.TargetType = tt
-	return nil
-}
-
-func (c *Consumer) assignTargetServiceTo(e *model.Event) error {
-	// TODO: cache these checks
-	if e.TargetService.ID != "" {
-		ts, err := c.microservices.FirstByID(e.TargetService.ID)
-		if err != nil {
-			return errors.Wrapf(err, "target type ID %s does not exist", e.TargetService.ID)
-		}
-
-		e.TargetService = ts
-		return nil
-	}
-
-	ts, err := c.microservices.FirstOrCreateByName(e.TargetService.Name)
-	if err != nil {
-		return err
-	}
-
-	e.TargetService = ts
-
-	return nil
-}
-
-func (c *Consumer) assignActorTypeTo(e *model.Event) error {
-	// TODO: cache these checks
-	if e.ActorType.ID != "" {
-		at, err := c.actorTypes.FirstByID(e.ActorType.ID)
-		if err != nil {
-			return errors.Wrapf(err, "actor type with id %s does not exist", e.ActorType.ID)
-		}
-
-		e.ActorType = at
-		return nil
-	}
-
-	at, err := c.actorTypes.FirstOrCreateByName(e.ActorType.Name)
-	if err != nil {
-		return nil
-	}
-
-	e.ActorType = at
-	return nil
-}
-
-func (c *Consumer) assignActorServiceTo(e *model.Event) error {
-	// TODO: cache these checks
-	if e.ActorService.ID != "" {
-		as, err := c.microservices.FirstByID(e.ActorService.ID)
-		if err != nil {
-			return errors.Wrapf(err, "actor service with id %s does not exist", e.ActorService.ID)
-		}
-
-		e.ActorService = as
-		return nil
-	}
-
-	as, err := c.microservices.FirstOrCreateByName(e.ActorService.Name)
-	if err != nil {
-		return err
-	}
-
-	e.ActorService = as
-	return nil
-}
-
-func (c *Consumer) panicOnFailedEvent(e flow.ReceivedEvent, err error) {
-	c.logger.Error(err)
-	c.markAsFailed()
-	e.Reject()
-}
-
-func (c *Consumer) handleFailedEvent(e flow.ReceivedEvent, err error) {
-	c.logger.Error(err)
-	e.Reject()
+func (c *Consumer) incrementPersistedEvents() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.persistedEvents++
 }

@@ -30,7 +30,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-    "targetId": "9999995",
+    "targetId": "9219235",
 	"targetType": {
 		"name": "article"
 	},
@@ -58,7 +58,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-	"id": "34e1d8fb-b065-436d-afd0-5fbcb752a4e1",
+	"id": "34e1d8fa-b065-436d-afd0-5fbcb752a4e1",
     "targetId": "12345",
 	"targetType": {
 		"name": "subscription"
