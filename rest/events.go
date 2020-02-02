@@ -38,14 +38,15 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 	e := model.Event{}
 
 	if err := ctx.Bind(&e); err != nil {
-		return ctx.JSON(badRequest(errors.New("unparsable event payload")))
+		err = errors.Wrap(err, "unparsable event payload")
+		ec.logger.Error(err)
+		return ctx.JSON(badRequest(err))
 	}
 
 	if e.ID == "" {
 		e.ID = ec.uuid4.Generate()
 	}
 
-	// TODO: add validation, should not be empty
 	if e.EmittedAt == 0 {
 		e.EmittedAt = ec.clock.CurrentTimestamp()
 	}

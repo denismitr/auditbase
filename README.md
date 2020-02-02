@@ -1,5 +1,13 @@
 # Auditbase - an audit log system suitable for microservices
 
+### RUN
+```make up```
+
+### RUN "WRK" BENCHMARK
+```
+wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:8888
+```
+
 ## TODO
 - graceful shutdown
 - healthcheck for rest API

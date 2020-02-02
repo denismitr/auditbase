@@ -19,12 +19,12 @@ type StopFunc func(ctx context.Context) error
 // Consumer - consumers from the event flow and
 // persists events to the permanent storage
 type Consumer struct {
-	logger utils.Logger
-	f      flow.EventFlow
+	logger    utils.Logger
+	eventFlow flow.EventFlow
 
 	receiveCh           chan queue.ReceivedMessage
 	stopCh              chan struct{}
-	efStateCh           chan flow.State
+	eventFlowStateCh    chan flow.State
 	persistenceResultCh chan persistenceResult
 
 	persistedEvents int
@@ -60,13 +60,13 @@ func New(
 	tasks := newTasks(10, persister)
 
 	return &Consumer{
-		f:                   eventFlow,
+		eventFlow:           eventFlow,
 		tasks:               tasks,
 		logger:              logger,
 		persistenceResultCh: resultCh,
 		receiveCh:           make(chan queue.ReceivedMessage),
 		stopCh:              make(chan struct{}),
-		efStateCh:           make(chan flow.State),
+		eventFlowStateCh:    make(chan flow.State),
 		mu:                  sync.RWMutex{},
 		statusOK:            true,
 	}
@@ -91,9 +91,9 @@ func (c *Consumer) Start(consumerName string) StopFunc {
 }
 
 func (c *Consumer) processEvents(consumerName string) {
-	c.f.NotifyOnStateChange(c.efStateCh)
+	c.eventFlow.NotifyOnStateChange(c.eventFlowStateCh)
 
-	events := c.f.Receive(consumerName)
+	events := c.eventFlow.Receive(consumerName)
 
 	for {
 		select {
@@ -105,7 +105,7 @@ func (c *Consumer) processEvents(consumerName string) {
 			}
 
 			c.tasks.process(e)
-		case efState := <-c.efStateCh:
+		case efState := <-c.eventFlowStateCh:
 			if efState == flow.Failed || efState == flow.Stopped {
 				c.markAsFailed()
 			}
@@ -114,7 +114,8 @@ func (c *Consumer) processEvents(consumerName string) {
 		case <-c.stopCh:
 			c.logger.Debugf("Received on stop channel")
 			c.markAsFailed()
-			c.f.Stop()
+			c.eventFlow.Stop()
+			c.tasks.stop()
 			return
 		}
 	}
