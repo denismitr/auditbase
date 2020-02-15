@@ -72,21 +72,25 @@ func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
 		return ctx.JSON(badRequest(errors.Wrap(err, "could not parse JSON payload")))
 	}
 
-	ID := ctx.Param("id")
+	if errors := m.Validate(model.NewValidator()); errors.NotEmpty() {
+		return ctx.JSON(validationFailed(errors, "bad input data"))
+	}
+
+	ID := model.ID(ctx.Param("id"))
+	if errors := ID.Validate(model.NewValidator()); errors.NotEmpty() {
+		return ctx.JSON(validationFailed(errors, ":id is invalid"))
+	}
 
 	if err := mc.microservices.Update(ID, m); err != nil {
 		return ctx.JSON(badRequest(err))
 	}
 
-	updatedM, err := mc.microservices.FirstByID(model.ID(ID))
+	updatedM, err := mc.microservices.FirstByID(ID)
 	if err != nil {
 		return ctx.JSON(badRequest(err))
 	}
 
-	var r = make(map[string]model.Microservice) // TODO: refactor
-	r["data"] = updatedM
-
-	return ctx.JSON(200, r)
+	return ctx.JSON(200, newResponse(newMicroserviceResource(updatedM)))
 }
 
 func (mc *microservicesController) GetMicroservice(ctx echo.Context) error {

@@ -1,8 +1,10 @@
 package rest
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/denismitr/auditbase/model"
@@ -166,5 +168,51 @@ func TestSelectMicroservices(t *testing.T) {
 		assert.Equal(t, "Bar", gjson.Get(js, "data.0.description").String())
 		assert.Equal(t, "Bar2", gjson.Get(js, "data.1.description").String())
 	})
+}
 
+func TestUpdateMicroservice(t *testing.T) {
+	e := echo.New()
+	logger := utils.NewStdoutLogger("test", "events_test")
+
+	t.Run("admin can update existing microservice", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		id := "35e46ed5-fe56-4445-878e-9c32ae54bfd0"
+
+		uuidMock := mock_utils.NewMockUUID4Generatgor(ctrl)
+		mrMock := mock_model.NewMockMicroserviceRepository(ctrl)
+
+		m := model.Microservice{
+			ID:          id,
+			Name:        "FOO 23",
+			Description: "BAR 23",
+		}
+
+		b, _ := json.Marshal(m)
+		body := string(b)
+
+		mrMock.EXPECT().Update(model.ID(id), m).Return(nil)
+		mrMock.EXPECT().FirstByID(model.ID(id)).Return(m, nil)
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/microservices/"+id, strings.NewReader(body))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+
+		c := newMicroservicesController(logger, uuidMock, mrMock)
+
+		ctx := e.NewContext(req, rec)
+		ctx.SetPath("/api/v1/microservices/:id")
+		ctx.SetParamNames("id")
+		ctx.SetParamValues(id)
+
+		err := c.UpdateMicroservice(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		js := rec.Body.String()
+
+		assert.Equal(t, id, gjson.Get(js, "data.id").String())
+		assert.Equal(t, "FOO 23", gjson.Get(js, "data.name").String())
+		assert.Equal(t, "BAR 23", gjson.Get(js, "data.description").String())
+	})
 }

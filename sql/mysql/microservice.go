@@ -78,10 +78,10 @@ func (r *MicroserviceRepository) Delete(ID string) error {
 }
 
 // Update microservice by ID
-func (r *MicroserviceRepository) Update(ID string, m model.Microservice) error {
+func (r *MicroserviceRepository) Update(ID model.ID, m model.Microservice) error {
 	stmt := `UPDATE microservices SET name = ?, description = ? WHERE id = UUID_TO_BIN(?)`
 
-	if _, err := r.conn.Exec(stmt, m.Name, m.Description, ID); err != nil {
+	if _, err := r.conn.Exec(stmt, m.Name, m.Description, ID.String()); err != nil {
 		return errors.Wrapf(err, "could not update microservice with ID %s", m.ID)
 	}
 

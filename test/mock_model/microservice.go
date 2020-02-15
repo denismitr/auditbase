@@ -62,7 +62,7 @@ func (mr *MockMicroserviceRepositoryMockRecorder) Delete(ID interface{}) *gomock
 }
 
 // Update mocks base method
-func (m_2 *MockMicroserviceRepository) Update(ID string, m model.Microservice) error {
+func (m_2 *MockMicroserviceRepository) Update(ID model.ID, m model.Microservice) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "Update", ID, m)
 	ret0, _ := ret[0].(error)
