@@ -38,7 +38,7 @@ func newMicroserviceResource(m model.Microservice) microserviceResource {
 	}
 }
 
-func newResponseItem(r interface{}) responseItem {
+func newResponse(r interface{}) responseItem {
 	return responseItem{Data: r}
 }
 

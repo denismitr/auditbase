@@ -63,11 +63,7 @@ func (mc *microservicesController) SelectMicroservices(ctx echo.Context) error {
 		return ctx.JSON(internalError(err))
 	}
 
-	var r = make(map[string][]model.Microservice) // TODO: refactor
-
-	r["data"] = ms
-
-	return ctx.JSON(200, r)
+	return ctx.JSON(200, newResponse(ms))
 }
 
 func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
@@ -113,5 +109,5 @@ func (mc *microservicesController) GetMicroservice(ctx echo.Context) error {
 
 	r := newMicroserviceResource(m)
 
-	return ctx.JSON(200, newResponseItem(r))
+	return ctx.JSON(200, newResponse(r))
 }

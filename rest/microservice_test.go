@@ -19,7 +19,7 @@ const idValidationFailed = `
 {"error":{"title":"Validation failed","code":422,"details":"ID is incorrect","errors":{"ID":[":id must be a valid UUID4 or be null for auto assigning"]}}}
 `
 
-func TestShowMicroservice(t *testing.T) {
+func TestGetMicroservice(t *testing.T) {
 	e := echo.New()
 	logger := utils.NewStdoutLogger("test", "events_test")
 
@@ -123,4 +123,48 @@ func TestShowMicroservice(t *testing.T) {
 		assert.Equal(t, "Validation failed", gjson.Get(js, "error.title").String())
 		assert.Equal(t, ":id is incorrect", gjson.Get(js, "error.details").String())
 	})
+}
+
+func TestSelectMicroservices(t *testing.T) {
+	e := echo.New()
+	logger := utils.NewStdoutLogger("test", "events_test")
+
+	t.Run("select all microservices", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		uuidMock := mock_utils.NewMockUUID4Generatgor(ctrl)
+		mrMock := mock_model.NewMockMicroserviceRepository(ctrl)
+
+		mm := []model.Microservice{
+			{ID: "35e46ed5-fe56-4445-878e-9c32ae54bfd0", Name: "Foo", Description: "Bar"},
+			{ID: "22e46ed5-fe56-4445-878e-9c32ae54bf11", Name: "Foo2", Description: "Bar2"},
+		}
+
+		mrMock.
+			EXPECT().
+			SelectAll().
+			Return(mm, nil)
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/microservices/123", nil)
+		c := newMicroservicesController(logger, uuidMock, mrMock)
+
+		ctx := e.NewContext(req, rec)
+
+		err := c.SelectMicroservices(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		js := rec.Body.String()
+
+		assert.Equal(t, int64(2), gjson.Get(js, "data.#").Int())
+		assert.Equal(t, "35e46ed5-fe56-4445-878e-9c32ae54bfd0", gjson.Get(js, "data.0.id").String())
+		assert.Equal(t, "22e46ed5-fe56-4445-878e-9c32ae54bf11", gjson.Get(js, "data.1.id").String())
+		assert.Equal(t, "Foo", gjson.Get(js, "data.0.name").String())
+		assert.Equal(t, "Foo2", gjson.Get(js, "data.1.name").String())
+		assert.Equal(t, "Bar", gjson.Get(js, "data.0.description").String())
+		assert.Equal(t, "Bar2", gjson.Get(js, "data.1.description").String())
+	})
+
 }
