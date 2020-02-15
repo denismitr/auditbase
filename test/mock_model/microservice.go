@@ -76,7 +76,7 @@ func (mr *MockMicroserviceRepositoryMockRecorder) Update(ID, m interface{}) *gom
 }
 
 // FirstByID mocks base method
-func (m *MockMicroserviceRepository) FirstByID(ID string) (model.Microservice, error) {
+func (m *MockMicroserviceRepository) FirstByID(ID model.ID) (model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FirstByID", ID)
 	ret0, _ := ret[0].(model.Microservice)

@@ -45,7 +45,7 @@ func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
 		return ctx.JSON(internalError(err))
 	}
 
-	savedMicroservice, err := mc.microservices.FirstByID(m.ID)
+	savedMicroservice, err := mc.microservices.FirstByID(model.ID(m.ID))
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
@@ -82,7 +82,7 @@ func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
 		return ctx.JSON(badRequest(err))
 	}
 
-	updatedM, err := mc.microservices.FirstByID(ID)
+	updatedM, err := mc.microservices.FirstByID(model.ID(ID))
 	if err != nil {
 		return ctx.JSON(badRequest(err))
 	}
@@ -94,18 +94,24 @@ func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
 }
 
 func (mc *microservicesController) GetMicroservice(ctx echo.Context) error {
-	ID := ctx.Param("id")
-	if ID == "" {
-		return ctx.JSON(badRequest(errors.New("ID is empty")))
+	ID := model.ID(ctx.Param("id"))
+	v := model.NewValidator()
+
+	if errors := ID.Validate(v); errors.NotEmpty() {
+		return ctx.JSON(validationFailed(errors, ":id is incorrect"))
 	}
 
 	m, err := mc.microservices.FirstByID(ID)
 	if err != nil {
-		return ctx.JSON(badRequest(err)) // TODO: refactor to not found
+		if err == model.ErrMicroserviceNotFound {
+			return ctx.JSON(
+				notFound(errors.Wrapf(err, "could not get microservice with ID %s from database", ID)))
+		}
+
+		return ctx.JSON(badRequest(err))
 	}
 
-	var r = make(map[string]model.Microservice) // TODO: refactor
-	r["data"] = m
+	r := newMicroserviceResource(m)
 
-	return ctx.JSON(200, r)
+	return ctx.JSON(200, newResponseItem(r))
 }

@@ -89,13 +89,13 @@ func (r *MicroserviceRepository) Update(ID string, m model.Microservice) error {
 }
 
 // FirstByID - find first microservice by ID
-func (r *MicroserviceRepository) FirstByID(ID string) (model.Microservice, error) {
+func (r *MicroserviceRepository) FirstByID(ID model.ID) (model.Microservice, error) {
 	m := new(microservice)
 
 	stmt := `SELECT BIN_TO_UUID(id) as id, name, description, created_at, updated_at FROM microservices WHERE id = UUID_TO_BIN(?)`
 
-	if err := r.conn.Get(m, stmt, ID); err != nil {
-		return model.Microservice{}, errors.Wrapf(err, "could not get microservice with ID %s from database", ID)
+	if err := r.conn.Get(m, stmt, ID.String()); err != nil {
+		return model.Microservice{}, model.ErrMicroserviceNotFound
 	}
 
 	return model.Microservice{

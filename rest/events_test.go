@@ -24,7 +24,7 @@ const eventWithoutID = `
 	{"targetId":"1234","targetType":{"name":"article"},"targetService":{"name":"article-storage"},"actorId":"4321","actorType":{"name":"editor"},"actorService":{"name":"back-office"},"eventName":"article_published","emittedAt":1578173213,"delta":{"status":["PENDING","PUBLISHED"]}}
 `
 
-func TestCreateEventWithID(t *testing.T) {
+func TestCreateEventWith(t *testing.T) {
 	e := echo.New()
 
 	logger := utils.NewStdoutLogger("test", "events_test")

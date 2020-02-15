@@ -6,25 +6,33 @@ import (
 	"github.com/denismitr/auditbase/model"
 )
 
-type errorResponse struct {
+type errorResource struct {
 	Title   string              `json:"title"`
 	Code    int                 `json:"code"`
 	Details string              `json:"details"`
 	Errors  map[string][]string `json:"errors,omitempty"`
 }
 
+type errorResponse struct {
+	Error errorResource `json:"error"`
+}
+
 func newErrorResponse(code int, title string) *errorResponse {
 	return &errorResponse{
-		Title: title,
-		Code:  code,
+		errorResource{
+			Title: title,
+			Code:  code,
+		},
 	}
 }
 
 func newErrorResponseWithDetails(code int, title string, details string) *errorResponse {
 	return &errorResponse{
-		Title:   title,
-		Code:    code,
-		Details: details,
+		errorResource{
+			Title:   title,
+			Code:    code,
+			Details: details,
+		},
 	}
 }
 
@@ -35,10 +43,12 @@ func newErrorResponseWithDetailsAndErrors(
 	errors map[string][]string,
 ) *errorResponse {
 	return &errorResponse{
-		Title:   title,
-		Code:    code,
-		Details: details,
-		Errors:  errors,
+		errorResource{
+			Title:   title,
+			Code:    code,
+			Details: details,
+			Errors:  errors,
+		},
 	}
 }
 

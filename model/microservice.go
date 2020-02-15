@@ -1,5 +1,9 @@
 package model
 
+import "errors"
+
+var ErrMicroserviceNotFound = errors.New("not found")
+
 type Microservice struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -12,7 +16,7 @@ type MicroserviceRepository interface {
 	Create(Microservice) error
 	Delete(ID string) error
 	Update(ID string, m Microservice) error
-	FirstByID(ID string) (Microservice, error)
+	FirstByID(ID ID) (Microservice, error)
 	FirstByName(name string) (Microservice, error)
 	FirstOrCreateByName(name string) (Microservice, error)
 	SelectAll() ([]Microservice, error)
