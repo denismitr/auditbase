@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/tests/mock_flow"
-	"github.com/denismitr/auditbase/tests/mock_model"
-	"github.com/denismitr/auditbase/tests/mock_utils"
+	"github.com/denismitr/auditbase/test/mock_flow"
+	"github.com/denismitr/auditbase/test/mock_model"
+	"github.com/denismitr/auditbase/test/mock_utils"
 	"github.com/denismitr/auditbase/utils"
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo"

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -14,21 +15,25 @@ type Logger interface {
 }
 
 func NewStdoutLogger(env, namespace string) *StdLogger {
-	logger := log.New(os.Stdout, namespace, log.Ldate|log.Ltime|log.Lshortfile)
+	debugLogger := log.New(os.Stdout, namespace+" ", log.Ldate|log.Ltime|log.Lshortfile)
+	errLogger := log.New(os.Stderr, namespace+" ", log.Ldate|log.Ltime|log.Lshortfile)
 
 	return &StdLogger{
-		l:   logger,
-		env: env,
+		debugLogger: debugLogger,
+		errLogger:   errLogger,
+		env:         env,
 	}
 }
 
 type StdLogger struct {
-	l   *log.Logger
-	env string
+	errLogger   *log.Logger
+	debugLogger *log.Logger
+	env         string
 }
 
+// Error - logs error message using error logger driver
 func (l *StdLogger) Error(err error) {
-	l.l.Printf("error in [%s] env: ", err.Error())
+	l.errLogger.Output(2, fmt.Sprintf("\n\nERROR in ["+l.env+"] env: %s", err.Error()))
 }
 
 // Debugf - prints debug message with params
@@ -37,5 +42,5 @@ func (l *StdLogger) Debugf(format string, args ...interface{}) {
 		return
 	}
 
-	l.l.Printf("debug info in ["+l.env+"] "+format, args...)
+	l.debugLogger.Output(2, fmt.Sprintf("\n\nDEBUG in ["+l.env+"] "+format, args...))
 }

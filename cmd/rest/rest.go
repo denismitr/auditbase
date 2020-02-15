@@ -34,18 +34,20 @@ func main() {
 
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
+	actorTypes := mysql.NewActorTypeRepository(dbConn, uuid4)
+	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
 
 	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_rest_api")
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 4)
 
-	if err := mq.WaitForConnection(); err != nil {
+	if err := mq.Connect(); err != nil {
 		panic(err)
 	}
 
 	port := ":" + os.Getenv("REST_API_PORT")
 
 	flowCfg := flow.NewConfigFromGlobals()
-	ef := flow.NewMQEventFlow(mq, flowCfg)
+	ef := flow.New(mq, flowCfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)
@@ -56,7 +58,15 @@ func main() {
 		BodyLimit: "250K",
 	}
 
-	rest := rest.New(restCfg, logger, ef, microservices, events)
+	rest := rest.New(
+		restCfg,
+		logger,
+		ef,
+		microservices,
+		events,
+		actorTypes,
+		targetTypes,
+	)
 
 	rest.Start()
 }

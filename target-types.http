@@ -1,0 +1,11 @@
+@host = http://localhost:8888
+
+GET {{host}}/api/v1/target-types
+Content-Type: application/json
+Accept: application/json
+
+###
+
+GET {{host}}/api/v1/target-types/c54405a3-a712-4a8e-b5e2-29b18d5d5824
+Content-Type: application/json
+Accept: application/json

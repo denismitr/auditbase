@@ -39,7 +39,10 @@ func main() {
 
 	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_consumer")
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
-	mq.WaitForConnection()
+
+	if err := mq.Connect(); err != nil {
+		panic(err)
+	}
 
 	exchange := os.Getenv("EVENTS_EXCHANGE")
 	routingKey := os.Getenv("EVENTS_ROUTING_KEY")
@@ -47,7 +50,7 @@ func main() {
 	exchangeType := os.Getenv("EVENTS_EXCHANGE_TYPE")
 
 	cfg := flow.NewConfig(exchange, exchangeType, routingKey, queueName, true)
-	ef := flow.NewMQEventFlow(mq, cfg)
+	ef := flow.New(mq, cfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)

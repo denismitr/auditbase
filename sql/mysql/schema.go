@@ -74,6 +74,17 @@ const targetTypeSchema = `
 	) ENGINE=INNODB;		
 `
 
+const flush = `
+	SET SQL_SAFE_UPDATES = 0;
+
+	truncate table events;
+	delete from actor_types;
+	delete from target_types;
+	delete from microservices;
+
+	SET SQL_SAFE_UPDATES = 1;
+`
+
 func Scaffold(conn *sqlx.DB) error {
 	if _, err := conn.Exec(targetTypeSchema); err != nil {
 		return errors.Wrap(err, "could not create target_types table")

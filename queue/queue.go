@@ -2,7 +2,6 @@ package queue
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -11,15 +10,14 @@ import (
 	"github.com/streadway/amqp"
 )
 
-const (
-	AuditLogMessages = "audit_log_messages"
-)
-
 type ConnectionStatus int
 
 const (
-	ActiveConnection = iota
-	DroppedConnection
+	Idle = iota
+	Connected
+	Connecting
+	ConnectionDropped
+	ConnectionClosed
 )
 
 // Scaffolder - scaffolds the Message Queue,
@@ -37,17 +35,23 @@ type MQ interface {
 	Inspect(queueName string) (Inspection, error)
 	Publish(msg Message, exchange, routingKey string) error
 	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
-	Status() (bool, error)
+	Connect() error
+	Maintain()
+	Status() ConnectionStatus
+	NotifyStatusChange(listener chan ConnectionStatus)
 	Stop()
 }
 
 // RabbitQueue handles message queue
 type RabbitQueue struct {
-	dsn     string
-	conn    *amqp.Connection
-	logger  utils.Logger
-	stopCh  chan struct{}
-	errorCh chan error
+	dsn             string
+	conn            *amqp.Connection
+	logger          utils.Logger
+	stopCh          chan struct{}
+	errorCh         chan error
+	connErrCh       chan *amqp.Error
+	statusListeners []chan ConnectionStatus
+	status          ConnectionStatus
 
 	maxConnRetries int
 
@@ -57,12 +61,13 @@ type RabbitQueue struct {
 // NewRabbitQueue - creates a new message queue with RabbitMQ implementation
 func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *RabbitQueue {
 	return &RabbitQueue{
-		dsn:            dsn,
-		conn:           nil,
-		logger:         logger,
-		stopCh:         make(chan struct{}),
-		maxConnRetries: maxConnRetries,
-		mu:             sync.RWMutex{},
+		dsn:             dsn,
+		conn:            nil,
+		logger:          logger,
+		stopCh:          make(chan struct{}),
+		statusListeners: make([]chan ConnectionStatus, 0),
+		maxConnRetries:  maxConnRetries,
+		mu:              sync.RWMutex{},
 	}
 }
 
@@ -71,18 +76,19 @@ func (q *RabbitQueue) Stop() {
 	close(q.stopCh)
 }
 
-// Status - checks connection status
-func (q *RabbitQueue) Status() (bool, error) {
-	ch, err := q.conn.Channel()
-	if err != nil {
-		return false, errors.Wrap(err, "could not check RabbitMQ connection status")
-	}
+// Status - returns current connection status
+func (q *RabbitQueue) Status() ConnectionStatus {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
-	if err := ch.Close(); err != nil {
-		return false, errors.Wrap(err, "problem with channel closing on Rabbit connection status check")
-	}
+	return q.status
+}
 
-	return true, nil
+// NotifyStatusChange - registers a listener for on connection status change
+func (q *RabbitQueue) NotifyStatusChange(listener chan ConnectionStatus) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.statusListeners = append(q.statusListeners, listener)
 }
 
 // Publish message to message queue
@@ -222,13 +228,17 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 	}
 }
 
-// WaitForConnection waits for RabbitMQ to start up
+// Connect waits for RabbitMQ to start up
 // and makes attempts to connect to irt
-func (q *RabbitQueue) WaitForConnection() error {
+// this function is not, and not supposed to be thread safe
+// only one goroutine should run it at a time
+func (q *RabbitQueue) Connect() error {
 	attempt := 1
 
+	q.updateStatus(Connecting)
+
 	for attempt <= q.maxConnRetries {
-		q.logger.Debugf("Waiting for RabbitMQ: attempt %d", attempt)
+		q.logger.Debugf("Waiting for RabbitMQ on %s: attempt %d", q.dsn, attempt)
 
 		conn, err := amqp.Dial(q.dsn)
 		if err != nil {
@@ -242,14 +252,64 @@ func (q *RabbitQueue) WaitForConnection() error {
 		}
 
 		q.conn = conn
+		q.updateStatus(Connected)
+		q.connErrCh = make(chan *amqp.Error)
+		q.conn.NotifyClose(q.connErrCh)
+
+		q.logger.Debugf("Established connection with %s", q.dsn)
+
 		return nil
 	}
 
-	return errors.New("failed to connect to rabbitMQ - too many attempts")
+	return errors.Errorf("failed to connect to rabbitMQ on %s - too many attempts", q.dsn)
 }
 
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
+// Maintain connection to RabbitMQ and listen to close channel
+// should be run as a goroutine
+func (q *RabbitQueue) Maintain() {
+	var connErr *amqp.Error
+
+	for {
+		select {
+		case connErr = <-q.connErrCh:
+			if connErr != nil {
+				q.updateStatus(ConnectionDropped)
+				q.logger.Error(errors.Errorf("RabbitMQ connection error: %s", connErr.Error()))
+				if err := q.Connect(); err != nil {
+					panic(errors.Wrap(err, "failed to reconnect to RabbitMQ"))
+				}
+				continue
+			} else {
+				// connection was deliberately closed
+				q.updateStatus(ConnectionClosed)
+				return
+			}
+		case <-q.stopCh:
+			if !q.conn.IsClosed() {
+				q.conn.Close()
+			}
+
+			q.updateStatus(ConnectionClosed)
+			q.closeStatusListeners()
+		}
+	}
+}
+
+func (q *RabbitQueue) updateStatus(s ConnectionStatus) {
+	q.mu.Lock()
+	q.status = s
+	defer q.mu.Unlock()
+
+	for _, l := range q.statusListeners {
+		l <- s
+	}
+}
+
+func (q *RabbitQueue) closeStatusListeners() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	for _, l := range q.statusListeners {
+		close(l)
 	}
 }

@@ -1,6 +1,8 @@
 package rest
 
 import (
+	"strconv"
+
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils"
@@ -36,14 +38,15 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 	e := model.Event{}
 
 	if err := ctx.Bind(&e); err != nil {
-		return ctx.JSON(badRequest(errors.New("unparsable event payload")))
+		err = errors.Wrap(err, "unparsable event payload")
+		ec.logger.Error(err)
+		return ctx.JSON(badRequest(err))
 	}
 
 	if e.ID == "" {
 		e.ID = ec.uuid4.Generate()
 	}
 
-	// TODO: add validation, should not be empty
 	if e.EmittedAt == 0 {
 		e.EmittedAt = ec.clock.CurrentTimestamp()
 	}
@@ -65,7 +68,9 @@ func (ec *eventsController) CreateEvent(ctx echo.Context) error {
 }
 
 func (ec *eventsController) SelectEvents(ctx echo.Context) error {
-	events, err := ec.events.SelectAll()
+	f := createEventFilterFromContext(ctx)
+
+	events, err := ec.events.Select(f, model.Sort{}, model.Pagination{})
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
@@ -99,14 +104,23 @@ func (ec *eventsController) Count(ctx echo.Context) error {
 }
 
 func (ec *eventsController) Inspect(ctx echo.Context) error {
-	messages, consumers, err := ec.ef.Inspect()
+	state, err := ec.ef.Inspect()
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
+	var status string
+
+	if state.OK() {
+		status = "OK"
+	} else {
+		status = state.Error()
+	}
+
 	i := inspectResource{
-		Messages:  messages,
-		Consumers: consumers,
+		ConnectionStatus: status,
+		Messages:         state.Messages,
+		Consumers:        state.Consumers,
 	}
 
 	return ctx.JSON(200, i.ToJSON())
@@ -120,4 +134,28 @@ func (ec *eventsController) DeleteEvent(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(204, nil)
+}
+
+func createEventFilterFromContext(ctx echo.Context) model.EventFilter {
+	var emittedAtGt int
+	var emittedAtLt int
+
+	if ctx.QueryParam("filter[emittedAt][gt]") != "" {
+		emittedAtGt, _ = strconv.Atoi(ctx.QueryParam("filter[emittedAt][gt]"))
+	}
+
+	if ctx.QueryParam("filter[emittedAt][lt]") != "" {
+		emittedAtLt, _ = strconv.Atoi(ctx.QueryParam("filter[emittedAt][lt]"))
+	}
+
+	return model.EventFilter{
+		ActorTypeID:     ctx.QueryParam("filter[actorTypeId]"),
+		ActorID:         ctx.QueryParam("filter[actorId]"),
+		ActorServiceID:  ctx.QueryParam("filter[actorServiceId]"),
+		TargetID:        ctx.QueryParam("filter[targetId]"),
+		TargetTypeID:    ctx.QueryParam("filter[targetTypeId]"),
+		TargetServiceID: ctx.QueryParam("filter[targetServiceId]"),
+		EmittedAtGt:     int64(emittedAtGt),
+		EmittedAtLt:     int64(emittedAtLt),
+	}
 }

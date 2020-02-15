@@ -12,29 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const selectEvents = `
-	SELECT 
-		BIN_TO_UUID(e.id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-		actor_id, BIN_TO_UUID(actor_type_id) as actor_type_id, 
-		BIN_TO_UUID(actor_service_id) as actor_service_id, 
-		target_id, BIN_TO_UUID(target_type_id) as target_type_id, 
-		BIN_TO_UUID(target_service_id) as target_service_id, 
-		event_name, emitted_at, registered_at, delta,
-		ams.name as actor_service_name, tms.name as target_service_name,
-		ams.description as actor_service_description, tms.description as target_service_description,
-		at.name as actor_type_name, at.description as actor_type_description,
-		tt.name as target_type_name, tt.description as target_type_description 
-	FROM events as e
-		INNER JOIN microservices as ams
-	ON ams.id = e.actor_service_id
-		INNER JOIN microservices as tms
-	ON tms.id = e.target_service_id
-		INNER JOIN actor_types as at
-	ON at.id = e.actor_type_id
-		INNER JOIN target_types as tt
-	ON tt.id = e.target_type_id
-`
-
 type event struct {
 	ID                       string         `db:"id"`
 	ParentEventID            sql.NullString `db:"parent_event_id"`
@@ -71,20 +48,6 @@ func NewEventRepository(conn *sqlx.DB, uuid4 utils.UUID4Generatgor) *EventReposi
 }
 
 func (r *EventRepository) Create(e model.Event) error {
-	stmt := `
-		INSERT INTO events (
-			id, parent_event_id, actor_id, 
-			actor_type_id, actor_service_id, target_id, 
-			target_type_id, target_service_id, event_name,
-			emitted_at, registered_at, delta
-		) VALUES (
-			UUID_TO_BIN(:id), UUID_TO_BIN(:parent_event_id), :actor_id, 
-			UUID_TO_BIN(:actor_type_id), UUID_TO_BIN(:actor_service_id), :target_id, 
-			UUID_TO_BIN(:target_type_id), UUID_TO_BIN(:target_service_id), :event_name, 
-			:emitted_at, :registered_at, :delta
-		)
-	`
-
 	jsBytes, err := json.Marshal(e.Delta)
 	if err != nil {
 		return errors.Wrap(err, "could not serialize DELTA")
@@ -110,7 +73,7 @@ func (r *EventRepository) Create(e model.Event) error {
 		dbEvent.ParentEventID = sql.NullString{e.ParentEventID, true}
 	}
 
-	if _, err := r.conn.NamedExec(stmt, &dbEvent); err != nil {
+	if _, err := r.conn.NamedExec(createEvent, &dbEvent); err != nil {
 		return errors.Wrapf(err, "could not insert new event with ID %s", e.ID)
 	}
 
@@ -192,29 +155,67 @@ func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
 	}, nil
 }
 
-func (r *EventRepository) SelectAll() ([]model.Event, error) {
-	stmt := selectEvents
+// Select events using filter, sort, and pagination
+func (r *EventRepository) Select(
+	filter model.EventFilter,
+	sort model.Sort,
+	pagination model.Pagination,
+) ([]model.Event, error) {
+	q := selectEvents
+	args := make(map[string]interface{})
 
-	events := []event{}
-
-	if err := r.conn.Select(&events, stmt); err != nil {
-		return []model.Event{}, errors.Wrapf(err, "could not get a list of events from db")
+	if filter.ActorTypeID != "" {
+		q += ` where actor_type_id = UUID_TO_BIN(:actor_type_id)`
+		args["actor_type_id"] = filter.ActorTypeID
 	}
 
-	result := make([]model.Event, len(events))
+	if filter.ActorID != "" {
+		q += ` where actor_id = :actor_id`
+		args["actor_id"] = filter.ActorID
+	}
+
+	if filter.ActorServiceID != "" {
+		q += ` where actor_service_id = UUID_TO_BIN(:actor_service_id)`
+		args["actor_service_id"] = filter.ActorServiceID
+	}
+
+	if filter.TargetID != "" {
+		q += ` where target_id = :target_id`
+		args["target_id"] = filter.TargetID
+	}
+
+	if filter.TargetTypeID != "" {
+		q += ` where target_type_id = UUID_TO_BIN(:target_type_id)`
+		args["target_type_id"] = filter.TargetTypeID
+	}
+
+	if filter.TargetServiceID != "" {
+		q += ` where target_service_id = UUID_TO_BIN(:target_service_id)`
+		args["target_service_id"] = filter.TargetServiceID
+	}
+
+	events := []event{}
+	result := []model.Event{}
+
+	stmt, err := r.conn.PrepareNamed(q)
+	if err != nil {
+		return result, errors.Wrapf(err, "could not prepare select events stmt")
+	}
+
+	if err := stmt.Select(&events, args); err != nil {
+		return result, errors.Wrapf(err, "could not get a list of events from db")
+	}
 
 	for i := range events {
 		var d map[string][]interface{}
 		json.Unmarshal(events[i].Delta, &d)
 
-		// TODO: inner join name and description
 		at := model.ActorType{
 			ID:          events[i].ActorTypeID,
 			Name:        events[i].ActorTypeName,
 			Description: events[i].ActorTypeDescription,
 		}
 
-		// TODO: inner join name and description
 		tt := model.TargetType{
 			ID:          events[i].TargetTypeID,
 			Name:        events[i].TargetTypeName,
@@ -233,7 +234,7 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 			Description: events[i].TargetServiceDescription,
 		}
 
-		result[i] = model.Event{
+		result = append(result, model.Event{
 			ID:            events[i].ID,
 			ParentEventID: events[i].ParentEventID.String,
 			ActorID:       events[i].ActorID,
@@ -246,7 +247,7 @@ func (r *EventRepository) SelectAll() ([]model.Event, error) {
 			EmittedAt:     events[i].EmittedAt.Unix(),
 			RegisteredAt:  events[i].RegisteredAt.Unix(),
 			Delta:         d,
-		}
+		})
 	}
 
 	return result, nil

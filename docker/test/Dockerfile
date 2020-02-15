@@ -13,8 +13,8 @@ COPY flow/ ./flow
 COPY utils/ ./utils
 COPY rest/ ./rest
 COPY sql/ ./sql
-COPY tests/ ./tests
+COPY test/ ./test
 COPY .env ./
 
-CMD go test ./...
+CMD go test ./flow ./rest
 
