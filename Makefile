@@ -12,6 +12,8 @@ vars:
 	@echo REST_PORT=${REST_PORT}
 	@echo PERCONA_PORT=${PERCONA_PORT}
 
+.PHONY: test clean mock
+
 up: vars
 	docker-compose -f docker-compose-dev.yml up --build --force-recreate
 
@@ -23,6 +25,15 @@ clean:
 	docker-compose -f docker-compose-dev.yml rm -svf
 	docker-compose -f docker-compose-test.yml down --remove-orphans
 	docker-compose -f docker-compose-test.yml rm -svf
+
+mock:
+	mockgen -source flow/flow.go -destination ./test/mock_flow/flow.go
+	mockgen -source flow/event.go -destination ./test/mock_flow/event.go
+	mockgen -source queue/queue.go -destination ./test/mock_queue/queue.go
+	mockgen -source queue/message.go -destination ./test/mock_queue/message.go
+	mockgen -source model/event.go -destination ./test/mock_model/event.go
+	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
+	mockgen -source model/types.go -destination ./test/mock_model/types.go
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate

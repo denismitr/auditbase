@@ -1,10 +1,10 @@
 package flow
 
 import (
-	"errors"
 	"testing"
 
-	"github.com/denismitr/auditbase/queue"
+	"github.com/denismitr/auditbase/test/mock_queue"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,67 +13,6 @@ func TestFlow(t *testing.T) {
 }
 
 type declareExchangeExpectations func(exchangeName, exchangeType string)
-
-// TODO: refactor to mockgen
-type fakeMQ struct {
-	cfg                         Config
-	shouldFailOnDeclareExchange bool
-	shouldFailOnDeclareQueue    bool
-	shouldFailOnBind            bool
-	t                           *testing.T
-}
-
-func (f fakeMQ) DeclareExchange(exchangeName, exchangeType string) error {
-	if f.shouldFailOnDeclareExchange {
-		return errors.New("failed on declare exchange")
-	}
-
-	assert.Equal(f.t, f.cfg.ExchangeName, exchangeName)
-	assert.Equal(f.t, f.cfg.ExchangeType, exchangeType)
-
-	return nil
-}
-
-func (f fakeMQ) DeclareQueue(queueName string) error {
-	if f.shouldFailOnDeclareQueue {
-		return errors.New("failed on queue declare")
-	}
-
-	assert.Equal(f.t, f.cfg.QueueName, queueName)
-
-	return nil
-}
-
-func (f fakeMQ) Bind(queue, exchange, routingKey string) error {
-	if f.shouldFailOnBind {
-		return errors.New("failed on queu bind")
-	}
-
-	assert.Equal(f.t, f.cfg.QueueName, queue)
-	assert.Equal(f.t, f.cfg.ExchangeName, exchange)
-	assert.Equal(f.t, f.cfg.RoutingKey, routingKey)
-
-	return nil
-}
-
-func (f fakeMQ) Publish(msg queue.Message, exchange, routingKey string) error {
-	return nil
-}
-
-func (f fakeMQ) Subscribe(queue, consumer string, receiveCh chan<- queue.ReceivedMessage) {
-}
-
-func (f fakeMQ) Inspect(queueName string) (queue.Inspection, error) {
-	return queue.Inspection{}, nil
-}
-
-func (f fakeMQ) Stop() {
-
-}
-
-func (f fakeMQ) Status() (bool, error) {
-	return true, nil
-}
 
 func TestScaffold(t *testing.T) {
 	fixtures := []struct {
@@ -105,6 +44,9 @@ func TestScaffold(t *testing.T) {
 
 	for _, f := range fixtures {
 		t.Run(f.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			cfg := Config{
 				QueueName:    f.queue,
 				ExchangeName: f.exchange,
@@ -113,24 +55,15 @@ func TestScaffold(t *testing.T) {
 				IsPeristent:  false,
 			}
 
-			fmq := fakeMQ{
-				cfg:                         cfg,
-				t:                           t,
-				shouldFailOnDeclareExchange: f.shouldFailOnDeclareExchange,
-				shouldFailOnDeclareQueue:    f.shouldFailOnDeclareQueue,
-				shouldFailOnBind:            f.shouldFailOnBind,
-			}
+			fmq := mock_queue.NewMockMQ(ctrl)
+			fmq.EXPECT().DeclareExchange(cfg.ExchangeName, cfg.ExchangeType).Return(nil)
+			fmq.EXPECT().DeclareQueue(cfg.QueueName).Return(nil)
+			fmq.EXPECT().Bind(cfg.QueueName, cfg.ExchangeName, cfg.RoutingKey).Return(nil)
 
 			fl := New(fmq, cfg)
 
 			err := fl.Scaffold()
-
-			if fmq.shouldFailOnDeclareExchange || fmq.shouldFailOnDeclareQueue || fmq.shouldFailOnBind {
-				assert.NotNil(t, err)
-			} else {
-				assert.Nil(t, err)
-			}
-
+			assert.NoError(t, err)
 		})
 	}
 }

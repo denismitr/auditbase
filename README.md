@@ -3,6 +3,12 @@
 ### RUN
 ```make up```
 
+### TESTS
+RUN:
+
+- ```make mock```
+- ```make test```
+
 ### RUN "WRK" BENCHMARK
 ```
 wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:8888
