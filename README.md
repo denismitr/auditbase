@@ -18,6 +18,8 @@ wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:888
 - graceful shutdown
 - healthcheck for rest API
 - more tests
+- refactor ID to object
+- requeue events on temporary DB connection failure
 
 ### ENDPOINTS
 

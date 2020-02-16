@@ -87,9 +87,7 @@ func (ec *eventsController) GetEvent(ctx echo.Context) error {
 		return ctx.JSON(notFound(err))
 	}
 
-	return ctx.JSON(200, map[string]interface{}{
-		"data": event,
-	})
+	return ctx.JSON(200, newResponse(event))
 }
 
 func (ec *eventsController) Count(ctx echo.Context) error {
