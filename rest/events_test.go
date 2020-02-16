@@ -145,7 +145,7 @@ func TestGetEvent(t *testing.T) {
 			Delta:         map[string][]interface{}{"status": []interface{}{"PENDING", "PUBLISHED"}},
 		}
 
-		eventsMock.EXPECT().FindOneByID(id).Return(fakeEvent, nil)
+		eventsMock.EXPECT().FindOneByID(model.ID(id)).Return(fakeEvent, nil)
 
 		controller := newEventsController(logger, uuidMock, clockMock, eventsMock, flowMock)
 

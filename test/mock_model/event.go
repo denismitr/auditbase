@@ -77,7 +77,7 @@ func (mr *MockEventRepositoryMockRecorder) Count() *gomock.Call {
 }
 
 // FindOneByID mocks base method
-func (m *MockEventRepository) FindOneByID(arg0 string) (model.Event, error) {
+func (m *MockEventRepository) FindOneByID(arg0 model.ID) (model.Event, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindOneByID", arg0)
 	ret0, _ := ret[0].(model.Event)

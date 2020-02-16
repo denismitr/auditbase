@@ -101,12 +101,12 @@ func (r *EventRepository) Count() (int, error) {
 	return count, nil
 }
 
-func (r *EventRepository) FindOneByID(ID string) (model.Event, error) {
+func (r *EventRepository) FindOneByID(ID model.ID) (model.Event, error) {
 	stmt := selectEvents + " WHERE e.id = UUID_TO_BIN(?)"
 
 	e := event{}
 
-	if err := r.conn.Get(&e, stmt, ID); err != nil {
+	if err := r.conn.Get(&e, stmt, ID.String()); err != nil {
 		return model.Event{}, errors.Wrapf(err, "could not get a list of events from db")
 	}
 

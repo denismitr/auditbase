@@ -81,7 +81,7 @@ func (ec *eventsController) SelectEvents(ctx echo.Context) error {
 }
 
 func (ec *eventsController) GetEvent(ctx echo.Context) error {
-	ID := ctx.Param("id")
+	ID := extractIDParamFrom(ctx)
 	event, err := ec.events.FindOneByID(ID)
 	if err != nil {
 		return ctx.JSON(notFound(err))
