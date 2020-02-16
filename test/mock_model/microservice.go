@@ -34,11 +34,12 @@ func (m *MockMicroserviceRepository) EXPECT() *MockMicroserviceRepositoryMockRec
 }
 
 // Create mocks base method
-func (m *MockMicroserviceRepository) Create(arg0 model.Microservice) error {
+func (m *MockMicroserviceRepository) Create(arg0 model.Microservice) (model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(model.Microservice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Create indicates an expected call of Create

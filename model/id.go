@@ -2,7 +2,9 @@ package model
 
 type ID string
 
-func (id ID) Validate(v Validator) ValidationErrors {
+func (id ID) Validate() ValidationErrors {
+	v := NewValidator()
+
 	s := string(id)
 
 	if v.IsEmptyString(s) {

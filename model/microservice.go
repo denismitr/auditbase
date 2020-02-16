@@ -13,7 +13,7 @@ type Microservice struct {
 }
 
 type MicroserviceRepository interface {
-	Create(Microservice) error
+	Create(Microservice) (Microservice, error)
 	Delete(ID string) error
 	Update(ID ID, m Microservice) error
 	FirstByID(ID ID) (Microservice, error)

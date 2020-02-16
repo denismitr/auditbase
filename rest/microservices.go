@@ -38,23 +38,15 @@ func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
 
 	errors := m.Validate(model.NewValidator())
 	if errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors, "could not create a microservice"))
+		return ctx.JSON(validationFailed(errors, "bad data for a microservice"))
 	}
 
-	if err := mc.microservices.Create(m); err != nil {
-		return ctx.JSON(internalError(err))
-	}
-
-	savedMicroservice, err := mc.microservices.FirstByID(model.ID(m.ID))
+	savedMicroservice, err := mc.microservices.Create(m)
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
-	var r = make(map[string]model.Microservice)
-
-	r["data"] = savedMicroservice
-
-	return ctx.JSON(201, r)
+	return ctx.JSON(201, newResponse(newMicroserviceResource(savedMicroservice)))
 }
 
 func (mc *microservicesController) SelectMicroservices(ctx echo.Context) error {
@@ -77,7 +69,7 @@ func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
 	}
 
 	ID := model.ID(ctx.Param("id"))
-	if errors := ID.Validate(model.NewValidator()); errors.NotEmpty() {
+	if errors := ID.Validate(); errors.NotEmpty() {
 		return ctx.JSON(validationFailed(errors, ":id is invalid"))
 	}
 
@@ -95,9 +87,8 @@ func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
 
 func (mc *microservicesController) GetMicroservice(ctx echo.Context) error {
 	ID := model.ID(ctx.Param("id"))
-	v := model.NewValidator()
 
-	if errors := ID.Validate(v); errors.NotEmpty() {
+	if errors := ID.Validate(); errors.NotEmpty() {
 		return ctx.JSON(validationFailed(errors, ":id is incorrect"))
 	}
 
