@@ -81,15 +81,13 @@ func (ec *eventsController) SelectEvents(ctx echo.Context) error {
 }
 
 func (ec *eventsController) GetEvent(ctx echo.Context) error {
-	ID := ctx.Param("id")
+	ID := extractIDParamFrom(ctx)
 	event, err := ec.events.FindOneByID(ID)
 	if err != nil {
 		return ctx.JSON(notFound(err))
 	}
 
-	return ctx.JSON(200, map[string]interface{}{
-		"data": event,
-	})
+	return ctx.JSON(200, newResponse(event))
 }
 
 func (ec *eventsController) Count(ctx echo.Context) error {

@@ -32,14 +32,14 @@ func NewMicroserviceRepository(
 	}
 }
 
-func (r *MicroserviceRepository) Create(m model.Microservice) error {
+func (r *MicroserviceRepository) Create(m model.Microservice) (model.Microservice, error) {
 	stmt := "INSERT INTO microservices (id, name, description) VALUES (UUID_TO_BIN(?), ?, ?)"
 
 	if _, err := r.conn.Exec(stmt, m.ID, m.Name, m.Description); err != nil {
-		return errors.Wrapf(err, "cannot insert into microservices table")
+		return model.Microservice{}, errors.Wrapf(err, "cannot insert into microservices table")
 	}
 
-	return nil
+	return r.FirstByID(model.ID(m.ID))
 }
 
 // SelectAll microservices
@@ -78,10 +78,10 @@ func (r *MicroserviceRepository) Delete(ID string) error {
 }
 
 // Update microservice by ID
-func (r *MicroserviceRepository) Update(ID string, m model.Microservice) error {
+func (r *MicroserviceRepository) Update(ID model.ID, m model.Microservice) error {
 	stmt := `UPDATE microservices SET name = ?, description = ? WHERE id = UUID_TO_BIN(?)`
 
-	if _, err := r.conn.Exec(stmt, m.Name, m.Description, ID); err != nil {
+	if _, err := r.conn.Exec(stmt, m.Name, m.Description, ID.String()); err != nil {
 		return errors.Wrapf(err, "could not update microservice with ID %s", m.ID)
 	}
 
@@ -89,13 +89,13 @@ func (r *MicroserviceRepository) Update(ID string, m model.Microservice) error {
 }
 
 // FirstByID - find first microservice by ID
-func (r *MicroserviceRepository) FirstByID(ID string) (model.Microservice, error) {
+func (r *MicroserviceRepository) FirstByID(ID model.ID) (model.Microservice, error) {
 	m := new(microservice)
 
 	stmt := `SELECT BIN_TO_UUID(id) as id, name, description, created_at, updated_at FROM microservices WHERE id = UUID_TO_BIN(?)`
 
-	if err := r.conn.Get(m, stmt, ID); err != nil {
-		return model.Microservice{}, errors.Wrapf(err, "could not get microservice with ID %s from database", ID)
+	if err := r.conn.Get(m, stmt, ID.String()); err != nil {
+		return model.Microservice{}, model.ErrMicroserviceNotFound
 	}
 
 	return model.Microservice{
@@ -146,7 +146,7 @@ func (r *MicroserviceRepository) FirstOrCreateByName(name string) (model.Microse
 		Description: "",
 	}
 
-	if err := r.Create(m); err != nil {
+	if _, err := r.Create(m); err != nil {
 		return model.Microservice{},
 			errors.Wrapf(err, "microservice with name %s does not exist and cannot be created", name)
 	}

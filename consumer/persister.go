@@ -107,7 +107,7 @@ func (p *dbPersister) assignTargetTypeTo(e *model.Event) error {
 func (p *dbPersister) assignTargetServiceTo(e *model.Event) error {
 	// TODO: cache these checks
 	if e.TargetService.ID != "" {
-		ts, err := p.microservices.FirstByID(e.TargetService.ID)
+		ts, err := p.microservices.FirstByID(model.ID(e.TargetService.ID))
 		if err != nil {
 			return errors.Wrapf(err, "target type ID %s does not exist", e.TargetService.ID)
 		}
@@ -150,7 +150,7 @@ func (p *dbPersister) assignActorTypeTo(e *model.Event) error {
 func (p *dbPersister) assignActorServiceTo(e *model.Event) error {
 	// TODO: cache these checks
 	if e.ActorService.ID != "" {
-		as, err := p.microservices.FirstByID(e.ActorService.ID)
+		as, err := p.microservices.FirstByID(model.ID(e.ActorService.ID))
 		if err != nil {
 			return errors.Wrapf(err, "actor service with id %s does not exist", e.ActorService.ID)
 		}

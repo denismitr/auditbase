@@ -7,7 +7,7 @@ Accept: application/json
 
 ###
 
-GET {{host}}/api/v1/events/64e1d8fb-b065-436d-afd0-5fbcb752a4e2
+GET {{host}}/api/v1/events/34e1d8fa-b065-436d-afd0-5fbcb752a4e1
 Content-Type: application/json
 Accept: application/json
 

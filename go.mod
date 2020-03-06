@@ -12,9 +12,10 @@ require (
 	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/satori/go.uuid v1.2.0
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 	github.com/stretchr/testify v1.4.0
+	github.com/tidwall/gjson v1.5.0
 	golang.org/x/crypto v0.0.0-20191219195013-becbf705a915 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 )

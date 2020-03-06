@@ -16,5 +16,5 @@ COPY sql/ ./sql
 COPY test/ ./test
 COPY .env ./
 
-CMD go test ./flow ./rest
+CMD go test ./flow ./rest ./model
 

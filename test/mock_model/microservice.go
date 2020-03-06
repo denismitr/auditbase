@@ -34,11 +34,12 @@ func (m *MockMicroserviceRepository) EXPECT() *MockMicroserviceRepositoryMockRec
 }
 
 // Create mocks base method
-func (m *MockMicroserviceRepository) Create(arg0 model.Microservice) error {
+func (m *MockMicroserviceRepository) Create(arg0 model.Microservice) (model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(model.Microservice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Create indicates an expected call of Create
@@ -62,7 +63,7 @@ func (mr *MockMicroserviceRepositoryMockRecorder) Delete(ID interface{}) *gomock
 }
 
 // Update mocks base method
-func (m_2 *MockMicroserviceRepository) Update(ID string, m model.Microservice) error {
+func (m_2 *MockMicroserviceRepository) Update(ID model.ID, m model.Microservice) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "Update", ID, m)
 	ret0, _ := ret[0].(error)
@@ -76,7 +77,7 @@ func (mr *MockMicroserviceRepositoryMockRecorder) Update(ID, m interface{}) *gom
 }
 
 // FirstByID mocks base method
-func (m *MockMicroserviceRepository) FirstByID(ID string) (model.Microservice, error) {
+func (m *MockMicroserviceRepository) FirstByID(ID model.ID) (model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FirstByID", ID)
 	ret0, _ := ret[0].(model.Microservice)
