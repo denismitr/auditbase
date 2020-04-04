@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
@@ -13,8 +14,6 @@ import (
 	"github.com/denismitr/auditbase/utils"
 	"github.com/pkg/errors"
 )
-
-type StopFunc func(ctx context.Context) error
 
 // Consumer - consumers from the event flow and
 // persists events to the permanent storage
@@ -38,7 +37,7 @@ type Consumer struct {
 
 // New consumer
 func New(
-	eventFlow flow.EventFlow,
+	ef flow.EventFlow,
 	logger utils.Logger,
 	mq queue.MQ,
 	microservices model.MicroserviceRepository,
@@ -57,10 +56,10 @@ func New(
 		resultCh,
 	)
 
-	tasks := newTasks(10, persister)
+	tasks := newTasks(10, logger, persister, ef)
 
 	return &Consumer{
-		eventFlow:           eventFlow,
+		eventFlow:           ef,
 		tasks:               tasks,
 		logger:              logger,
 		persistenceResultCh: resultCh,
@@ -73,19 +72,17 @@ func New(
 }
 
 // Start consumer
-func (c *Consumer) Start(consumerName string) StopFunc {
+func (c *Consumer) Start(ctx context.Context, consumerName string) {
 	go c.healthCheck()
 	go c.tasks.run()
 	go c.processEvents(consumerName)
 
-	return func(ctx context.Context) error {
-		close(c.stopCh)
-
+	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case <-c.receiveCh:
-			return nil
+			close(c.stopCh)
+			time.Sleep(10 * time.Second)
+			return
 		}
 	}
 }
@@ -104,7 +101,7 @@ func (c *Consumer) processEvents(consumerName string) {
 				continue
 			}
 
-			c.tasks.process(e)
+			go c.tasks.process(e)
 		case efState := <-c.eventFlowStateCh:
 			if efState == flow.Failed || efState == flow.Stopped {
 				c.markAsFailed()

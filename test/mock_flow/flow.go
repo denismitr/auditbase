@@ -62,6 +62,34 @@ func (mr *MockEventFlowMockRecorder) Receive(consumer interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Receive", reflect.TypeOf((*MockEventFlow)(nil).Receive), consumer)
 }
 
+// Requeue mocks base method
+func (m *MockEventFlow) Requeue(arg0 flow.ReceivedEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Requeue", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Requeue indicates an expected call of Requeue
+func (mr *MockEventFlowMockRecorder) Requeue(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Requeue", reflect.TypeOf((*MockEventFlow)(nil).Requeue), arg0)
+}
+
+// Ack mocks base method
+func (m *MockEventFlow) Ack(arg0 flow.ReceivedEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ack", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ack indicates an expected call of Ack
+func (mr *MockEventFlowMockRecorder) Ack(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ack", reflect.TypeOf((*MockEventFlow)(nil).Ack), arg0)
+}
+
 // Inspect mocks base method
 func (m *MockEventFlow) Inspect() (flow.Status, error) {
 	m.ctrl.T.Helper()

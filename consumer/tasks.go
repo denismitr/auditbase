@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/denismitr/auditbase/flow"
+	"github.com/denismitr/auditbase/utils"
 )
 
 type semaphore int
@@ -17,14 +18,18 @@ type tasks struct {
 	sem       chan semaphore
 	eventsCh  chan flow.ReceivedEvent
 	persister persister
+	ef        flow.EventFlow
+	logger    utils.Logger
 	mu        sync.Mutex
 }
 
-func newTasks(maxTasks int, persister persister) *tasks {
+func newTasks(maxTasks int, logger utils.Logger, persister persister, ef flow.EventFlow) *tasks {
 	return &tasks{
 		sem:       make(chan semaphore, maxTasks),
 		eventsCh:  make(chan flow.ReceivedEvent),
+		logger:    logger,
 		mu:        sync.Mutex{},
+		ef:        ef,
 		persister: persister,
 	}
 }
@@ -43,7 +48,18 @@ func (t *tasks) run() {
 		t.sem <- 1
 
 		go func() {
-			t.persister.persist(event)
+			if err := t.persister.persist(event); err != nil {
+				if err := t.ef.Requeue(event); err != nil {
+					t.logger.Error(err)
+				}
+				// fixme emit success process event
+			} else {
+				// fixme emit success process event
+				if err := t.ef.Ack(event); err != nil {
+					t.logger.Error(err)
+				}
+			}
+
 			<-t.sem
 		}()
 	}

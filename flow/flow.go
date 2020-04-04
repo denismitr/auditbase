@@ -6,6 +6,7 @@ import (
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
+	"github.com/denismitr/auditbase/utils"
 	"github.com/pkg/errors"
 )
 
@@ -13,6 +14,8 @@ import (
 type EventFlow interface {
 	Send(e model.Event) error
 	Receive(consumer string) <-chan ReceivedEvent
+	Requeue(ReceivedEvent) error
+	Ack(ReceivedEvent) error
 	Inspect() (Status, error)
 	Scaffold() error
 	NotifyOnStateChange(chan State)
@@ -25,6 +28,7 @@ type MQEventFlow struct {
 	mq             queue.MQ
 	cfg            Config
 	state          State
+	logger         utils.Logger
 	mu             sync.RWMutex
 	stateListeners []chan State
 	stopCh         chan struct{}
@@ -33,7 +37,7 @@ type MQEventFlow struct {
 }
 
 // New event flow
-func New(mq queue.MQ, cfg Config) *MQEventFlow {
+func New(mq queue.MQ, logger utils.Logger, cfg Config) *MQEventFlow {
 	return &MQEventFlow{
 		mq:             mq,
 		cfg:            cfg,
@@ -91,7 +95,7 @@ func (ef *MQEventFlow) Send(e model.Event) error {
 		return errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID)
 	}
 
-	msg := queue.NewJSONMessage(b)
+	msg := queue.NewJSONMessage(b, 1)
 
 	return ef.mq.Publish(msg, ef.cfg.ExchangeName, ef.cfg.RoutingKey)
 }
@@ -109,7 +113,7 @@ func (ef *MQEventFlow) Receive(consumer string) <-chan ReceivedEvent {
 					continue
 				}
 
-				ef.eventCh <- &QueueReceivedEvent{msg}
+				ef.eventCh <- &QueueReceivedEvent{msg: msg}
 			case <-ef.stopCh:
 				close(ef.eventCh)
 			}
@@ -117,6 +121,30 @@ func (ef *MQEventFlow) Receive(consumer string) <-chan ReceivedEvent {
 	}()
 
 	return ef.eventCh
+}
+
+// Requeue previously received message
+func (ef *MQEventFlow) Requeue(re ReceivedEvent) error {
+	if err := ef.mq.Reject(re.Tag()); err != nil {
+		ef.logger.Error(err)
+		return errors.Wrap(err, "could not requeu event")
+	}
+
+	msg := re.CloneMsgToRequeue()
+	if msg.Attempt() > ef.cfg.MaxRequeue {
+		return errors.New("too many attempts")
+	}
+
+	if err := ef.mq.Publish(msg, ef.cfg.ExchangeName, ef.cfg.RequeueRoutingKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Ack previously received message
+func (ef *MQEventFlow) Ack(re ReceivedEvent) error {
+	return ef.mq.Ack(re.Tag())
 }
 
 // Inspect event flow
@@ -154,6 +182,16 @@ func (ef *MQEventFlow) Scaffold() error {
 
 	if err := ef.mq.Bind(ef.cfg.QueueName, ef.cfg.ExchangeName, ef.cfg.RoutingKey); err != nil {
 		return errors.Wrap(err, "could not scaffold DirectEventExchange on queue binding")
+	}
+
+	if ef.cfg.ErrorQueueName != ef.cfg.QueueName {
+		if err := ef.mq.DeclareQueue(ef.cfg.ErrorQueueName); err != nil {
+			return errors.Wrap(err, "could not scaffold DirectEventExchange on error queue declaration")
+		}
+
+		if err := ef.mq.Bind(ef.cfg.ErrorQueueName, ef.cfg.ExchangeName, ef.cfg.RequeueRoutingKey); err != nil {
+			return errors.Wrap(err, "could not scaffold DirectEventExchange on error queue binding")
+		}
 	}
 
 	return nil

@@ -5,6 +5,7 @@
 package mock_queue
 
 import (
+	queue "github.com/denismitr/auditbase/queue"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -60,6 +61,20 @@ func (mr *MockMessageMockRecorder) ContentType() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContentType", reflect.TypeOf((*MockMessage)(nil).ContentType))
 }
 
+// Attempt mocks base method
+func (m *MockMessage) Attempt() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Attempt")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// Attempt indicates an expected call of Attempt
+func (mr *MockMessageMockRecorder) Attempt() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Attempt", reflect.TypeOf((*MockMessage)(nil).Attempt))
+}
+
 // MockReceivedMessage is a mock of ReceivedMessage interface
 type MockReceivedMessage struct {
 	ctrl     *gomock.Controller
@@ -111,30 +126,44 @@ func (mr *MockReceivedMessageMockRecorder) Queue() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Queue", reflect.TypeOf((*MockReceivedMessage)(nil).Queue))
 }
 
-// Ack mocks base method
-func (m *MockReceivedMessage) Ack() error {
+// Attempt mocks base method
+func (m *MockReceivedMessage) Attempt() int {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Ack")
-	ret0, _ := ret[0].(error)
+	ret := m.ctrl.Call(m, "Attempt")
+	ret0, _ := ret[0].(int)
 	return ret0
 }
 
-// Ack indicates an expected call of Ack
-func (mr *MockReceivedMessageMockRecorder) Ack() *gomock.Call {
+// Attempt indicates an expected call of Attempt
+func (mr *MockReceivedMessageMockRecorder) Attempt() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ack", reflect.TypeOf((*MockReceivedMessage)(nil).Ack))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Attempt", reflect.TypeOf((*MockReceivedMessage)(nil).Attempt))
 }
 
-// Reject mocks base method
-func (m *MockReceivedMessage) Reject(requeue bool) error {
+// CloneToReque mocks base method
+func (m *MockReceivedMessage) CloneToReque() queue.Message {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reject", requeue)
-	ret0, _ := ret[0].(error)
+	ret := m.ctrl.Call(m, "CloneToReque")
+	ret0, _ := ret[0].(queue.Message)
 	return ret0
 }
 
-// Reject indicates an expected call of Reject
-func (mr *MockReceivedMessageMockRecorder) Reject(requeue interface{}) *gomock.Call {
+// CloneToReque indicates an expected call of CloneToReque
+func (mr *MockReceivedMessageMockRecorder) CloneToReque() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reject", reflect.TypeOf((*MockReceivedMessage)(nil).Reject), requeue)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloneToReque", reflect.TypeOf((*MockReceivedMessage)(nil).CloneToReque))
+}
+
+// Tag mocks base method
+func (m *MockReceivedMessage) Tag() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Tag")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// Tag indicates an expected call of Tag
+func (mr *MockReceivedMessageMockRecorder) Tag() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tag", reflect.TypeOf((*MockReceivedMessage)(nil).Tag))
 }

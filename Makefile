@@ -12,7 +12,7 @@ vars:
 	@echo REST_PORT=${REST_PORT}
 	@echo PERCONA_PORT=${PERCONA_PORT}
 
-.PHONY: test clean mock
+.PHONY: test clean mock wrk
 
 up: vars
 	docker-compose -f docker-compose-dev.yml up --build --force-recreate
@@ -37,6 +37,9 @@ mock:
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
+
+wrk/local:
+	wrk -c50 -t3 -d100s -s ./test/lua/events.lua http://127.0.0.1:8888
 
 docker-remove:
 	docker rm --force `docker ps -a -q` || true

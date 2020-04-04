@@ -33,8 +33,13 @@ type MQ interface {
 	Scaffolder
 
 	Inspect(queueName string) (Inspection, error)
+
+	// fixme: refactor following 4 methods to some sort of PubSub interface
 	Publish(msg Message, exchange, routingKey string) error
+	Reject(tag uint64) error
+	Ack(tag uint64) error
 	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
+
 	Connect() error
 	Maintain()
 	Status() ConnectionStatus
@@ -46,6 +51,7 @@ type MQ interface {
 type RabbitQueue struct {
 	dsn             string
 	conn            *amqp.Connection
+	channel         *amqp.Channel
 	logger          utils.Logger
 	stopCh          chan struct{}
 	errorCh         chan error
@@ -63,6 +69,7 @@ func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *Rabbit
 	return &RabbitQueue{
 		dsn:             dsn,
 		conn:            nil,
+		channel:         nil,
 		logger:          logger,
 		stopCh:          make(chan struct{}),
 		statusListeners: make([]chan ConnectionStatus, 0),
@@ -91,22 +98,30 @@ func (q *RabbitQueue) NotifyStatusChange(listener chan ConnectionStatus) {
 	q.statusListeners = append(q.statusListeners, listener)
 }
 
-// Publish message to message queue
-func (q *RabbitQueue) Publish(msg Message, exchange, routingKey string) error {
-	ch, err := q.conn.Channel()
-	defer ch.Close()
-
-	if err != nil {
-		return errors.Wrapf(
-			err, "could not publish message to %s with routing key %s", exchange, routingKey)
+func (q *RabbitQueue) Reject(tag uint64) error {
+	if err := q.channel.Reject(tag, false); err != nil {
+		return errors.Wrapf(err, "could not reject tag %d", tag)
 	}
 
+	return nil
+}
+
+func (q *RabbitQueue) Ack(tag uint64) error {
+	if err := q.channel.Ack(tag, false); err != nil {
+		return errors.Wrapf(err, "could not ack tag %d", tag)
+	}
+
+	return nil
+}
+
+// Publish message to message queue
+func (q *RabbitQueue) Publish(msg Message, exchange, routingKey string) error {
 	p := amqp.Publishing{
 		ContentType: msg.ContentType(),
 		Body:        msg.Body(),
 	}
 
-	if err := ch.Publish(exchange, routingKey, false, false, p); err != nil {
+	if err := q.channel.Publish(exchange, routingKey, false, false, p); err != nil {
 		return errors.Wrapf(
 			err, "failed to send message to exchange %s with routing key %s", exchange, routingKey)
 	}
@@ -116,14 +131,7 @@ func (q *RabbitQueue) Publish(msg Message, exchange, routingKey string) error {
 
 // DeclareExchange - declares RabbitMQ exchange
 func (q *RabbitQueue) DeclareExchange(name, kind string) error {
-	ch, err := q.conn.Channel()
-	defer ch.Close()
-
-	if err != nil {
-		return errors.Wrap(err, "failed to get a channel from connection")
-	}
-
-	if err := ch.ExchangeDeclare(name, kind, true, false, false, false, nil); err != nil {
+	if err := q.channel.ExchangeDeclare(name, kind, true, false, false, false, nil); err != nil {
 		return errors.Wrapf(err, "failed to declare exchange %s of kind %s", name, kind)
 	}
 
@@ -132,14 +140,7 @@ func (q *RabbitQueue) DeclareExchange(name, kind string) error {
 
 // DeclareQueue - declares a new queue if not exists
 func (q *RabbitQueue) DeclareQueue(name string) error {
-	ch, err := q.conn.Channel()
-	defer ch.Close()
-
-	if err != nil {
-		return errors.Wrap(err, "failed to get a channel from connection")
-	}
-
-	if _, err := ch.QueueDeclare(name, true, false, false, false, nil); err != nil {
+	if _, err := q.channel.QueueDeclare(name, true, false, false, false, nil); err != nil {
 		return errors.Wrapf(err, "failed to declare queue %s", name)
 	}
 
@@ -148,15 +149,7 @@ func (q *RabbitQueue) DeclareQueue(name string) error {
 
 // Bind queue to exchange with routingKey
 func (q *RabbitQueue) Bind(queue, exchange, routingKey string) error {
-	ch, err := q.conn.Channel()
-
-	if err != nil {
-		return errors.Wrap(err, "failed to get a channel from connection")
-	}
-
-	defer ch.Close()
-
-	if err := ch.QueueBind(queue, routingKey, exchange, false, nil); err != nil {
+	if err := q.channel.QueueBind(queue, routingKey, exchange, false, nil); err != nil {
 		return errors.Wrapf(
 			err,
 			"failed to bind queue %s to exchange %s with routing key %s",
@@ -174,14 +167,7 @@ func (q *RabbitQueue) Bind(queue, exchange, routingKey string) error {
 func (q *RabbitQueue) Inspect(queueName string) (Inspection, error) {
 	i := Inspection{}
 
-	ch, err := q.conn.Channel()
-	if err != nil {
-		return i, errors.Wrapf(err, "failed to get a channel to inspect a queue %s", queueName)
-	}
-
-	defer ch.Close()
-
-	queue, err := ch.QueueInspect(queueName)
+	queue, err := q.channel.QueueInspect(queueName)
 	if err != nil {
 		return i, errors.Wrapf(err, "could not inspect a queue %s", queueName)
 	}
@@ -195,14 +181,7 @@ func (q *RabbitQueue) Inspect(queueName string) (Inspection, error) {
 // Subscribe and consume messages sending them
 // to receiveCh
 func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage) {
-	ch, err := q.conn.Channel()
-	defer ch.Close()
-
-	if err != nil {
-		panic(errors.Wrapf(err, "could not get channel for listening queue %s", queue))
-	}
-
-	msgs, err := ch.Consume(
+	msgs, err := q.channel.Consume(
 		queue,    // queue
 		consumer, // consumer
 		false,    // auto-ack
@@ -221,7 +200,7 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 	for {
 		select {
 		case msg := <-msgs:
-			receiveCh <- newRabbitMQReceivedMessage(queue, msg)
+			receiveCh <- newRabbitMQReceivedMessage(queue, msg.Body, msg.DeliveryTag)
 		case <-q.stopCh:
 			close(receiveCh)
 		}
@@ -251,7 +230,16 @@ func (q *RabbitQueue) Connect() error {
 			continue
 		}
 
+		ch, err := conn.Channel()
+		if err != nil {
+			msg := "could not open AMQP channel"
+			q.logger.Error(
+				errors.Wrapf(err, "attempt %d failed: could not open AMQP channel"+msg, attempt),
+			)
+		}
+
 		q.conn = conn
+		q.channel = ch
 		q.updateStatus(Connected)
 		q.connErrCh = make(chan *amqp.Error)
 		q.conn.NotifyClose(q.connErrCh)
@@ -285,6 +273,10 @@ func (q *RabbitQueue) Maintain() {
 				return
 			}
 		case <-q.stopCh:
+			if q.channel != nil {
+				q.channel.Close()
+			}
+
 			if !q.conn.IsClosed() {
 				q.conn.Close()
 			}

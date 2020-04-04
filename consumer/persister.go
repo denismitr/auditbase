@@ -17,7 +17,7 @@ const (
 )
 
 type persister interface {
-	persist(flow.ReceivedEvent)
+	persist(flow.ReceivedEvent) error
 }
 
 type dbPersister struct {
@@ -48,39 +48,39 @@ func newDBPersister(
 	}
 }
 
-func (p *dbPersister) persist(re flow.ReceivedEvent) {
+func (p *dbPersister) persist(re flow.ReceivedEvent) error {
 	e, err := re.Event()
 	if err != nil {
 		p.handlePersistenceError(err, re, eventFlowFailed)
-		return
+		return err
 	}
 
 	if err := p.assignActorTypeTo(&e); err != nil {
 		p.handlePersistenceError(err, re, databaseFailed)
-		return
+		return err
 	}
 
 	if err := p.assignActorServiceTo(&e); err != nil {
 		p.handlePersistenceError(err, re, databaseFailed)
-		return
+		return err
 	}
 
 	if err := p.assignTargetTypeTo(&e); err != nil {
 		p.handlePersistenceError(err, re, databaseFailed)
-		return
+		return err
 	}
 
 	if err := p.assignTargetServiceTo(&e); err != nil {
 		p.handlePersistenceError(err, re, databaseFailed)
-		return
+		return err
 	}
 
 	if err := p.events.Create(e); err != nil {
 		p.handlePersistenceError(err, re, databaseFailed)
-		return
+		return err
 	}
 
-	re.Ack()
+	return nil
 }
 
 func (p *dbPersister) assignTargetTypeTo(e *model.Event) error {
@@ -174,6 +174,5 @@ func (p *dbPersister) handlePersistenceError(
 	result persistenceResult,
 ) {
 	p.logger.Error(err)
-	re.Reject()
-	p.resultCh <- result
+	p.resultCh <- result //fixme: use error types
 }

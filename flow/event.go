@@ -10,9 +10,8 @@ import (
 
 type ReceivedEvent interface {
 	Event() (model.Event, error)
-	Ack() error
-	Reject() error
-	Postpone() error
+	CloneMsgToRequeue() queue.Message
+	Tag() uint64
 }
 
 type QueueReceivedEvent struct {
@@ -29,14 +28,14 @@ func (re *QueueReceivedEvent) Event() (model.Event, error) {
 	return e, nil
 }
 
-func (re *QueueReceivedEvent) Ack() error {
-	return re.msg.Ack()
+func (re *QueueReceivedEvent) CloneMsgToRequeue() queue.Message {
+	return re.msg.CloneToReque()
 }
 
-func (re *QueueReceivedEvent) Reject() error {
-	return re.msg.Reject(false)
+func (re *QueueReceivedEvent) Tag() uint64 {
+	return re.msg.Tag()
 }
 
-func (re *QueueReceivedEvent) Postpone() error {
-	return re.msg.Reject(true)
+func (re *QueueReceivedEvent) Attempt() int {
+	return re.msg.Attempt()
 }

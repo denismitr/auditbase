@@ -19,7 +19,7 @@ func main() {
 	loadEnvVars()
 
 	fmt.Println("Waiting for DB connection...")
-	time.Sleep(20)
+	time.Sleep(20 * time.Second)
 
 	uuid4 := utils.NewUUID4Generator()
 
@@ -47,7 +47,7 @@ func main() {
 	port := ":" + os.Getenv("REST_API_PORT")
 
 	flowCfg := flow.NewConfigFromGlobals()
-	ef := flow.New(mq, flowCfg)
+	ef := flow.New(mq, logger, flowCfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)

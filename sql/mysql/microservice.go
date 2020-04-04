@@ -134,6 +134,7 @@ func (r *MicroserviceRepository) FirstByName(name string) (model.Microservice, e
 
 // FirstOrCreateByName - gets first microservice with given name or tries to create
 // a new one, assigning new UUID4
+// fixme: refactor to transaction
 func (r *MicroserviceRepository) FirstOrCreateByName(name string) (model.Microservice, error) {
 	m, err := r.FirstByName(name)
 	if err == nil {

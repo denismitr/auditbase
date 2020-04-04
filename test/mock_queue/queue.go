@@ -169,6 +169,34 @@ func (mr *MockMQMockRecorder) Publish(msg, exchange, routingKey interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockMQ)(nil).Publish), msg, exchange, routingKey)
 }
 
+// Reject mocks base method
+func (m *MockMQ) Reject(tag uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reject", tag)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reject indicates an expected call of Reject
+func (mr *MockMQMockRecorder) Reject(tag interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reject", reflect.TypeOf((*MockMQ)(nil).Reject), tag)
+}
+
+// Ack mocks base method
+func (m *MockMQ) Ack(tag uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ack", tag)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ack indicates an expected call of Ack
+func (mr *MockMQMockRecorder) Ack(tag interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ack", reflect.TypeOf((*MockMQ)(nil).Ack), tag)
+}
+
 // Subscribe mocks base method
 func (m *MockMQ) Subscribe(queue, consumer string, receiveCh chan<- queue.ReceivedMessage) {
 	m.ctrl.T.Helper()

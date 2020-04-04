@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/denismitr/auditbase/consumer"
@@ -21,7 +22,7 @@ func main() {
 	loadEnvVars()
 
 	fmt.Println("Waiting for DB connection")
-	time.Sleep(40)
+	time.Sleep(20 * time.Second)
 
 	uuid4 := utils.NewUUID4Generator()
 
@@ -44,13 +45,8 @@ func main() {
 		panic(err)
 	}
 
-	exchange := os.Getenv("EVENTS_EXCHANGE")
-	routingKey := os.Getenv("EVENTS_ROUTING_KEY")
-	queueName := os.Getenv("EVENTS_QUEUE_NAME")
-	exchangeType := os.Getenv("EVENTS_EXCHANGE_TYPE")
-
-	cfg := flow.NewConfig(exchange, exchangeType, routingKey, queueName, true)
-	ef := flow.New(mq, cfg)
+	cfg := flow.NewConfigFromGlobals()
+	ef := flow.New(mq, logger, cfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)
@@ -66,29 +62,21 @@ func main() {
 		actorTypes,
 	)
 
-	quit := make(chan os.Signal, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	terminate := make(chan os.Signal, 1)
 	done := make(chan struct{})
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 
-	stop := consumer.Start("event_consumer")
+	consumer.Start(ctx, "event_consumer")
 
-	// TODO: fix context cancel
-	go gracefulShutdown(quit, done, stop)
+	go func() {
+		<-terminate
+		cancel()
+		close(done)
+	}()
 
 	<-done
-}
-
-func gracefulShutdown(quit chan os.Signal, done chan struct{}, stop consumer.StopFunc) {
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	stop(ctx)
-
-	close(done)
-
-	fmt.Println("Graceful shutdown is done")
 }
 
 func loadEnvVars() {

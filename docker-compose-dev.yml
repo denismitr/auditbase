@@ -37,6 +37,8 @@ services:
         container_name: auditbase_db
         env_file:
             - ./.env
+        cap_add:
+            - SYS_NICE
         command: ['--max_allowed_packet=9999G',
                     '--character-set-server=utf8mb4',
                     '--collation-server=utf8mb4_unicode_ci',
@@ -44,8 +46,6 @@ services:
         ports:
             - "3306:3306"
         restart: always
-        volumes:
-            -  auditbase_db_volume:/var/lib/mysql
         tty: true
                          
     

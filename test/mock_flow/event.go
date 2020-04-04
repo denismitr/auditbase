@@ -6,6 +6,7 @@ package mock_flow
 
 import (
 	model "github.com/denismitr/auditbase/model"
+	queue "github.com/denismitr/auditbase/queue"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -48,44 +49,30 @@ func (mr *MockReceivedEventMockRecorder) Event() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Event", reflect.TypeOf((*MockReceivedEvent)(nil).Event))
 }
 
-// Ack mocks base method
-func (m *MockReceivedEvent) Ack() error {
+// CloneMsgToRequeue mocks base method
+func (m *MockReceivedEvent) CloneMsgToRequeue() queue.Message {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Ack")
-	ret0, _ := ret[0].(error)
+	ret := m.ctrl.Call(m, "CloneMsgToRequeue")
+	ret0, _ := ret[0].(queue.Message)
 	return ret0
 }
 
-// Ack indicates an expected call of Ack
-func (mr *MockReceivedEventMockRecorder) Ack() *gomock.Call {
+// CloneMsgToRequeue indicates an expected call of CloneMsgToRequeue
+func (mr *MockReceivedEventMockRecorder) CloneMsgToRequeue() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ack", reflect.TypeOf((*MockReceivedEvent)(nil).Ack))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloneMsgToRequeue", reflect.TypeOf((*MockReceivedEvent)(nil).CloneMsgToRequeue))
 }
 
-// Reject mocks base method
-func (m *MockReceivedEvent) Reject() error {
+// Tag mocks base method
+func (m *MockReceivedEvent) Tag() uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reject")
-	ret0, _ := ret[0].(error)
+	ret := m.ctrl.Call(m, "Tag")
+	ret0, _ := ret[0].(uint64)
 	return ret0
 }
 
-// Reject indicates an expected call of Reject
-func (mr *MockReceivedEventMockRecorder) Reject() *gomock.Call {
+// Tag indicates an expected call of Tag
+func (mr *MockReceivedEventMockRecorder) Tag() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reject", reflect.TypeOf((*MockReceivedEvent)(nil).Reject))
-}
-
-// Postpone mocks base method
-func (m *MockReceivedEvent) Postpone() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Postpone")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Postpone indicates an expected call of Postpone
-func (mr *MockReceivedEventMockRecorder) Postpone() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Postpone", reflect.TypeOf((*MockReceivedEvent)(nil).Postpone))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tag", reflect.TypeOf((*MockReceivedEvent)(nil).Tag))
 }

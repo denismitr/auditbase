@@ -1,21 +1,20 @@
 package queue
 
-import (
-	"github.com/streadway/amqp"
-)
-
 type Message interface {
 	Body() []byte
 	ContentType() string
+	Attempt() int
 }
 
 type JSONMessage struct {
-	body []byte
+	body    []byte
+	attempt int
 }
 
-func NewJSONMessage(b []byte) *JSONMessage {
+func NewJSONMessage(b []byte, attempt int) *JSONMessage {
 	return &JSONMessage{
-		body: b,
+		body:    b,
+		attempt: attempt,
 	}
 }
 
@@ -27,37 +26,51 @@ func (e *JSONMessage) ContentType() string {
 	return "application/json"
 }
 
+func (e *JSONMessage) Attempt() int {
+	return e.attempt
+}
+
 type ReceivedMessage interface {
 	Body() []byte
 	Queue() string
-	Ack() error
-	Reject(requeue bool) error
+	Attempt() int
+	CloneToReque() Message
+	Tag() uint64
 }
 
 type RabbitMQReceivedMessage struct {
 	queueName string
-	msg       amqp.Delivery
+	body      []byte
+	attempt   int
+	tag       uint64
 }
 
-func (m *RabbitMQReceivedMessage) Queue() string {
+func (m RabbitMQReceivedMessage) Queue() string {
 	return m.queueName
 }
 
-func (m *RabbitMQReceivedMessage) Body() []byte {
-	return m.msg.Body
+func (m RabbitMQReceivedMessage) Body() []byte {
+	return m.body
 }
 
-func (m *RabbitMQReceivedMessage) Ack() error {
-	return m.msg.Ack(false)
+func (m RabbitMQReceivedMessage) Attempt() int {
+	return m.attempt
 }
 
-func (m *RabbitMQReceivedMessage) Reject(requeue bool) error {
-	return m.msg.Reject(requeue)
+func (m RabbitMQReceivedMessage) Tag() uint64 {
+	return m.tag
 }
 
-func newRabbitMQReceivedMessage(queueName string, msg amqp.Delivery) *RabbitMQReceivedMessage {
+func (m *RabbitMQReceivedMessage) CloneToReque() Message {
+	var b []byte
+	copy(b, m.body)
+	return NewJSONMessage(b, m.Attempt()+1)
+}
+
+func newRabbitMQReceivedMessage(queueName string, body []byte, tag uint64) *RabbitMQReceivedMessage {
 	return &RabbitMQReceivedMessage{
 		queueName: queueName,
-		msg:       msg,
+		body:      body,
+		tag:       tag,
 	}
 }
