@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -18,9 +19,33 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func main() {
-	loadEnvVars()
+const defaultConsumerName = "auditbase_consumer"
+const defaultRequeueConsumerName = "auditbase_requeue_consumer"
 
+func main() {
+	var requeueConsumer = flag.Bool("requeued", false, "Consumer that consumes requeued messages")
+	var consumerName = flag.String("name", defaultConsumerName, "Consumer name")
+	var queueName string
+
+	flag.Parse()
+	loadEnvVars()
+	cfg := flow.NewConfigFromGlobals()
+
+	if *requeueConsumer == true {
+		queueName = cfg.ErrorQueueName
+		if *consumerName == defaultConsumerName {
+			*consumerName = defaultRequeueConsumerName
+		}
+	} else {
+		queueName = cfg.QueueName
+	}
+
+	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), *consumerName)
+
+	run(logger, cfg, *consumerName, queueName)
+}
+
+func run(logger utils.Logger, cfg flow.Config, consumerName, queueName string) {
 	fmt.Println("Waiting for DB connection")
 	time.Sleep(20 * time.Second)
 
@@ -38,14 +63,12 @@ func main() {
 	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
 	actorTypes := mysql.NewActorTypeRepository(dbConn, uuid4)
 
-	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_consumer")
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
 
 	if err := mq.Connect(); err != nil {
 		panic(err)
 	}
 
-	cfg := flow.NewConfigFromGlobals()
 	ef := flow.New(mq, logger, cfg)
 
 	if err := ef.Scaffold(); err != nil {
@@ -68,7 +91,7 @@ func main() {
 	done := make(chan struct{})
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 
-	consumer.Start(ctx, "event_consumer")
+	consumer.Start(ctx, queueName, consumerName)
 
 	go func() {
 		<-terminate

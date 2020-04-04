@@ -119,6 +119,7 @@ func (q *RabbitQueue) Publish(msg Message, exchange, routingKey string) error {
 	p := amqp.Publishing{
 		ContentType: msg.ContentType(),
 		Body:        msg.Body(),
+		Headers:     amqp.Table{"Attempt": msg.Attempt()},
 	}
 
 	if err := q.channel.Publish(exchange, routingKey, false, false, p); err != nil {

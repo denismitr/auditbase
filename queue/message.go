@@ -62,7 +62,7 @@ func (m RabbitMQReceivedMessage) Tag() uint64 {
 }
 
 func (m *RabbitMQReceivedMessage) CloneToReque() Message {
-	var b []byte
+	b := make([]byte, len(m.body))
 	copy(b, m.body)
 	return NewJSONMessage(b, m.Attempt()+1)
 }

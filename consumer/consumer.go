@@ -72,10 +72,10 @@ func New(
 }
 
 // Start consumer
-func (c *Consumer) Start(ctx context.Context, consumerName string) {
+func (c *Consumer) Start(ctx context.Context, queueName, consumerName string) {
 	go c.healthCheck()
 	go c.tasks.run()
-	go c.processEvents(consumerName)
+	go c.processEvents(queueName, consumerName)
 
 	for {
 		select {
@@ -87,10 +87,10 @@ func (c *Consumer) Start(ctx context.Context, consumerName string) {
 	}
 }
 
-func (c *Consumer) processEvents(consumerName string) {
+func (c *Consumer) processEvents(queue, consumerName string) {
 	c.eventFlow.NotifyOnStateChange(c.eventFlowStateCh)
 
-	events := c.eventFlow.Receive(consumerName)
+	events := c.eventFlow.Receive(queue, consumerName)
 
 	for {
 		select {

@@ -49,17 +49,17 @@ func (mr *MockEventFlowMockRecorder) Send(e interface{}) *gomock.Call {
 }
 
 // Receive mocks base method
-func (m *MockEventFlow) Receive(consumer string) <-chan flow.ReceivedEvent {
+func (m *MockEventFlow) Receive(queue, consumer string) <-chan flow.ReceivedEvent {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Receive", consumer)
+	ret := m.ctrl.Call(m, "Receive", queue, consumer)
 	ret0, _ := ret[0].(<-chan flow.ReceivedEvent)
 	return ret0
 }
 
 // Receive indicates an expected call of Receive
-func (mr *MockEventFlowMockRecorder) Receive(consumer interface{}) *gomock.Call {
+func (mr *MockEventFlowMockRecorder) Receive(queue, consumer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Receive", reflect.TypeOf((*MockEventFlow)(nil).Receive), consumer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Receive", reflect.TypeOf((*MockEventFlow)(nil).Receive), queue, consumer)
 }
 
 // Requeue mocks base method

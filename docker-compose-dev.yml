@@ -21,6 +21,15 @@ services:
             - auditbase_db
             - auditbase_rabbit
 
+    auditbase_requeued_consumer:
+        container_name: auditbase_requeued_consumer
+        build:
+            context: .
+            dockerfile: docker/dev/requeued-consumer.Dockerfile
+        depends_on: 
+            - auditbase_db
+            - auditbase_rabbit
+
     auditbase_rabbit:
         hostname: auditbase_rabbit
         image: rabbitmq:3-management-alpine

@@ -13,7 +13,7 @@ import (
 // EventFlow interface
 type EventFlow interface {
 	Send(e model.Event) error
-	Receive(consumer string) <-chan ReceivedEvent
+	Receive(queue, consumer string) <-chan ReceivedEvent
 	Requeue(ReceivedEvent) error
 	Ack(ReceivedEvent) error
 	Inspect() (Status, error)
@@ -101,8 +101,8 @@ func (ef *MQEventFlow) Send(e model.Event) error {
 }
 
 // Receive events from the flow
-func (ef *MQEventFlow) Receive(consumer string) <-chan ReceivedEvent {
-	go ef.mq.Subscribe(ef.cfg.QueueName, "event_flow_consumer", ef.msgCh)
+func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedEvent {
+	go ef.mq.Subscribe(queue, consumer, ef.msgCh)
 
 	go func() {
 		for {
