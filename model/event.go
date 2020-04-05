@@ -74,7 +74,7 @@ func (e *Event) Validate(v Validator) ValidationErrors {
 }
 
 type EventRepository interface {
-	Create(Event) error
+	Create(*Event) error
 	Delete(string) error
 	Count() (int, error)
 	FindOneByID(ID) (Event, error)

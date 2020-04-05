@@ -10,6 +10,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ReceivedEvent interface {
+	Event() (model.Event, error)
+	CloneMsgToRequeue() queue.Message
+	Tag() uint64
+}
+
 // EventFlow interface
 type EventFlow interface {
 	Send(e model.Event) error

@@ -1,8 +1,9 @@
 module github.com/denismitr/auditbase
 
-go 1.12
+go 1.13
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/go-sql-driver/mysql v1.4.0
 	github.com/golang/mock v1.3.1
@@ -12,7 +13,6 @@ require (
 	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/satori/go.uuid v1.2.0
-	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 	github.com/stretchr/testify v1.4.0
 	github.com/tidwall/gjson v1.5.0

@@ -47,7 +47,7 @@ func NewEventRepository(conn *sqlx.DB, uuid4 utils.UUID4Generatgor) *EventReposi
 	}
 }
 
-func (r *EventRepository) Create(e model.Event) error {
+func (r *EventRepository) Create(e *model.Event) error {
 	jsBytes, err := json.Marshal(e.Delta)
 	if err != nil {
 		return errors.Wrap(err, "could not serialize DELTA")

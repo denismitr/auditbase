@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/denismitr/auditbase/consumer"
+	"github.com/denismitr/auditbase/db"
+	"github.com/denismitr/auditbase/db/mysql"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/sql/mysql"
 	"github.com/denismitr/auditbase/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -62,7 +63,7 @@ func run(logger utils.Logger, cfg flow.Config, consumerName, queueName string) {
 	events := mysql.NewEventRepository(dbConn, uuid4)
 	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
 	actorTypes := mysql.NewActorTypeRepository(dbConn, uuid4)
-
+	persister := db.NewDBPersister(microservices, events, targetTypes, actorTypes, logger)
 	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
 
 	if err := mq.Connect(); err != nil {
@@ -75,15 +76,7 @@ func run(logger utils.Logger, cfg flow.Config, consumerName, queueName string) {
 		panic(err)
 	}
 
-	consumer := consumer.New(
-		ef,
-		logger,
-		mq,
-		microservices,
-		events,
-		targetTypes,
-		actorTypes,
-	)
+	consumer := consumer.New(ef, logger, persister)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

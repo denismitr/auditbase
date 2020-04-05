@@ -7,9 +7,76 @@ package mock_flow
 import (
 	flow "github.com/denismitr/auditbase/flow"
 	model "github.com/denismitr/auditbase/model"
+	queue "github.com/denismitr/auditbase/queue"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
+
+// MockReceivedEvent is a mock of ReceivedEvent interface
+type MockReceivedEvent struct {
+	ctrl     *gomock.Controller
+	recorder *MockReceivedEventMockRecorder
+}
+
+// MockReceivedEventMockRecorder is the mock recorder for MockReceivedEvent
+type MockReceivedEventMockRecorder struct {
+	mock *MockReceivedEvent
+}
+
+// NewMockReceivedEvent creates a new mock instance
+func NewMockReceivedEvent(ctrl *gomock.Controller) *MockReceivedEvent {
+	mock := &MockReceivedEvent{ctrl: ctrl}
+	mock.recorder = &MockReceivedEventMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockReceivedEvent) EXPECT() *MockReceivedEventMockRecorder {
+	return m.recorder
+}
+
+// Event mocks base method
+func (m *MockReceivedEvent) Event() (model.Event, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Event")
+	ret0, _ := ret[0].(model.Event)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Event indicates an expected call of Event
+func (mr *MockReceivedEventMockRecorder) Event() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Event", reflect.TypeOf((*MockReceivedEvent)(nil).Event))
+}
+
+// CloneMsgToRequeue mocks base method
+func (m *MockReceivedEvent) CloneMsgToRequeue() queue.Message {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloneMsgToRequeue")
+	ret0, _ := ret[0].(queue.Message)
+	return ret0
+}
+
+// CloneMsgToRequeue indicates an expected call of CloneMsgToRequeue
+func (mr *MockReceivedEventMockRecorder) CloneMsgToRequeue() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloneMsgToRequeue", reflect.TypeOf((*MockReceivedEvent)(nil).CloneMsgToRequeue))
+}
+
+// Tag mocks base method
+func (m *MockReceivedEvent) Tag() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Tag")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// Tag indicates an expected call of Tag
+func (mr *MockReceivedEventMockRecorder) Tag() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tag", reflect.TypeOf((*MockReceivedEvent)(nil).Tag))
+}
 
 // MockEventFlow is a mock of EventFlow interface
 type MockEventFlow struct {

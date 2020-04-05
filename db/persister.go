@@ -1,89 +1,87 @@
-package consumer
+package db
 
 import (
-	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils"
 	"github.com/pkg/errors"
 )
 
-type persistenceResult int
+type PersistenceResult int
 
 const (
-	eventCouldNotBeProcessed = iota
-	eventFlowFailed
-	databaseFailed
-	success
+	EventCouldNotBeProcessed PersistenceResult = iota
+	EventFlowFailed
+	DatabaseFailed
+	Success
 )
 
-type persister interface {
-	persist(flow.ReceivedEvent) error
+// Persister persists event to DB
+type Persister interface {
+	Persist(*model.Event) error
+	NotifyOnResult(chan<- PersistenceResult)
 }
 
-type dbPersister struct {
+type DBPersister struct {
 	microservices model.MicroserviceRepository
 	events        model.EventRepository
 	targetTypes   model.TargetTypeRepository
 	actorTypes    model.ActorTypeRepository
 	logger        utils.Logger
 
-	resultCh chan persistenceResult
+	results []chan<- PersistenceResult
 }
 
-func newDBPersister(
+// NewDBPersister - creates neew persister
+func NewDBPersister(
 	microservices model.MicroserviceRepository,
 	events model.EventRepository,
 	targetTypes model.TargetTypeRepository,
 	actorTypes model.ActorTypeRepository,
 	logger utils.Logger,
-	resultCh chan persistenceResult,
-) *dbPersister {
-	return &dbPersister{
+) *DBPersister {
+	return &DBPersister{
 		microservices: microservices,
 		events:        events,
 		actorTypes:    actorTypes,
 		targetTypes:   targetTypes,
 		logger:        logger,
-		resultCh:      resultCh,
 	}
 }
 
-func (p *dbPersister) persist(re flow.ReceivedEvent) error {
-	e, err := re.Event()
-	if err != nil {
-		p.handlePersistenceError(err, re, eventFlowFailed)
+func (p *DBPersister) NotifyOnResult(r chan<- PersistenceResult) {
+	p.results = append(p.results, r)
+}
+
+func (p *DBPersister) Persist(e *model.Event) error {
+	if err := p.AssignActorTypeTo(e); err != nil {
+		p.handlePersistenceError(err, DatabaseFailed)
 		return err
 	}
 
-	if err := p.assignActorTypeTo(&e); err != nil {
-		p.handlePersistenceError(err, re, databaseFailed)
+	if err := p.AssignActorServiceTo(e); err != nil {
+		p.handlePersistenceError(err, DatabaseFailed)
 		return err
 	}
 
-	if err := p.assignActorServiceTo(&e); err != nil {
-		p.handlePersistenceError(err, re, databaseFailed)
+	if err := p.AssignTargetTypeTo(e); err != nil {
+		p.handlePersistenceError(err, DatabaseFailed)
 		return err
 	}
 
-	if err := p.assignTargetTypeTo(&e); err != nil {
-		p.handlePersistenceError(err, re, databaseFailed)
-		return err
-	}
-
-	if err := p.assignTargetServiceTo(&e); err != nil {
-		p.handlePersistenceError(err, re, databaseFailed)
+	if err := p.AssignTargetServiceTo(e); err != nil {
+		p.handlePersistenceError(err, DatabaseFailed)
 		return err
 	}
 
 	if err := p.events.Create(e); err != nil {
-		p.handlePersistenceError(err, re, databaseFailed)
+		p.handlePersistenceError(err, DatabaseFailed)
 		return err
 	}
 
 	return nil
 }
 
-func (p *dbPersister) assignTargetTypeTo(e *model.Event) error {
+func (p *DBPersister) AssignTargetTypeTo(e *model.Event) error {
 	// TODO: cache these checks
 	if e.TargetType.ID != "" {
 		tt, err := p.targetTypes.FirstByID(e.TargetType.ID)
@@ -104,7 +102,7 @@ func (p *dbPersister) assignTargetTypeTo(e *model.Event) error {
 	return nil
 }
 
-func (p *dbPersister) assignTargetServiceTo(e *model.Event) error {
+func (p *DBPersister) AssignTargetServiceTo(e *model.Event) error {
 	// TODO: cache these checks
 	if e.TargetService.ID != "" {
 		ts, err := p.microservices.FirstByID(model.ID(e.TargetService.ID))
@@ -126,7 +124,7 @@ func (p *dbPersister) assignTargetServiceTo(e *model.Event) error {
 	return nil
 }
 
-func (p *dbPersister) assignActorTypeTo(e *model.Event) error {
+func (p *DBPersister) AssignActorTypeTo(e *model.Event) error {
 	// TODO: cache these checks
 	if e.ActorType.ID != "" {
 		at, err := p.actorTypes.FirstByID(e.ActorType.ID)
@@ -147,7 +145,7 @@ func (p *dbPersister) assignActorTypeTo(e *model.Event) error {
 	return nil
 }
 
-func (p *dbPersister) assignActorServiceTo(e *model.Event) error {
+func (p *DBPersister) AssignActorServiceTo(e *model.Event) error {
 	// TODO: cache these checks
 	if e.ActorService.ID != "" {
 		as, err := p.microservices.FirstByID(model.ID(e.ActorService.ID))
@@ -168,11 +166,13 @@ func (p *dbPersister) assignActorServiceTo(e *model.Event) error {
 	return nil
 }
 
-func (p *dbPersister) handlePersistenceError(
+func (p *DBPersister) handlePersistenceError(
 	err error,
-	re flow.ReceivedEvent,
-	result persistenceResult,
+	result PersistenceResult,
 ) {
 	p.logger.Error(err)
-	p.resultCh <- result //fixme: use error types
+
+	for _, r := range p.results {
+		r <- result //fixme: use error types
+	}
 }

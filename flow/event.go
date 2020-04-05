@@ -8,12 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ReceivedEvent interface {
-	Event() (model.Event, error)
-	CloneMsgToRequeue() queue.Message
-	Tag() uint64
-}
-
 type QueueReceivedEvent struct {
 	msg queue.ReceivedMessage
 }

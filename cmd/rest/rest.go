@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/denismitr/auditbase/db/mysql"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/rest"
-	"github.com/denismitr/auditbase/sql/mysql"
 	"github.com/denismitr/auditbase/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"

@@ -34,7 +34,7 @@ func (m *MockEventRepository) EXPECT() *MockEventRepositoryMockRecorder {
 }
 
 // Create mocks base method
-func (m *MockEventRepository) Create(arg0 model.Event) error {
+func (m *MockEventRepository) Create(arg0 *model.Event) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", arg0)
 	ret0, _ := ret[0].(error)

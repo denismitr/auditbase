@@ -12,7 +12,7 @@ COPY queue/ ./queue
 COPY model/ ./model
 COPY utils/ ./utils
 COPY flow/ ./flow
-COPY sql/ ./sql
+COPY db/ ./db
 COPY .env ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o rest ./cmd/rest

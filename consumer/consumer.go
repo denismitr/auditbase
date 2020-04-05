@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/flow"
-	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/utils"
 	"github.com/pkg/errors"
@@ -20,11 +20,12 @@ import (
 type Consumer struct {
 	logger    utils.Logger
 	eventFlow flow.EventFlow
+	persister db.Persister
 
-	receiveCh           chan queue.ReceivedMessage
-	stopCh              chan struct{}
-	eventFlowStateCh    chan flow.State
-	persistenceResultCh chan persistenceResult
+	receiveCh        chan queue.ReceivedMessage
+	stopCh           chan struct{}
+	eventFlowStateCh chan flow.State
+	pResultCh        chan db.PersistenceResult
 
 	persistedEvents int
 	failedEvents    int
@@ -39,35 +40,23 @@ type Consumer struct {
 func New(
 	ef flow.EventFlow,
 	logger utils.Logger,
-	mq queue.MQ,
-	microservices model.MicroserviceRepository,
-	events model.EventRepository,
-	targetTypes model.TargetTypeRepository,
-	actorTypes model.ActorTypeRepository,
+	persister db.Persister,
 ) *Consumer {
-	resultCh := make(chan persistenceResult)
-
-	persister := newDBPersister(
-		microservices,
-		events,
-		targetTypes,
-		actorTypes,
-		logger,
-		resultCh,
-	)
-
+	pResultCh := make(chan db.PersistenceResult)
+	persister.NotifyOnResult(pResultCh)
 	tasks := newTasks(10, logger, persister, ef)
 
 	return &Consumer{
-		eventFlow:           ef,
-		tasks:               tasks,
-		logger:              logger,
-		persistenceResultCh: resultCh,
-		receiveCh:           make(chan queue.ReceivedMessage),
-		stopCh:              make(chan struct{}),
-		eventFlowStateCh:    make(chan flow.State),
-		mu:                  sync.RWMutex{},
-		statusOK:            true,
+		eventFlow:        ef,
+		tasks:            tasks,
+		persister:        persister,
+		logger:           logger,
+		pResultCh:        pResultCh,
+		receiveCh:        make(chan queue.ReceivedMessage),
+		stopCh:           make(chan struct{}),
+		eventFlowStateCh: make(chan flow.State),
+		mu:               sync.RWMutex{},
+		statusOK:         true,
 	}
 }
 
@@ -101,12 +90,12 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 				continue
 			}
 
-			go c.tasks.process(e)
+			c.tasks.process(e)
 		case efState := <-c.eventFlowStateCh:
 			if efState == flow.Failed || efState == flow.Stopped {
 				c.markAsFailed()
 			}
-		case result := <-c.persistenceResultCh:
+		case result := <-c.pResultCh:
 			c.registerResult(result)
 		case <-c.stopCh:
 			c.logger.Debugf("Received on stop channel")
@@ -118,16 +107,16 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 	}
 }
 
-func (c *Consumer) registerResult(r persistenceResult) {
+func (c *Consumer) registerResult(r db.PersistenceResult) {
 	switch r {
-	case eventFlowFailed:
+	case db.EventFlowFailed:
 		c.incrementFailedEvents()
 		c.markAsFailed()
-	case success:
+	case db.Success:
 		c.incrementPersistedEvents()
-	case databaseFailed:
+	case db.DatabaseFailed:
 		c.incrementFailedEvents()
-	case eventCouldNotBeProcessed:
+	case db.EventCouldNotBeProcessed:
 		c.incrementFailedEvents()
 	}
 }
