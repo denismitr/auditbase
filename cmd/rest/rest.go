@@ -13,10 +13,13 @@ import (
 	"github.com/denismitr/auditbase/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
+	"github.com/pkg/profile"
 )
 
 func main() {
 	loadEnvVars()
+
+	debug()
 
 	fmt.Println("Waiting for DB connection...")
 	time.Sleep(20 * time.Second)
@@ -75,5 +78,17 @@ func loadEnvVars() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+	}
+}
+
+func debug() {
+	if os.Getenv("APP_TRACE") != "" && os.Getenv("APP_TRACE") != "0" {
+		stopper := profile.Start(profile.CPUProfile, profile.ProfilePath("/tmp/debug/rest"))
+
+		go func() {
+			ticker := time.After(2 * time.Minute)
+			<-ticker
+			stopper.Stop()
+		}()
 	}
 }

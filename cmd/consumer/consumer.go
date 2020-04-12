@@ -18,6 +18,8 @@ import (
 	"github.com/denismitr/auditbase/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
+
+	"github.com/pkg/profile"
 )
 
 const defaultConsumerName = "auditbase_consumer"
@@ -31,6 +33,8 @@ func main() {
 	flag.Parse()
 	loadEnvVars()
 	cfg := flow.NewConfigFromGlobals()
+
+	debug(*requeueConsumer)
 
 	if *requeueConsumer == true {
 		queueName = cfg.ErrorQueueName
@@ -99,5 +103,17 @@ func loadEnvVars() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+	}
+}
+
+func debug(isRequeueConsumer bool) {
+	if os.Getenv("APP_TRACE") != "" && os.Getenv("APP_TRACE") != "0" && isRequeueConsumer == false {
+		stopper := profile.Start(profile.CPUProfile, profile.MemProfile, profile.ProfilePath("/tmp/debug/consumer"))
+
+		go func() {
+			ticker := time.After(2 * time.Minute)
+			<-ticker
+			stopper.Stop()
+		}()
 	}
 }

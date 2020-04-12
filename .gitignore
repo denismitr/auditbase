@@ -5,3 +5,4 @@ cmd/rest/rest
 cmd/consumer/consumer
 .env
 .DS_Store
+*.out

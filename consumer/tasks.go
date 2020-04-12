@@ -12,7 +12,7 @@ import (
 
 const ErrInvalidReceivedEvent = errtype.StringError("invalid received event")
 
-type semaphore int
+type semaphore struct{}
 
 type processor interface {
 	process(flow.ReceivedEvent)
@@ -57,10 +57,12 @@ func (t *tasks) run() {
 			return
 		}
 
-		t.sem <- 1
+		t.sem <- struct{}{}
 
 		go func(re flow.ReceivedEvent, event model.Event) {
 			if err := t.persister.Persist(&event); err != nil {
+				t.logger.Error(err)
+
 				if err := t.ef.Requeue(re); err != nil {
 					t.logger.Error(err)
 				}
