@@ -114,9 +114,7 @@ func (c *Consumer) registerResult(r db.PersistenceResult) {
 		c.markAsFailed()
 	case db.Success:
 		c.incrementPersistedEvents()
-	case db.DatabaseFailed:
-		c.incrementFailedEvents()
-	case db.EventCouldNotBeProcessed:
+	case db.CriticalDatabaseFailure, db.LogicalError, db.EventCouldNotBeProcessed:
 		c.incrementFailedEvents()
 	}
 }

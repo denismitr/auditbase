@@ -5,6 +5,7 @@
 package mock_db
 
 import (
+	db "github.com/denismitr/auditbase/db"
 	model "github.com/denismitr/auditbase/model"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -45,4 +46,16 @@ func (m *MockPersister) Persist(arg0 *model.Event) error {
 func (mr *MockPersisterMockRecorder) Persist(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Persist", reflect.TypeOf((*MockPersister)(nil).Persist), arg0)
+}
+
+// NotifyOnResult mocks base method
+func (m *MockPersister) NotifyOnResult(arg0 chan<- db.PersistenceResult) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "NotifyOnResult", arg0)
+}
+
+// NotifyOnResult indicates an expected call of NotifyOnResult
+func (mr *MockPersisterMockRecorder) NotifyOnResult(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotifyOnResult", reflect.TypeOf((*MockPersister)(nil).NotifyOnResult), arg0)
 }

@@ -35,6 +35,7 @@ mock:
 	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
 	mockgen -source model/types.go -destination ./test/mock_model/types.go
 	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
+	mockgen -source pipeline/payload.go -destination ./test/mock_pipeline/payload.go
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
