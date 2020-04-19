@@ -1,21 +1,20 @@
 package model
 
+import (
+	"github.com/denismitr/auditbase/utils/errbag"
+	"github.com/denismitr/auditbase/utils/validator"
+)
+
 type ID string
 
-func (id ID) Validate() ValidationErrors {
-	v := NewValidator()
+func (id ID) Validate() *errbag.ErrorBag {
+	eb := errbag.New()
 
-	s := string(id)
-
-	if v.IsEmptyString(s) {
-		v.Add("ID", ":id cannot be empty")
+	if !validator.IsUUID4(id.String()) {
+		eb.Add("ID", ErrInvalidUUID4)
 	}
 
-	if !v.IsUUID4(s) {
-		v.Add("ID", ":id must be a valid UUID4 or be null for auto assigning")
-	}
-
-	return v.Errors()
+	return eb
 }
 
 func (id ID) String() string {

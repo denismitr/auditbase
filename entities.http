@@ -1,11 +1,11 @@
 @host = http://localhost:8888
 
-GET {{host}}/api/v1/actor-types
+GET {{host}}/api/v1/entities
 Content-Type: application/json
 Accept: application/json
 
 ###
 
-GET {{host}}/api/v1/actor-types/7bc5a48f0-92a7-495e-8ca1-54ed335d5fa4
+GET {{host}}/api/v1/entities/c54405a3-a712-4a8e-b5e2-29b18d5d5824
 Content-Type: application/json
 Accept: application/json

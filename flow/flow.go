@@ -6,13 +6,13 @@ import (
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/pkg/errors"
 )
 
 // EventFlow interface
 type EventFlow interface {
-	Send(e model.Event) error
+	Send(e *model.Event) error
 	Receive(queue, consumer string) <-chan ReceivedEvent
 	Requeue(ReceivedEvent) error
 	Ack(ReceivedEvent) error
@@ -28,7 +28,7 @@ type MQEventFlow struct {
 	mq             queue.MQ
 	cfg            Config
 	state          State
-	logger         utils.Logger
+	logger         logger.Logger
 	mu             sync.RWMutex
 	stateListeners []chan State
 	stopCh         chan struct{}
@@ -37,7 +37,7 @@ type MQEventFlow struct {
 }
 
 // New event flow
-func New(mq queue.MQ, logger utils.Logger, cfg Config) *MQEventFlow {
+func New(mq queue.MQ, logger logger.Logger, cfg Config) *MQEventFlow {
 	return &MQEventFlow{
 		mq:             mq,
 		cfg:            cfg,
@@ -89,8 +89,8 @@ func (ef *MQEventFlow) NotifyOnStateChange(l chan State) {
 }
 
 // Send event to the event flow
-func (ef *MQEventFlow) Send(e model.Event) error {
-	b, err := json.Marshal(&e)
+func (ef *MQEventFlow) Send(e *model.Event) error {
+	b, err := json.Marshal(e)
 	if err != nil {
 		return errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID)
 	}

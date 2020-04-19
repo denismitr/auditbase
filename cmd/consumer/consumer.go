@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,9 +14,10 @@ import (
 	"github.com/denismitr/auditbase/db/mysql"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/env"
+	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
 
 	"github.com/pkg/profile"
 )
@@ -31,7 +31,8 @@ func main() {
 	var queueName string
 
 	flag.Parse()
-	loadEnvVars()
+
+	env.LoadFromDotEnv()
 	cfg := flow.NewConfigFromGlobals()
 
 	debug(*requeueConsumer)
@@ -45,30 +46,33 @@ func main() {
 		queueName = cfg.QueueName
 	}
 
-	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), *consumerName)
+	logger := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), *consumerName)
 
 	run(logger, cfg, *consumerName, queueName)
 }
 
-func run(logger utils.Logger, cfg flow.Config, consumerName, queueName string) {
+func run(logger logger.Logger, cfg flow.Config, consumerName, queueName string) {
 	fmt.Println("Waiting for DB connection")
 	time.Sleep(20 * time.Second)
 
-	uuid4 := utils.NewUUID4Generator()
+	uuid4 := uuid.NewUUID4Generator()
 
-	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
+	dbConn, err := sqlx.Connect("mysql", env.MustString("AUDITBASE_DB_DSN"))
 	if err != nil {
 		panic(err)
 	}
 
 	dbConn.SetMaxOpenConns(100)
 
+	if err := mysql.Migrator(dbConn).Up(); err != nil {
+		panic(err)
+	}
+
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
-	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
-	actorTypes := mysql.NewActorTypeRepository(dbConn, uuid4)
-	persister := db.NewDBPersister(microservices, events, targetTypes, actorTypes, logger)
-	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 3)
+	entities := mysql.NewEntityRepository(dbConn, uuid4)
+	persister := db.NewDBPersister(microservices, events, entities, logger)
+	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), logger, 3)
 
 	if err := mq.Connect(); err != nil {
 		panic(err)
@@ -99,15 +103,8 @@ func run(logger utils.Logger, cfg flow.Config, consumerName, queueName string) {
 	<-done
 }
 
-func loadEnvVars() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-}
-
 func debug(isRequeueConsumer bool) {
-	if os.Getenv("APP_TRACE") != "" && os.Getenv("APP_TRACE") != "0" && isRequeueConsumer == false {
+	if env.IsTruthy("APP_TRACE") && isRequeueConsumer == false {
 		stopper := profile.Start(profile.CPUProfile, profile.MemProfile, profile.ProfilePath("/tmp/debug/consumer"))
 
 		go func() {

@@ -5,6 +5,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+type SQLMigrator struct {
+	conn *sqlx.DB
+}
+
+func Migrator(conn *sqlx.DB) *SQLMigrator {
+	return &SQLMigrator{
+		conn: conn,
+	}
+}
+
 const microservicesSchema = `
 	CREATE TABLE IF NOT EXISTS microservices (
 		id binary(16) PRIMARY KEY,
@@ -12,25 +22,23 @@ const microservicesSchema = `
 		description VARCHAR(255),
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		UNIQUE KEY unique_name (name),
-		INDEX name_index (name)
+		UNIQUE KEY unique_name (name)
 	) ENGINE=INNODB;
 `
 
 const eventsSchema = `
 	CREATE TABLE IF NOT EXISTS events (
 		id binary(16) PRIMARY KEY,
-		parent_event_id binary(16) DEFAULT NULL,
+		parent_event_id binary(16),
 		actor_id VARCHAR(36) NOT NULL,
-		actor_type_id binary(16) NOT NULL,
+		actor_entity_id binary(16) NOT NULL,
 		actor_service_id binary(16) NOT NULL,
 		target_id VARCHAR(36) NOT NULL,
-		target_type_id binary(16),
+		target_entity_id binary(16),
 		target_service_id binary(16) NOT NULL,
 		event_name VARCHAR(36) NOT NULL,
 		emitted_at TIMESTAMP NOT NULL,
 		registered_at TIMESTAMP NOT NULL,
-		delta JSON DEFAULT NULL,
 
 		FOREIGN KEY (actor_service_id)
         REFERENCES microservices(id)
@@ -40,80 +48,81 @@ const eventsSchema = `
         REFERENCES microservices(id)
 		ON DELETE CASCADE,
 		
-		FOREIGN KEY (actor_type_id)
-        REFERENCES actor_types(id)
+		FOREIGN KEY (actor_entity_id)
+        REFERENCES entities(id)
 		ON DELETE CASCADE,
 		
-		FOREIGN KEY (target_type_id)
-        REFERENCES target_types(id)
+		FOREIGN KEY (target_entity_id)
+        REFERENCES entities(id)
         ON DELETE CASCADE
 	) ENGINE=INNODB;
 `
 
-const actorTypeSchema = `
-	CREATE TABLE IF NOT EXISTS actor_types (
+const entitySchema = `
+	CREATE TABLE IF NOT EXISTS entities (
 		id binary(16) PRIMARY KEY,
-		name VARCHAR(36),
+		service_id binary(16) NOT NULL,
+		name VARCHAR(64) NOT NULL,
 		description VARCHAR(255),
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		UNIQUE KEY unique_name (name),
-		INDEX name_index (name)
-	) ENGINE=INNODB;
-`
+		UNIQUE KEY unique_service_and_name (service_id, name),
 
-const targetTypeSchema = `
-	CREATE TABLE IF NOT EXISTS target_types (
-		id binary(16) PRIMARY KEY,
-		name VARCHAR(36),
-		description VARCHAR(255),
-		created_at TIMESTAMP default CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		UNIQUE KEY unique_name (name),
-		INDEX name_index (name)
+		FOREIGN KEY (service_id)
+        REFERENCES microservices(id)
+        ON DELETE CASCADE
 	) ENGINE=INNODB;		
 `
 
-const flush = `
-	SET SQL_SAFE_UPDATES = 0;
+const propertySchema = `
+	CREATE TABLE IF NOT EXISTS properties (
+		id binary(16) PRIMARY KEY,
+		event_id binary(16) NOT NULL,
+		name VARCHAR(64),
+		changed_from TEXT,
+		changed_to TEXT,
 
-	truncate table events;
-	delete from actor_types;
-	delete from target_types;
-	delete from microservices;
+		INDEX event_and_name_index (event_id, name),
 
-	SET SQL_SAFE_UPDATES = 1;
+		FOREIGN KEY (event_id)
+        REFERENCES events(id)
+        ON DELETE CASCADE
+	)
 `
 
-func Scaffold(conn *sqlx.DB) error {
-	if _, err := conn.Exec(targetTypeSchema); err != nil {
-		return errors.Wrap(err, "could not create target_types table")
-	}
+const flush = `
+	SET FOREIGN_KEY_CHECKS=0;
 
-	if _, err := conn.Exec(actorTypeSchema); err != nil {
-		return errors.Wrap(err, "could not create actor_types table")
-	}
+	DROP TABLE IF EXISTS properties;
+	DROP TABLE IF EXISTS entities;
+	DROP TABLE IF EXISTS microservices;
+	DROP TABLE IF EXISTS events; 
 
-	if _, err := conn.Exec(microservicesSchema); err != nil {
+	SET FOREIGN_KEY_CHECKS=1;
+`
+
+func (m *SQLMigrator) Up() error {
+	if _, err := m.conn.Exec(microservicesSchema); err != nil {
 		return errors.Wrap(err, "could not create microservices table")
 	}
 
-	if _, err := conn.Exec(eventsSchema); err != nil {
+	if _, err := m.conn.Exec(entitySchema); err != nil {
+		return errors.Wrap(err, "could not create entities table")
+	}
+
+	if _, err := m.conn.Exec(eventsSchema); err != nil {
 		return errors.Wrap(err, "could not create events table")
+	}
+
+	if _, err := m.conn.Exec(propertySchema); err != nil {
+		return errors.Wrap(err, "could not create entities table")
 	}
 
 	return nil
 }
 
-func Drop(conn *sqlx.DB) error {
-	drop := `
-		DROP TABLE events;
-		DROP TABLE microservices;
-		DROP TABLE target_types;
-		DROP TABLE actor_types;
-	`
-
-	if _, err := conn.Exec(drop); err != nil {
+func (m *SQLMigrator) Down() error {
+	if _, err := m.conn.Exec(flush); err != nil {
 		return errors.Wrap(err, "could not drop tables")
 	}
 

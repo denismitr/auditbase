@@ -6,8 +6,8 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils"
 	"github.com/denismitr/auditbase/utils/errtype"
+	"github.com/denismitr/auditbase/utils/logger"
 )
 
 const ErrInvalidReceivedEvent = errtype.StringError("invalid received event")
@@ -24,11 +24,11 @@ type tasks struct {
 	eventsCh  chan flow.ReceivedEvent
 	persister db.Persister
 	ef        flow.EventFlow
-	logger    utils.Logger
+	logger    logger.Logger
 	mu        sync.Mutex
 }
 
-func newTasks(maxTasks int, logger utils.Logger, persister db.Persister, ef flow.EventFlow) *tasks {
+func newTasks(maxTasks int, logger logger.Logger, persister db.Persister, ef flow.EventFlow) *tasks {
 	return &tasks{
 		sem:       make(chan semaphore, maxTasks),
 		eventsCh:  make(chan flow.ReceivedEvent),

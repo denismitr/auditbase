@@ -1,5 +1,12 @@
 package model
 
+import (
+	"time"
+
+	"github.com/denismitr/auditbase/utils/errbag"
+	"github.com/denismitr/auditbase/utils/validator"
+)
+
 type Order string
 
 const DESCOrder Order = "DESC"
@@ -15,68 +22,76 @@ type Pagination struct {
 }
 
 type EventFilter struct {
-	ActorID         string
-	ActorTypeID     string
-	TargetID        string
-	TargetTypeID    string
-	ActorServiceID  string
-	TargetServiceID string
-	EventName       string
-	EmittedAtGt     int64
-	EmittedAtLt     int64
+	ActorID          string
+	ActorEntityID    string
+	ActorEntityName  string
+	TargetID         string
+	TargetEntityID   string
+	TargetEntityName string
+	ActorServiceID   string
+	TargetServiceID  string
+	EventName        string
+	EmittedAtGt      int64
+	EmittedAtLt      int64
 }
 
 func (ef EventFilter) Empty() bool {
-	return ef.ActorID == "" && ef.ActorTypeID == ""
+	return ef.ActorID == "" && ef.ActorEntityID == ""
 }
 
 type Event struct {
-	ID            string                   `json:"id"`
-	ParentEventID string                   `json:"parentEventId"`
-	ActorID       string                   `json:"actorId"`
-	ActorType     ActorType                `json:"actorType"`
-	ActorService  Microservice             `json:"actorService"`
-	TargetID      string                   `json:"targetId"`
-	TargetType    TargetType               `json:"targetType"`
-	TargetService Microservice             `json:"targetService"`
-	EventName     string                   `json:"eventName"`
-	EmittedAt     int64                    `json:"emittedAt"`
-	RegisteredAt  int64                    `json:"registeredAt"`
-	Delta         map[string][]interface{} `json:"delta"`
+	ID            string       `json:"id"`
+	ParentEventID string       `json:"parentEventId"`
+	ActorID       string       `json:"actorId"`
+	ActorEntity   Entity       `json:"actorEntity"`
+	ActorService  Microservice `json:"actorService"`
+	TargetID      string       `json:"targetId"`
+	TargetEntity  Entity       `json:"targetType"`
+	TargetService Microservice `json:"targetService"`
+	EventName     string       `json:"eventName"`
+	EmittedAt     time.Time    `json:"emittedAt"`
+	RegisteredAt  time.Time    `json:"registeredAt"`
+	Delta         []Property   `json:"delta"`
 }
 
-func (e *Event) Validate(v Validator) ValidationErrors {
-	if !v.IsUUID4(e.ID) {
-		v.Add("id", ":id is not a valid UUID4")
+func (e *Event) Validate() *errbag.ErrorBag {
+	bag := errbag.New()
+
+	if !validator.IsEmptyString(e.ID) {
+		bag.Add("id", ErrMissingEventID)
 	}
 
-	if v.IsEmptyString(e.ActorID) {
-		v.Add("actorID", ":actorID must not be empty")
+	if !validator.IsUUID4(e.ID) {
+		bag.Add("id", ErrInvalidUUID4)
 	}
 
-	if v.IsEmptyString(e.ActorType.Name) {
-		v.Add("actorType.Name", ":actorType.ID must not be empty")
+	if validator.IsEmptyString(e.ActorID) {
+		bag.Add("actorID", ErrActorIDEmpty)
 	}
 
-	if v.IsEmptyString(e.TargetType.Name) {
-		v.Add("targetType.Name", ":targetType.ID must not be empty")
+	if validator.IsEmptyString(e.ActorEntity.Name) {
+		bag.Add("actorEntity.Name", ErrActorEntityNameEmpty)
 	}
 
-	if v.IsEmptyString(e.ActorService.Name) {
-		v.Add("actorService.Name", ":actorService.Name must not be empty")
+	if validator.IsEmptyString(e.TargetEntity.Name) {
+		bag.Add("targetEntity.Name", ErrTargetEntityNameEmpty)
 	}
 
-	if v.IsEmptyString(e.TargetService.Name) {
-		v.Add("targetService.Name", ":targetService.Name must not be empty")
+	if validator.IsEmptyString(e.ActorService.Name) {
+		bag.Add("actorService.Name", ErrActorServiceNameEmpty)
 	}
 
-	return v.Errors()
+	if validator.IsEmptyString(e.TargetService.Name) {
+		bag.Add("targetService.Name", ErrTargetServiceNameEmpty)
+	}
+
+	return bag
 }
 
 type EventRepository interface {
 	Create(*Event) error
-	Delete(string) error
+	Delete(ID) error
 	Count() (int, error)
-	FindOneByID(ID) (Event, error)
-	Select(EventFilter, Sort, Pagination) ([]Event, error)
+	FindOneByID(ID) (*Event, error)
+	Select(EventFilter, Sort, Pagination) ([]*Event, error)
 }

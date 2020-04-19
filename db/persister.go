@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils"
-	"github.com/pkg/errors"
+	"github.com/denismitr/auditbase/utils/errtype"
+	"github.com/denismitr/auditbase/utils/logger"
 )
 
 type PersistenceResult int
@@ -19,6 +19,8 @@ const (
 	Success
 )
 
+const ErrDBTransactionFailed = errtype.StringError("db transaction failed")
+
 // Persister persists event to DB
 type Persister interface {
 	Persist(*model.Event) error
@@ -28,9 +30,8 @@ type Persister interface {
 type DBPersister struct {
 	microservices model.MicroserviceRepository
 	events        model.EventRepository
-	targetTypes   model.TargetTypeRepository
-	actorTypes    model.ActorTypeRepository
-	logger        utils.Logger
+	entities      model.EntityRepository
+	logger        logger.Logger
 
 	results []chan<- PersistenceResult
 }
@@ -39,15 +40,13 @@ type DBPersister struct {
 func NewDBPersister(
 	microservices model.MicroserviceRepository,
 	events model.EventRepository,
-	targetTypes model.TargetTypeRepository,
-	actorTypes model.ActorTypeRepository,
-	logger utils.Logger,
+	entities model.EntityRepository,
+	logger logger.Logger,
 ) *DBPersister {
 	return &DBPersister{
 		microservices: microservices,
 		events:        events,
-		actorTypes:    actorTypes,
-		targetTypes:   targetTypes,
+		entities:      entities,
 		logger:        logger,
 	}
 }
@@ -68,6 +67,11 @@ func (dbp *DBPersister) Persist(e *model.Event) error {
 		return ErrPersisterCouldNotPrepareEvent
 	}
 
+	p.update(func(e *model.Event) {
+		e.ActorEntity.Service = e.ActorService
+		e.TargetEntity.Service = e.TargetService
+	})
+
 	if err := dbp.events.Create(p.event()); err != nil {
 		dbp.logger.Error(err)
 		dbp.notifyResultObservers(covertToPersistenceResult(err))
@@ -79,39 +83,28 @@ func (dbp *DBPersister) Persist(e *model.Event) error {
 
 func (dbp *DBPersister) prepare(p *payload) {
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(2)
 
-	go dbp.assignActorType(p, &wg)
-	go dbp.assignActorService(p, &wg)
-	go dbp.assignTargetService(p, &wg)
-	go dbp.assignTargetType(p, &wg)
+	go dbp.assignActorEntity(p, &wg)
+	go dbp.assignTargetEntity(p, &wg)
 
 	wg.Wait()
 }
 
-func (dbp *DBPersister) assignTargetType(p *payload, wg *sync.WaitGroup) {
+func (dbp *DBPersister) assignTargetEntity(p *payload, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	ett := p.targetType()
+	te := p.targetEntity()
+	ts := p.targetService()
 
-	// TODO: cache these checks
-	if ett.ID != "" {
-		tt, err := dbp.targetTypes.FirstByID(ett.ID)
-		if err != nil {
-			p.appendError(ErrEntityDoesNotExist)
-			dbp.logger.Error(
-				errors.Wrapf(err, "target type with ID %s does not exist", ett.ID))
-			return
-		}
-
-		p.update(func(e *model.Event) {
-			e.TargetType = tt
-		})
-
+	service, err := dbp.microservices.FirstOrCreateByName(ts.Name)
+	if err != nil {
+		p.appendError(ErrDBWriteFailed)
+		dbp.logger.Error(err)
 		return
 	}
 
-	tt, err := dbp.targetTypes.FirstOrCreateByName(ett.Name)
+	targetEntity, err := dbp.entities.FirstOrCreateByNameAndService(te.Name, service)
 	if err != nil {
 		p.appendError(ErrDBWriteFailed)
 		dbp.logger.Error(err)
@@ -119,66 +112,25 @@ func (dbp *DBPersister) assignTargetType(p *payload, wg *sync.WaitGroup) {
 	}
 
 	p.update(func(e *model.Event) {
-		e.TargetType = tt
+		e.TargetEntity = *targetEntity
+		e.TargetService = *service
 	})
 }
 
-func (dbp *DBPersister) assignTargetService(p *payload, wg *sync.WaitGroup) {
+func (dbp *DBPersister) assignActorEntity(p *payload, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	ets := p.targetService()
+	ae := p.actorEntity()
+	as := p.actorService()
 
-	// TODO: cache these checks
-	if ets.ID != "" {
-		ts, err := dbp.microservices.FirstByID(model.ID(ets.ID))
-		if err != nil {
-			dbp.logger.Error(
-				errors.Wrapf(err, "target type ID %s does not exist", ets.ID))
-			p.appendError(ErrEntityDoesNotExist)
-			return
-		}
-
-		p.update(func(e *model.Event) {
-			e.TargetService = ts
-		})
-
-		return
-	}
-
-	ts, err := dbp.microservices.FirstOrCreateByName(ets.Name)
+	service, err := dbp.microservices.FirstOrCreateByName(as.Name)
 	if err != nil {
-		dbp.logger.Error(err)
 		p.appendError(ErrDBWriteFailed)
+		dbp.logger.Error(err)
 		return
 	}
 
-	p.update(func(e *model.Event) {
-		e.TargetService = ts
-	})
-}
-
-func (dbp *DBPersister) assignActorType(p *payload, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	eat := p.ActorType()
-
-	if eat.ID != "" {
-		at, err := dbp.actorTypes.FirstByID(eat.ID)
-		if err != nil {
-			dbp.logger.Error(
-				errors.Wrapf(err, "actor type with id %s does not exist", eat.ID))
-			p.appendError(ErrEntityDoesNotExist)
-			return
-		}
-
-		p.update(func(e *model.Event) {
-			e.ActorType = at
-		})
-
-		return
-	}
-
-	at, err := dbp.actorTypes.FirstOrCreateByName(eat.Name)
+	entity, err := dbp.entities.FirstOrCreateByNameAndService(ae.Name, service)
 	if err != nil {
 		p.appendError(ErrDBWriteFailed)
 		dbp.logger.Error(err)
@@ -186,41 +138,8 @@ func (dbp *DBPersister) assignActorType(p *payload, wg *sync.WaitGroup) {
 	}
 
 	p.update(func(e *model.Event) {
-		e.ActorType = at
-	})
-}
-
-func (dbp *DBPersister) assignActorService(p *payload, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	eas := p.ActorService()
-
-	if eas.ID != "" {
-		as, err := dbp.microservices.FirstByID(model.ID(eas.ID))
-		if err != nil {
-			p.appendError(ErrEntityDoesNotExist)
-			dbp.logger.Error(
-				errors.Wrapf(err, "actor service with id %s does not exist", eas.ID))
-
-			return
-		}
-
-		p.update(func(e *model.Event) {
-			e.ActorService = as
-		})
-
-		return
-	}
-
-	as, err := dbp.microservices.FirstOrCreateByName(eas.Name)
-	if err != nil {
-		p.appendError(ErrDBWriteFailed)
-		dbp.logger.Error(err)
-		return
-	}
-
-	p.update(func(e *model.Event) {
-		e.ActorService = as
+		e.ActorEntity = *entity
+		e.ActorService = *service
 	})
 }
 

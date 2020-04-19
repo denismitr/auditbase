@@ -59,6 +59,5 @@ services:
                          
     
 volumes:
-    auditbase_db_volume:
     auditbase_rabbit_volume:
             

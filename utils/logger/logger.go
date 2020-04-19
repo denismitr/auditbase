@@ -1,4 +1,4 @@
-package utils
+package logger
 
 import (
 	"fmt"
@@ -9,11 +9,13 @@ import (
 const Dev = "dev"
 const Prod = "prod"
 
+// Logger - provides small interface for logging errors and debuging
 type Logger interface {
 	Error(err error)
 	Debugf(format string, args ...interface{})
 }
 
+// NewStdoutLogger creates StdLogger that uses stderr and stdout for logging
 func NewStdoutLogger(env, namespace string) *StdLogger {
 	debugLogger := log.New(os.Stdout, namespace+" ", log.Ldate|log.Ltime|log.Lshortfile)
 	errLogger := log.New(os.Stderr, namespace+" ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -25,6 +27,7 @@ func NewStdoutLogger(env, namespace string) *StdLogger {
 	}
 }
 
+// StdLogger uses stderr and stdout for logging
 type StdLogger struct {
 	errLogger   *log.Logger
 	debugLogger *log.Logger

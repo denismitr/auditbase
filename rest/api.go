@@ -8,7 +8,9 @@ import (
 
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/clock"
+	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
@@ -22,12 +24,11 @@ type API struct {
 // New API
 func New(
 	cfg Config,
-	logger utils.Logger,
+	logger logger.Logger,
 	ef flow.EventFlow,
-	mr model.MicroserviceRepository,
-	er model.EventRepository,
-	atr model.ActorTypeRepository,
-	ttr model.TargetTypeRepository,
+	microservices model.MicroserviceRepository,
+	events model.EventRepository,
+	entities model.EntityRepository,
 ) *API {
 	e := echo.New()
 
@@ -35,34 +36,29 @@ func New(
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	uuid4 := utils.NewUUID4Generator()
+	uuid4 := uuid.NewUUID4Generator()
 
-	mc := newMicroservicesController(logger, uuid4, mr)
-	ec := newEventsController(logger, uuid4, utils.NewClock(), er, ef)
-	atc := newActorTypes(logger, uuid4, utils.NewClock(), atr)
-	ttc := newTargetTypes(logger, uuid4, utils.NewClock(), ttr)
+	microservicesController := newMicroservicesController(logger, uuid4, microservices)
+	eventsController := newEventsController(logger, uuid4, clock.New(), events, ef)
+	entitiesController := newEntitiesController(logger, uuid4, clock.New(), entities)
 
 	// Microservices
-	e.GET("/api/v1/microservices", mc.SelectMicroservices)
-	e.POST("/api/v1/microservices", mc.CreateMicroservice)
-	e.PUT("/api/v1/microservices/:id", mc.UpdateMicroservice)
-	e.GET("/api/v1/microservices/:id", mc.GetMicroservice)
+	e.GET("/api/v1/microservices", microservicesController.index)
+	e.POST("/api/v1/microservices", microservicesController.create)
+	e.PUT("/api/v1/microservices/:id", microservicesController.update)
+	e.GET("/api/v1/microservices/:id", microservicesController.show)
 
 	// Events
-	e.POST("/api/v1/events", ec.CreateEvent)
-	e.GET("/api/v1/events", ec.SelectEvents)
-	e.GET("/api/v1/events/count", ec.Count)
-	e.GET("/api/v1/events/queue", ec.Inspect)
-	e.DELETE("/api/v1/events/:id", ec.DeleteEvent)
-	e.GET("/api/v1/events/:id", ec.GetEvent)
+	e.POST("/api/v1/events", eventsController.create)
+	e.GET("/api/v1/events", eventsController.index)
+	e.GET("/api/v1/events/count", eventsController.count)
+	e.GET("/api/v1/events/queue", eventsController.inspect)
+	e.DELETE("/api/v1/events/:id", eventsController.delete)
+	e.GET("/api/v1/events/:id", eventsController.show)
 
-	// Actor types
-	e.GET("/api/v1/actor-types", atc.index)
-	e.GET("/api/v1/actor-types/:id", atc.show)
-
-	// Target types
-	e.GET("/api/v1/target-types", ttc.index)
-	e.GET("/api/v1/target-types/:id", ttc.show)
+	// Entities
+	e.GET("/api/v1/entities", entitiesController.index)
+	e.GET("/api/v1/entities/:id", entitiesController.show)
 
 	return &API{
 		e:   e,

@@ -20,28 +20,18 @@ func (ir inspectResource) ToJSON() responseItem {
 	return responseItem{Data: ir}
 }
 
-type microserviceResource struct {
-	ID          string `json:"id"`
+type microserviceAttributes struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	CreatedAt   string `json:"createdAt,omitempty"`
 	UpdatedAt   string `json:"updatedAt,omitempty"`
 }
 
-func newMicroserviceResource(m model.Microservice) microserviceResource {
-	return microserviceResource{
-		ID:          m.ID,
+func newMicroserviceAttributes(m *model.Microservice) *microserviceAttributes {
+	return &microserviceAttributes{
 		Name:        m.Name,
 		Description: m.Description,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 	}
-}
-
-func newResponse(r interface{}) responseItem {
-	return responseItem{Data: r}
-}
-
-func (mr microserviceResource) ToJSON() responseItem {
-	return responseItem{Data: mr}
 }

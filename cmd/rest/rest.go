@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -10,44 +9,46 @@ import (
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/rest"
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/env"
+	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
 	"github.com/pkg/profile"
 )
 
 func main() {
-	loadEnvVars()
+	env.LoadFromDotEnv()
 
 	debug()
 
 	fmt.Println("Waiting for DB connection...")
 	time.Sleep(20 * time.Second)
 
-	uuid4 := utils.NewUUID4Generator()
+	uuid4 := uuid.NewUUID4Generator()
 
 	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
 	if err != nil {
 		panic(err)
 	}
 
-	if err := mysql.Scaffold(dbConn); err != nil {
+	migrator := mysql.Migrator(dbConn)
+
+	if err := migrator.Up(); err != nil {
 		panic(err)
 	}
 
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
-	actorTypes := mysql.NewActorTypeRepository(dbConn, uuid4)
-	targetTypes := mysql.NewTargetTypeRepository(dbConn, uuid4)
+	entities := mysql.NewEntityRepository(dbConn, uuid4)
 
-	logger := utils.NewStdoutLogger(os.Getenv("APP_ENV"), "auditbase_rest_api")
-	mq := queue.NewRabbitQueue(os.Getenv("RABBITMQ_DSN"), logger, 4)
+	logger := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), logger, 4)
 
 	if err := mq.Connect(); err != nil {
 		panic(err)
 	}
 
-	port := ":" + os.Getenv("REST_API_PORT")
+	port := ":" + env.MustString("REST_API_PORT")
 
 	flowCfg := flow.NewConfigFromGlobals()
 	ef := flow.New(mq, logger, flowCfg)
@@ -67,22 +68,14 @@ func main() {
 		ef,
 		microservices,
 		events,
-		actorTypes,
-		targetTypes,
+		entities,
 	)
 
 	rest.Start()
 }
 
-func loadEnvVars() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-}
-
 func debug() {
-	if os.Getenv("APP_TRACE") != "" && os.Getenv("APP_TRACE") != "0" {
+	if env.IsTruthy("APP_TRACE") {
 		stopper := profile.Start(profile.CPUProfile, profile.ProfilePath("/tmp/debug/rest"))
 
 		go func() {

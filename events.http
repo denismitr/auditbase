@@ -13,6 +13,12 @@ Accept: application/json
 
 ###
 
+GET {{host}}/api/v1/events
+Content-Type: application/json
+Accept: application/json
+
+###
+
 GET {{host}}/api/v1/events/count
 Content-Type: application/json
 Accept: application/json
@@ -31,23 +37,17 @@ Accept: application/json
 
 {
     "targetId": "9219235",
-	"targetType": {
-		"name": "article"
-	},
-	"targetService": {
-		"name": "article-storage"
-	},
+	"targetEntity": "article",
+	"targetService": "article-storage",
 	"actorId": "0000009",
-	"actorType": {
-		"name": "promoter"
-	},
-	"actorService": {
-		"name": "back-office"
-	},
+	"actorEntity": "promoter",
+	"actorService": "back-office",
     "eventName": "articlePublished",
     "emittedAt": 1578173213,
 	"delta": {
-		"status": [null, "PUBLISHED"]
+		"status": [null, "PUBLISHED"],
+		"title": [null, "FOO"],
+		"description": [null, "BAR"]
 	}
 }
 
@@ -60,22 +60,15 @@ Accept: application/json
 {
 	"id": "34e1d8fa-b065-436d-afd0-5fbcb752a4e1",
     "targetId": "12345",
-	"targetType": {
-		"name": "subscription"
-	},
-	"targetService": {
-		"name": "billing"
-	},
+	"targetEntity": "subscription",
+	"targetService": "billing",
 	"actorId": "999999",
-	"actorType": {
-		"name": "user"
-	},
-	"actorService": {
-		"name": "front"
-	},
+	"actorEntity": "user",
+	"actorService": "front",
     "eventName": "subscriptionCanceled",
     "emittedAt": 1578173212,
 	"delta": {
-		"status": ["ACTIVE", "CANCELED"]
+		"status": ["ACTIVE", "CANCELED"],
+		"value": ["FOO", "BAR"]
 	}
 }

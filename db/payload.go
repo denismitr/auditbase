@@ -39,10 +39,10 @@ func (p *payload) appendError(err error) {
 	p.errorBus = append(p.errorBus, err)
 }
 
-func (p *payload) targetType() model.TargetType {
+func (p *payload) targetEntity() model.Entity {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.e.TargetType
+	return p.e.TargetEntity
 }
 
 func (p *payload) targetService() model.Microservice {
@@ -51,13 +51,13 @@ func (p *payload) targetService() model.Microservice {
 	return p.e.TargetService
 }
 
-func (p *payload) ActorType() model.ActorType {
+func (p *payload) actorEntity() model.Entity {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.e.ActorType
+	return p.e.ActorEntity
 }
 
-func (p *payload) ActorService() model.Microservice {
+func (p *payload) actorService() model.Microservice {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.e.ActorService

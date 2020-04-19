@@ -11,14 +11,14 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/pkg/errors"
 )
 
 // Consumer - consumers from the event flow and
 // persists events to the permanent storage
 type Consumer struct {
-	logger    utils.Logger
+	logger    logger.Logger
 	eventFlow flow.EventFlow
 	persister db.Persister
 
@@ -39,7 +39,7 @@ type Consumer struct {
 // New consumer
 func New(
 	ef flow.EventFlow,
-	logger utils.Logger,
+	logger logger.Logger,
 	persister db.Persister,
 ) *Consumer {
 	pResultCh := make(chan db.PersistenceResult)

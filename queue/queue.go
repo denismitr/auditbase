@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -52,7 +52,7 @@ type RabbitQueue struct {
 	dsn             string
 	conn            *amqp.Connection
 	channel         *amqp.Channel
-	logger          utils.Logger
+	logger          logger.Logger
 	stopCh          chan struct{}
 	errorCh         chan error
 	connErrCh       chan *amqp.Error
@@ -65,7 +65,7 @@ type RabbitQueue struct {
 }
 
 // NewRabbitQueue - creates a new message queue with RabbitMQ implementation
-func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *RabbitQueue {
+func NewRabbitQueue(dsn string, logger logger.Logger, maxConnRetries int) *RabbitQueue {
 	return &RabbitQueue{
 		dsn:             dsn,
 		conn:            nil,
