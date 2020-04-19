@@ -3,12 +3,12 @@ package model
 // Entity - represents something that can act on data
 // or something that can be a subject to change or both
 type Entity struct {
-	ID          string       `json:"id"`
-	Service     Microservice `json:"service"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	CreatedAt   string       `json:"createdAt,omitempty"`
-	UpdatedAt   string       `json:"updatedAt,omitempty"`
+	ID          string        `json:"id"`
+	Service     *Microservice `json:"service,omitempty"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	CreatedAt   string        `json:"createdAt,omitempty"`
+	UpdatedAt   string        `json:"updatedAt,omitempty"`
 }
 
 // EntityRepository governs entities data interactions

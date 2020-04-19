@@ -1,9 +1,11 @@
 package mysql
 
+import "database/sql"
+
 type property struct {
-	ID          string `db:"id"`
-	Name        string `db:"name"`
-	EventID     string `db:"event_id"`
-	ChangedFrom string `db:"changed_from"`
-	ChangedTo   string `db:"changed_to"`
+	ID          string         `db:"id"`
+	Name        string         `db:"name"`
+	EventID     string         `db:"event_id"`
+	ChangedFrom sql.NullString `db:"changed_from"`
+	ChangedTo   sql.NullString `db:"changed_to"`
 }

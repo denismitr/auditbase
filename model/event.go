@@ -46,7 +46,7 @@ type Event struct {
 	ActorEntity   Entity       `json:"actorEntity"`
 	ActorService  Microservice `json:"actorService"`
 	TargetID      string       `json:"targetId"`
-	TargetEntity  Entity       `json:"targetType"`
+	TargetEntity  Entity       `json:"targetEntity"`
 	TargetService Microservice `json:"targetService"`
 	EventName     string       `json:"eventName"`
 	EmittedAt     time.Time    `json:"emittedAt"`

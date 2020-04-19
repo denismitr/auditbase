@@ -129,7 +129,7 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 
 	ent = &model.Entity{
 		ID:          r.uuid4.Generate(),
-		Service:     *service,
+		Service:     service,
 		Name:        name,
 		Description: "",
 	}

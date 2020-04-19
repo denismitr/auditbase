@@ -1,13 +1,13 @@
 @host = http://localhost:8888
 
-GET {{host}}/api/v1/events?filter[targetServiceId]=0b3781ae-cc31-4287-b679-dee5cb5f6520
+GET {{host}}/api/v1/events?filter[actorServiceId]=aa1f5ab0-8c72-4deb-8e3d-fea2e06b873d
 Content-Type: application/json
 Accept: application/json
 
 
 ###
 
-GET {{host}}/api/v1/events/34e1d8fa-b065-436d-afd0-5fbcb752a4e1
+GET {{host}}/api/v1/events/c5e78bed-0a04-4f74-a13f-d71c88aa8819
 Content-Type: application/json
 Accept: application/json
 

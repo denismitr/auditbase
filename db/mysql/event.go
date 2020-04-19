@@ -192,11 +192,17 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 
 	for i := range props {
 		delta[i] = model.Property{
-			ID:          props[i].ID,
-			EventID:     props[i].EventID,
-			Name:        props[i].Name,
-			ChangedFrom: &props[i].ChangedFrom,
-			ChangedTo:   &props[i].ChangedTo,
+			ID:      props[i].ID,
+			EventID: props[i].EventID,
+			Name:    props[i].Name,
+		}
+
+		if props[i].ChangedFrom.Valid == true {
+			delta[i].ChangedFrom = &props[i].ChangedFrom.String
+		}
+
+		if props[i].ChangedTo.Valid == true {
+			delta[i].ChangedTo = &props[i].ChangedTo.String
 		}
 	}
 
@@ -297,10 +303,16 @@ func (r *EventRepository) Select(
 		if _, ok := props[events[i].ID]; ok {
 			for j := range props[events[i].ID] {
 				p := model.Property{
-					ID:          props[events[i].ID][j].ID,
-					Name:        props[events[i].ID][j].Name,
-					ChangedFrom: &props[events[i].ID][j].ChangedFrom,
-					ChangedTo:   &props[events[i].ID][j].ChangedTo,
+					ID:   props[events[i].ID][j].ID,
+					Name: props[events[i].ID][j].Name,
+				}
+
+				if props[events[i].ID][j].ChangedFrom.Valid {
+					p.ChangedFrom = &props[events[i].ID][j].ChangedFrom.String
+				}
+
+				if props[events[i].ID][j].ChangedTo.Valid {
+					p.ChangedTo = &props[events[i].ID][j].ChangedTo.String
 				}
 
 				delta = append(delta, p)

@@ -68,8 +68,8 @@ func (dbp *DBPersister) Persist(e *model.Event) error {
 	}
 
 	p.update(func(e *model.Event) {
-		e.ActorEntity.Service = e.ActorService
-		e.TargetEntity.Service = e.TargetService
+		e.ActorEntity.Service = &e.ActorService
+		e.TargetEntity.Service = &e.TargetService
 	})
 
 	if err := dbp.events.Create(p.event()); err != nil {
