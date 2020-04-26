@@ -15,7 +15,7 @@ func extractIDParamFrom(ctx echo.Context) model.ID {
 	return model.ID(id)
 }
 
-type createEvent struct {
+type CreateEvent struct {
 	ID            string                   `json:"id"`
 	ActorID       string                   `json:"actorId"`
 	ActorEntity   string                   `json:"actorEntity"`
@@ -29,7 +29,7 @@ type createEvent struct {
 	Delta         map[string][]interface{} `json:"delta"`
 }
 
-func (ce createEvent) Validate() *errbag.ErrorBag {
+func (ce CreateEvent) Validate() *errbag.ErrorBag {
 	eb := errbag.New()
 
 	if !validator.IsEmptyString(ce.ID) && !validator.IsUUID4(ce.ID) {
@@ -59,7 +59,7 @@ func (ce createEvent) Validate() *errbag.ErrorBag {
 	return eb
 }
 
-func (ce createEvent) ToEvent() *model.Event {
+func (ce CreateEvent) ToEvent() *model.Event {
 	props := make([]model.Property, len(ce.Delta))
 
 	i := 0

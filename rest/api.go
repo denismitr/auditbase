@@ -35,6 +35,7 @@ func New(
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(hashRequestBody)
 
 	uuid4 := uuid.NewUUID4Generator()
 

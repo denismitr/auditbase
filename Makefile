@@ -35,8 +35,10 @@ mock:
 	mockgen -source queue/message.go -destination ./test/mock_queue/message.go
 	mockgen -source model/event.go -destination ./test/mock_model/event.go
 	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
-	mockgen -source model/types.go -destination ./test/mock_model/types.go
+	mockgen -source model/entity.go -destination ./test/mock_model/entity.go
 	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
+	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
+	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate

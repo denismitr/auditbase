@@ -37,9 +37,9 @@ func newEventsController(
 }
 
 func (ec *eventsController) create(ctx echo.Context) error {
-	req := createEvent{}
+	req := new(CreateEvent)
 
-	if err := ctx.Bind(&req); err != nil {
+	if err := ctx.Bind(req); err != nil {
 		err = errors.Wrap(err, "unparsable event payload")
 		ec.logger.Error(err)
 		return ctx.JSON(badRequest(err))
@@ -61,8 +61,7 @@ func (ec *eventsController) create(ctx echo.Context) error {
 	}
 
 	e.RegisteredAt = ec.clock.CurrentTime()
-
-	e.CreateHash()
+	e.Hash = ctx.Request().Header.Get("Body-Hash")
 
 	if err := ec.ef.Send(e); err != nil {
 		return ctx.JSON(internalError(err))
