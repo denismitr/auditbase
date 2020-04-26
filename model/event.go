@@ -1,6 +1,9 @@
 package model
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/denismitr/auditbase/utils/errbag"
@@ -40,8 +43,9 @@ func (ef EventFilter) Empty() bool {
 }
 
 type Event struct {
-	ID            string       `json:"id"`
-	ParentEventID string       `json:"parentEventId"`
+	ID            string `json:"id"`
+	ParentEventID string `json:"parentEventId"`
+	Hash          string
 	ActorID       string       `json:"actorId"`
 	ActorEntity   Entity       `json:"actorEntity"`
 	ActorService  Microservice `json:"actorService"`
@@ -86,6 +90,36 @@ func (e *Event) Validate() *errbag.ErrorBag {
 	}
 
 	return bag
+}
+
+func (e *Event) CreateHash() error {
+	str := fmt.Sprintf(
+		"event_name:[%s],actor_id:[%s],target_id:[%s],emitted:[%s],actor_entity:[%s],target_entity:[%s],actor_service:[%s],target_service:[%s]",
+		e.EventName,
+		e.ActorID,
+		e.TargetID,
+		e.EmittedAt.String(),
+		e.ActorEntity.Name,
+		e.TargetEntity.Name,
+		e.ActorService.Name,
+		e.TargetService.Name,
+	)
+
+	str += ",delta:("
+
+	for i := range e.Delta {
+		str += fmt.Sprintf("%s[%s,%s],", e.Delta[i].Name, e.Delta[i].ChangedFrom, e.Delta[i].ChangedTo)
+	}
+
+	str += ")"
+
+	hasher := sha1.New()
+	hasher.Write([]byte(str))
+	sha := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
+
+	e.Hash = sha
+
+	return nil
 }
 
 type EventRepository interface {

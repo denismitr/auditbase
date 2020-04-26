@@ -30,6 +30,7 @@ const eventsSchema = `
 	CREATE TABLE IF NOT EXISTS events (
 		id binary(16) PRIMARY KEY,
 		parent_event_id binary(16),
+		hash VARCHAR(40),
 		actor_id VARCHAR(36) NOT NULL,
 		actor_entity_id binary(16) NOT NULL,
 		actor_service_id binary(16) NOT NULL,

@@ -13,12 +13,12 @@ import (
 
 const createEvent = `
 	INSERT INTO events (
-		id, parent_event_id, actor_id, 
+		id, parent_event_id, hash, actor_id, 
 		actor_entity_id, actor_service_id, target_id, 
 		target_entity_id, target_service_id, event_name,
 		emitted_at, registered_at
 	) VALUES (
-		UUID_TO_BIN(:id), UUID_TO_BIN(:parent_event_id), :actor_id, 
+		UUID_TO_BIN(:id), UUID_TO_BIN(:parent_event_id), :hash, :actor_id, 
 		UUID_TO_BIN(:actor_entity_id), UUID_TO_BIN(:actor_service_id), :target_id, 
 		UUID_TO_BIN(:target_entity_id), UUID_TO_BIN(:target_service_id), :event_name, 
 		:emitted_at, :registered_at
@@ -28,7 +28,7 @@ const createEvent = `
 const selectEvents = `
 	SELECT 
 		BIN_TO_UUID(e.id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-		actor_id, BIN_TO_UUID(actor_entity_id) as actor_entity_id, 
+		hash, actor_id, BIN_TO_UUID(actor_entity_id) as actor_entity_id, 
 		BIN_TO_UUID(actor_service_id) as actor_service_id, 
 		target_id, BIN_TO_UUID(target_entity_id) as target_entity_id, 
 		BIN_TO_UUID(target_service_id) as target_service_id, 
@@ -74,6 +74,7 @@ const insertProperties = `
 type event struct {
 	ID                       string         `db:"id"`
 	ParentEventID            sql.NullString `db:"parent_event_id"`
+	Hash                     string         `db:"hash"`
 	ActorID                  string         `db:"actor_id"`
 	ActorEntityID            string         `db:"actor_entity_id"`
 	ActorServiceID           string         `db:"actor_service_id"`
@@ -108,6 +109,7 @@ func NewEventRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator) *EventReposito
 func (r *EventRepository) Create(e *model.Event) error {
 	dbEvent := event{
 		ID:              e.ID,
+		Hash:            e.Hash,
 		ActorID:         e.ActorID,
 		ActorEntityID:   e.ActorEntity.ID,
 		ActorServiceID:  e.ActorService.ID,
@@ -323,6 +325,7 @@ func (r *EventRepository) Select(
 			ID:            events[i].ID,
 			ParentEventID: events[i].ParentEventID.String,
 			ActorID:       events[i].ActorID,
+			Hash:          events[i].Hash,
 			ActorEntity:   at,
 			ActorService:  as,
 			TargetID:      events[i].TargetID,
