@@ -24,6 +24,7 @@ func main() {
 	fmt.Println("Waiting for DB connection...")
 	time.Sleep(20 * time.Second)
 
+	logger := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 	uuid4 := uuid.NewUUID4Generator()
 
 	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
@@ -39,9 +40,8 @@ func main() {
 
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
-	entities := mysql.NewEntityRepository(dbConn, uuid4)
+	entities := mysql.NewEntityRepository(dbConn, uuid4, logger)
 
-	logger := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), logger, 4)
 
 	if err := mq.Connect(); err != nil {

@@ -55,9 +55,9 @@ services:
         ports:
             - "3306:3306"
         restart: always
-        tty: true
-                         
+        tty: true        
     
 volumes:
     auditbase_rabbit_volume:
+        
             

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -27,14 +28,16 @@ func (e entity) ToModel() *model.Entity {
 }
 
 type EntityRepository struct {
-	conn  *sqlx.DB
-	uuid4 uuid.UUID4Generator
+	conn   *sqlx.DB
+	logger logger.Logger
+	uuid4  uuid.UUID4Generator
 }
 
-func NewEntityRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator) *EntityRepository {
+func NewEntityRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, logger logger.Logger) *EntityRepository {
 	return &EntityRepository{
-		conn:  conn,
-		uuid4: uuid4,
+		conn:   conn,
+		uuid4:  uuid4,
+		logger: logger,
 	}
 }
 
@@ -86,16 +89,20 @@ func (r *EntityRepository) Create(e *model.Entity) error {
 func (r *EntityRepository) FirstByNameAndService(name string, service *model.Microservice) (*model.Entity, error) {
 	stmt := `
 		SELECT 
-			BIN_TO_UUID(id) a
-			s id, BIN_TO_UUID(service_id) as service_id, name, description, created_at, updated_at 
+			BIN_TO_UUID(id) as id, 
+			BIN_TO_UUID(service_id) as service_id, 
+			name, 
+			description, 
+			created_at, 
+			updated_at 
 		FROM entities
 			WHERE service_id = UUID_TO_BIN(?) AND name = ?
 		LIMIT 1
 	`
 
-	ent := entity{}
+	ent := new(entity)
 
-	if err := r.conn.Get(&ent, stmt, name, service.ID); err != nil {
+	if err := r.conn.Get(ent, stmt, service.ID, name); err != nil {
 		return nil, errors.Wrapf(err, "could not find entity with name %s", name)
 	}
 
@@ -127,6 +134,8 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 		return ent, nil
 	}
 
+	r.logger.Debugf(err.Error())
+
 	ent = &model.Entity{
 		ID:          r.uuid4.Generate(),
 		Service:     service,
@@ -135,7 +144,7 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 	}
 
 	if err := r.Create(ent); err != nil {
-		return nil, errors.Wrapf(err, "entity %s does not exist and cannot be created", name)
+		return nil, errors.Wrapf(err, "entity %s with service ID %s does not exist and cannot be created", name, service)
 	}
 
 	return ent, nil

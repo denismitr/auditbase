@@ -127,12 +127,12 @@ func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedEvent {
 func (ef *MQEventFlow) Requeue(re ReceivedEvent) error {
 	if err := ef.mq.Reject(re.Tag()); err != nil {
 		ef.logger.Error(err)
-		return errors.Wrap(err, "could not requeu event")
+		return ErrCannotRequeueEvent
 	}
 
 	msg := re.CloneMsgToRequeue()
 	if msg.Attempt() > ef.cfg.MaxRequeue {
-		return errors.New("too many attempts")
+		return ErrTooManyAttempts
 	}
 
 	if err := ef.mq.Publish(msg, ef.cfg.ExchangeName, ef.cfg.RequeueRoutingKey); err != nil {

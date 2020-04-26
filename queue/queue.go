@@ -122,6 +122,10 @@ func (q *RabbitQueue) Publish(msg Message, exchange, routingKey string) error {
 		Headers:     amqp.Table{"Attempt": msg.Attempt()},
 	}
 
+	if msg.Attempt() != 1 {
+		q.logger.Debugf("Requing an errored message attempt %d", msg.Attempt())
+	}
+
 	if err := q.channel.Publish(exchange, routingKey, false, false, p); err != nil {
 		return errors.Wrapf(
 			err, "failed to send message to exchange %s with routing key %s", exchange, routingKey)
@@ -201,7 +205,9 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 	for {
 		select {
 		case msg := <-msgs:
-			receiveCh <- newRabbitMQReceivedMessage(queue, msg.Body, msg.DeliveryTag)
+			rMsg := newRabbitMQReceivedMessage(queue, msg)
+			q.logger.Debugf("consumer %s received message from queue %s on its %d attempt", consumer, queue, rMsg.Attempt())
+			receiveCh <- rMsg
 		case <-q.stopCh:
 			close(receiveCh)
 		}

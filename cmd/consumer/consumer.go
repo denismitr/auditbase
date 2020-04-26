@@ -70,7 +70,7 @@ func run(logger logger.Logger, cfg flow.Config, consumerName, queueName string) 
 
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
-	entities := mysql.NewEntityRepository(dbConn, uuid4)
+	entities := mysql.NewEntityRepository(dbConn, uuid4, logger)
 	persister := db.NewDBPersister(microservices, events, entities, logger)
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), logger, 3)
 

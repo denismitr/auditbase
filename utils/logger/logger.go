@@ -36,7 +36,7 @@ type StdLogger struct {
 
 // Error - logs error message using error logger driver
 func (l *StdLogger) Error(err error) {
-	l.errLogger.Output(2, fmt.Sprintf("\n\nERROR in ["+l.env+"] env: %s", err.Error()))
+	l.errLogger.Output(2, fmt.Sprintf("\nERROR in ["+l.env+"] env: %s", err.Error()))
 }
 
 // Debugf - prints debug message with params
@@ -45,5 +45,5 @@ func (l *StdLogger) Debugf(format string, args ...interface{}) {
 		return
 	}
 
-	l.debugLogger.Output(2, fmt.Sprintf("\n\nDEBUG in ["+l.env+"] "+format, args...))
+	l.debugLogger.Output(2, fmt.Sprintf("\nDEBUG in ["+l.env+"] "+format, args...))
 }

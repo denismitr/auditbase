@@ -13,16 +13,18 @@ request = function()
     actorId = '' .. math.random( 1, 20000 )
     targetId = '' .. math.random( 1, 20000 )
     emittedAt = math.random(1000000000, 2000000000)
-    targetEntity = targetTypes[math.random( #targetTypes )]
+    targetEntity = targetEntities[math.random( #targetEntities )]
     targetService = services[math.random( #services )]
-    actorEntity = actorTypes[math.random( #actorTypes )]
+    actorEntity = actorEntities[math.random( #actorEntities )]
     actorService = services[math.random( #services )]
     eventName = eventNames[math.random( #eventNames )]
 
     body = string.format(
-        '{"targetId":"%s","targetEntity":%s","targetService":"%s","actorId":"%s","actorEntity":"%s","actorService":"%s","eventName":"%s","emittedAt":%d,"delta":{"status":["PUBLISHED","UNPUBLISHED"],"foo":[1,2],"baz":["abcdef","fedcba"],"bar":[null,"bar-state"]}}',
+        '{"targetId":"%s","targetEntity":"%s","targetService":"%s","actorId":"%s","actorEntity":"%s","actorService":"%s","eventName":"%s","emittedAt":%d,"delta":{"status":["PUBLISHED","UNPUBLISHED"],"foo":[1,2],"baz":["abcdef","fedcba"],"bar":[null,"bar-state"]}}',
         targetId, targetEntity, targetService, actorId, actorEntity,
         actorService, eventName, emittedAt)
+
+    print(body)
 
     return wrk.format('POST', url, {['Content-Type'] = 'application/json', ['Accept'] = 'application/json'}, body) 
 end
