@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/denismitr/auditbase/model"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -15,9 +17,10 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func TestCreateEvent(t *testing.T) {
+func TestCreateEventWithID(t *testing.T) {
 	tt := []rest.CreateEvent{
 		rest.CreateEvent{
+			ID: "15ee8662-90a1-4a1c-85bf-ef53f1eaaa29",
 			EventName:     "foo",
 			TargetID:      "1234",
 			TargetEntity:  "article",
@@ -29,53 +32,110 @@ func TestCreateEvent(t *testing.T) {
 			RegisteredAt:  int64(1578173214),
 			Delta:         map[string][]interface{}{"name": []interface{}{"PENDING", "PUBLISHED"}},
 		},
+
+		rest.CreateEvent{
+			ID: "15ee8662-90a1-4f1c-89bf-ef53f1eaaa29",
+			EventName:     "bar",
+			TargetID:      "938-UE",
+			TargetEntity:  "post",
+			TargetService: "blog",
+			ActorID:       "999",
+			ActorEntity:   "writer",
+			ActorService:  "user-service",
+			EmittedAt:     int64(1578178213),
+			RegisteredAt:  int64(1578178314),
+			Delta:         map[string][]interface{}{
+				"text": []interface{}{"FOO", "BAR"},
+				"status": []interface{}{nil, "published"},
+			},
+		},
 	}
 
 	for i, tc := range tt {
-		t.Run(fmt.Sprintf("%s_%d", tc.EventName, i), func(t *testing.T) {
-			b, err := json.Marshal(tc)
-			if err != nil {
-				t.Fatal(err)
-			}
+		name := fmt.Sprintf("%s_%d", tc.EventName, i)
+		t.Run(name, func(t *testing.T) {
 
-			r := bytes.NewReader(b)
 
 			var wg sync.WaitGroup
 
 			wg.Add(1)
 
-			go func() {
-				if _, err := http.Post("http://auditbase_rest:3000/api/events", "application/json", r); err != nil {
+			go func(ce rest.CreateEvent) {
+				defer wg.Done()
+
+				id, err := createEvent(ce)
+				if err != nil {
 					t.Error(err)
 					return
 				}
 
 				wg.Add(1)
 				go func() {
-					tick := time.After(2 * time.Second)
+					defer wg.Done()
+					tick := time.After(1 * time.Second)
 
 					select {
 					case <-tick:
-						resp, err := http.Get("http://auditbase_rest:3000/api/events")
+						js, err := requestEventJSONByID(id)
 						if err != nil {
 							t.Error(err)
 							return
 						}
 
-						b, err := ioutil.ReadAll(resp.Body())
-						if err != nil {
-							t.Error(err)
-							return
-						}
-
-						name := gjson.Get(string(b), "data.0.Name")
-
-						assert.Equal(t, name.String(), tc.Name)
+						assert.Equal(t, tc.EventName, gjson.Get(js, "data.attributes.eventName").String())
 					}
 				}()
-			}()
+			}(tc)
 
 			wg.Wait()
 		})
 	}
+}
+
+func createEvent(e rest.CreateEvent) (model.ID, error) {
+	b, err := json.Marshal(e)
+	if err != nil {
+		return "", errors.Wrap(err, "could not marshal event")
+	}
+
+	reader := bytes.NewReader(b)
+
+	r, err := http.Post("http://localhost:8888/api/v1/events", "application/json", reader);
+	if err != nil {
+		return "", errors.Wrapf(err, "event creation failed")
+	}
+
+	if r.StatusCode != 202 {
+		return "", errors.Errorf("could not create an event: [%d] code received", r.StatusCode)
+	}
+
+	js, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return "", errors.New("could not parse accepted response")
+	}
+
+	id := gjson.Get(string(js), "data.id").String()
+	if id == "" {
+		return "", errors.New("could not get ID of created event")
+	}
+
+	return model.ID(id), nil
+}
+
+func requestEventJSONByID(ID model.ID) (string, error) {
+	resp, err := http.Get("http://localhost:8888/api/v1/events/" + ID.String())
+	if err != nil {
+		return "", errors.Errorf("could not get event with ID [%s]", ID.String())
+	}
+
+	if resp.StatusCode != 200 {
+		return "", errors.Errorf("could not get event with ID [%s]: code [%d] received", ID.String(), resp.StatusCode)
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Errorf("could not parse json response for ID [%s]", ID.String())
+	}
+
+	return string(b), nil
 }

@@ -6,3 +6,4 @@ cmd/consumer/consumer
 .env
 .DS_Store
 *.out
+.idea

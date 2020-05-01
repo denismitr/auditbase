@@ -19,4 +19,4 @@ COPY .env ./
 
 EXPOSE 8888
 
-ENTRYPOINT ["go", "run", "/source/cmd/rest/rest.go"]
+ENTRYPOINT ["go", "run", "-race", "/source/cmd/rest/rest.go"]

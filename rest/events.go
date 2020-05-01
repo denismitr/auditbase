@@ -67,7 +67,7 @@ func (ec *eventsController) create(ctx echo.Context) error {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(respondAccepted())
+	return ctx.JSON(respondAccepted("events", e.ID))
 }
 
 func (ec *eventsController) index(ctx echo.Context) error {

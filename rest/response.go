@@ -15,7 +15,7 @@ type collectionResponse struct {
 type jsonApiResponse struct {
 	Type       string      `json:"type"`
 	ID         string      `json:"id"`
-	Attributes interface{} `json:"attributes"`
+	Attributes interface{} `json:"attributes,omitempty"`
 }
 
 func newItemResponse(r *jsonApiResponse) *itemResponse {
@@ -40,10 +40,8 @@ func newJsonApiResponse(typ, id string, attributes interface{}) *jsonApiResponse
 
 type statusMessage map[string]string
 
-func respondAccepted() (int, statusMessage) {
-	return 202, map[string]string{
-		"status": "Accepted",
-	}
+func respondAccepted(typ, id string) (int, *itemResponse) {
+	return 202, newItemResponse(newJsonApiResponse(typ, id, nil))
 }
 
 func newEventCountResponse(count int) *itemResponse {

@@ -17,4 +17,4 @@ COPY utils/ ./utils
 COPY db/ ./db
 COPY .env ./
 
-ENTRYPOINT ["go", "run", "/source/cmd/consumer/consumer.go"]
+ENTRYPOINT ["go", "run", "-race", "/source/cmd/consumer/consumer.go"]

@@ -43,6 +43,9 @@ mock:
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
 
+integration_test:
+	go test ./test/integration
+
 debug: vars
 	docker-compose -f docker-compose-debug.yml up --build --force-recreate
 
