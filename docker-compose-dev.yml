@@ -1,16 +1,27 @@
 version: "3.4"
 
 services:
-    auditbase_rest:
-        container_name: auditbase_rest
+    auditbase_receiver:
+        container_name: auditbase_receiver
         build:
             context: .
-            dockerfile: docker/dev/rest.Dockerfile
+            dockerfile: docker/dev/receiver.Dockerfile
         depends_on: 
             - auditbase_db
             - auditbase_rabbit
         ports:
             - "8888:3000"
+
+    auditbase_backoffice:
+        container_name: auditbase_backoffice
+        build:
+            context: .
+            dockerfile: docker/dev/backoffice.Dockerfile
+        depends_on:
+            - auditbase_db
+            - auditbase_rabbit
+        ports:
+            - "8889:3000"
 
     auditbase_consumer:
         container_name: auditbase_consumer

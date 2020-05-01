@@ -1,6 +1,6 @@
 FROM golang:latest as builder
 
-RUN mkdir -p /tmp/debug/rest
+RUN mkdir -p /tmp/debug/backoffice
 
 WORKDIR /source
 
@@ -17,6 +17,6 @@ COPY flow/ ./flow
 COPY db/ ./db
 COPY .env ./
 
-EXPOSE 8888
+EXPOSE 8889
 
-ENTRYPOINT ["go", "run", "-race", "/source/cmd/rest/rest.go"]
+ENTRYPOINT ["go", "run", "-race", "/source/cmd/backoffice/backoffice.go"]

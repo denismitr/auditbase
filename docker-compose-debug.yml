@@ -5,14 +5,14 @@ services:
         container_name: auditbase_rest
         build:
             context: .
-            dockerfile: docker/debug/rest.Dockerfile
+            dockerfile: docker/debug/receiver.Dockerfile
         depends_on: 
             - auditbase_db
             - auditbase_rabbit
         ports:
             - "8888:3000"
         volumes:
-            - ./debug/rest:/tmp/debug/rest
+            - ./debug/receiver:/tmp/debug/receiver
 
     auditbase_consumer:
         container_name: auditbase_consumer

@@ -123,7 +123,7 @@ func createEvent(e rest.CreateEvent) (model.ID, error) {
 }
 
 func requestEventJSONByID(ID model.ID) (string, error) {
-	resp, err := http.Get("http://localhost:8888/api/v1/events/" + ID.String())
+	resp, err := http.Get("http://localhost:8889/api/v1/events/" + ID.String())
 	if err != nil {
 		return "", errors.Errorf("could not get event with ID [%s]", ID.String())
 	}

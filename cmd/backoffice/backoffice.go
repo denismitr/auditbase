@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/labstack/echo"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/denismitr/auditbase/db/mysql"
@@ -24,7 +27,7 @@ func main() {
 	fmt.Println("Waiting for DB connection...")
 	time.Sleep(20 * time.Second)
 
-	logger := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 	uuid4 := uuid.NewUUID4Generator()
 
 	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
@@ -40,9 +43,9 @@ func main() {
 
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
-	entities := mysql.NewEntityRepository(dbConn, uuid4, logger)
+	entities := mysql.NewEntityRepository(dbConn, uuid4, lg)
 
-	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), logger, 4)
+	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), lg, 4)
 
 	if err := mq.Connect(); err != nil {
 		panic(err)
@@ -51,7 +54,7 @@ func main() {
 	port := ":" + env.MustString("REST_API_PORT")
 
 	flowCfg := flow.NewConfigFromGlobals()
-	ef := flow.New(mq, logger, flowCfg)
+	ef := flow.New(mq, lg, flowCfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)
@@ -62,21 +65,35 @@ func main() {
 		BodyLimit: "250K",
 	}
 
-	rest := rest.New(
+	e := echo.New()
+
+	backOffice := rest.NewBackOfficeAPI(
+		e,
 		restCfg,
-		logger,
+		lg,
 		ef,
 		microservices,
 		events,
 		entities,
 	)
 
-	rest.Start()
+	done := make(chan os.Signal)
+	signal.Notify(done, os.Interrupt, os.Kill)
+
+	stop := backOffice.Start()
+
+	<-done
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := stop(ctx); err != nil {
+		lg.Error(err)
+	}
 }
 
 func debug() {
 	if env.IsTruthy("APP_TRACE") {
-		stopper := profile.Start(profile.CPUProfile, profile.ProfilePath("/tmp/debug/rest"))
+		stopper := profile.Start(profile.CPUProfile, profile.ProfilePath("/tmp/debug/backoffice"))
 
 		go func() {
 			ticker := time.After(2 * time.Minute)
