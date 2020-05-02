@@ -3,16 +3,14 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"net/http"
-	"os"
-	"sync"
-	"time"
-
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/pkg/errors"
+	"net/http"
+	"os"
+	"sync"
 )
 
 // Consumer - consumers from the event flow and
@@ -60,18 +58,24 @@ func New(
 	}
 }
 
+type StopFunc func(ctx context.Context) error
+
 // Start consumer
-func (c *Consumer) Start(ctx context.Context, queueName, consumerName string) {
+func (c *Consumer) Start(queueName, consumerName string) StopFunc {
 	go c.healthCheck()
 	go c.tasks.run()
 	go c.processEvents(queueName, consumerName)
 
+	return c.stop
+}
+
+func (c *Consumer) stop(ctx context.Context) error {
+	close(c.stopCh)
+
 	for {
 		select {
 		case <-ctx.Done():
-			close(c.stopCh)
-			time.Sleep(10 * time.Second)
-			return
+			return nil
 		}
 	}
 }

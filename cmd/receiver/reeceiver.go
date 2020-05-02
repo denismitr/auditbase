@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/denismitr/auditbase/db/mysql"
@@ -68,12 +69,12 @@ func main() {
 	receiver := rest.NewReceiverAPI(e, restCfg, lg, events, ef)
 	receiver.Start()
 
-	done := make(chan os.Signal)
-	signal.Notify(done, os.Interrupt, os.Kill)
+	terminate := make(chan os.Signal)
+	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
 	stop := receiver.Start()
 
-	<-done
+	<-terminate
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

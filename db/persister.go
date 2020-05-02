@@ -1,7 +1,9 @@
 package db
 
 import (
+	"github.com/denismitr/auditbase/cache"
 	"sync"
+	"time"
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/errtype"
@@ -32,6 +34,7 @@ type DBPersister struct {
 	events        model.EventRepository
 	entities      model.EntityRepository
 	logger        logger.Logger
+	cacher        cache.Cacher
 
 	results []chan<- PersistenceResult
 }
@@ -42,12 +45,14 @@ func NewDBPersister(
 	events model.EventRepository,
 	entities model.EntityRepository,
 	logger logger.Logger,
+	cacher cache.Cacher,
 ) *DBPersister {
 	return &DBPersister{
 		microservices: microservices,
 		events:        events,
 		entities:      entities,
 		logger:        logger,
+		cacher:        cacher,
 	}
 }
 
@@ -97,19 +102,35 @@ func (dbp *DBPersister) assignTargetEntity(p *payload, wg *sync.WaitGroup) {
 	te := p.targetEntity()
 	ts := p.targetService()
 
-	service, err := dbp.microservices.FirstOrCreateByName(ts.Name)
+	service := new(model.Microservice)
+	err := dbp.cacher.Remember(ts.Name, 1*time.Minute, service, func() (interface{}, error) {
+		v, err := dbp.microservices.FirstOrCreateByName(ts.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		return v, nil
+	})
+	dbp.logger.Debugf("SERVICE: %#v", service)
 	if err != nil {
+		p.appendError(ErrDBWriteFailed)
+		dbp.logger.Error(err)
+	}
+
+	targetEntity := new(model.Entity)
+	if err := dbp.cacher.Remember(te.Name, 1*time.Minute, targetEntity, func() (interface{}, error) {
+		v, err := dbp.entities.FirstOrCreateByNameAndService(te.Name, service)
+		if err != nil {
+			return nil, err
+		}
+
+		return v, nil
+	}); err != nil {
 		p.appendError(ErrDBWriteFailed)
 		dbp.logger.Error(err)
 		return
 	}
 
-	targetEntity, err := dbp.entities.FirstOrCreateByNameAndService(te.Name, service)
-	if err != nil {
-		p.appendError(ErrDBWriteFailed)
-		dbp.logger.Error(err)
-		return
-	}
 
 	p.update(func(e *model.Event) {
 		e.TargetEntity = *targetEntity
@@ -123,15 +144,27 @@ func (dbp *DBPersister) assignActorEntity(p *payload, wg *sync.WaitGroup) {
 	ae := p.actorEntity()
 	as := p.actorService()
 
-	service, err := dbp.microservices.FirstOrCreateByName(as.Name)
-	if err != nil {
+	service := new(model.Microservice)
+	if err := dbp.cacher.Remember(as.Name, 1 * time.Minute, service, func() (interface{}, error) {
+		v, err := dbp.microservices.FirstOrCreateByName(as.Name)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	}); err != nil {
 		p.appendError(ErrDBWriteFailed)
 		dbp.logger.Error(err)
 		return
 	}
-
-	entity, err := dbp.entities.FirstOrCreateByNameAndService(ae.Name, service)
-	if err != nil {
+	dbp.logger.Debugf("SERVICE 2: %#v", service)
+	entity := new(model.Entity)
+	if err := dbp.cacher.Remember(ae.Name, 1 * time.Minute, entity, func() (interface{}, error) {
+		v, err := dbp.entities.FirstOrCreateByNameAndService(ae.Name, service)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	}); err != nil {
 		p.appendError(ErrDBWriteFailed)
 		dbp.logger.Error(err)
 		return

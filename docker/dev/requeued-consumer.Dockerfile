@@ -14,6 +14,7 @@ COPY model/ ./model
 COPY flow/ ./flow
 COPY utils/ ./utils
 COPY db/ ./db
+COPY cache/ ./cache
 COPY .env ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o consumer ./cmd/consumer
@@ -37,4 +38,4 @@ EXPOSE ${HEALTH_PORT}
 
 HEALTHCHECK --interval=5s --timeout=1s --start-period=120s --retries=3 CMD [ "./healthcheck" ] || exit 1
 
-ENTRYPOINT ["./consumer", "-requeued"]
+ENTRYPOINT ["./consumer", "-errors"]

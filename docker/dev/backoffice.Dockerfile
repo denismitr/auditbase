@@ -13,6 +13,7 @@ COPY model/ ./model
 COPY utils/ ./utils
 COPY flow/ ./flow
 COPY db/ ./db
+COPY cache/ ./cache
 COPY .env ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o backoffice ./cmd/backoffice

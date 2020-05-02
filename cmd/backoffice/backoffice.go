@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/denismitr/auditbase/db/mysql"
@@ -77,12 +78,12 @@ func main() {
 		entities,
 	)
 
-	done := make(chan os.Signal)
-	signal.Notify(done, os.Interrupt, os.Kill)
+	terminate := make(chan os.Signal)
+	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
 	stop := backOffice.Start()
 
-	<-done
+	<-terminate
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

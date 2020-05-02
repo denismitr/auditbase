@@ -41,6 +41,16 @@ services:
             - auditbase_db
             - auditbase_rabbit
 
+    auditbase_redis:
+        container_name: auditbase_redis
+        image: redis:5-alpine
+        env_file:
+            - ./.env
+        ports:
+            - 63799:6379
+        restart: always
+        tty: true
+
     auditbase_rabbit:
         hostname: auditbase_rabbit
         image: rabbitmq:3-management-alpine
