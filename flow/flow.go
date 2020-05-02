@@ -109,13 +109,13 @@ func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedEvent {
 			select {
 			case msg := <-ef.msgCh:
 				if msg == nil {
-					ef.Stop()
+					_ = ef.Stop()
 					continue
 				}
 
 				ef.eventCh <- &QueueReceivedEvent{msg: msg}
 			case <-ef.stopCh:
-				close(ef.eventCh)
+				//close(ef.eventCh)
 			}
 		}
 	}()

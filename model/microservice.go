@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"github.com/denismitr/auditbase/utils/errbag"
 	"github.com/denismitr/auditbase/utils/validator"
 )
@@ -43,4 +44,8 @@ func (m *Microservice) Validate() *errbag.ErrorBag {
 	}
 
 	return eb
+}
+
+func MicroserviceItemCacheKey(name string) string {
+	return fmt.Sprintf("microservice_name_%s", name)
 }

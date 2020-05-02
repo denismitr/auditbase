@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 // Entity - represents something that can act on data
 // or something that can be a subject to change or both
 type Entity struct {
@@ -18,4 +20,8 @@ type EntityRepository interface {
 	FirstByNameAndService(string, *Microservice) (*Entity, error)
 	FirstByID(string) (*Entity, error)
 	FirstOrCreateByNameAndService(string, *Microservice) (*Entity, error)
+}
+
+func EntityItemCacheKey(name string, microservice *Microservice) string {
+	return fmt.Sprintf("entity_%s_%s", name, microservice.ID)
 }
