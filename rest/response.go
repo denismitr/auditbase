@@ -64,6 +64,18 @@ func newMicroserviceResponse(m *model.Microservice) *itemResponse {
 	return newItemResponse(newJsonApiResponse("microservices", m.ID, newMicroserviceAttributes(m)))
 }
 
+func newEntityResponse(e *model.Entity) *itemResponse {
+	return newItemResponse(newJsonApiResponse("entities", e.ID, newEntityAttributes(e)))
+}
+
+func newEntitiesResponse(es []*model.Entity) *collectionResponse {
+	items := make([]*jsonApiResponse, len(es))
+	for i := range es {
+		items[i] = newJsonApiResponse("entities", es[i].ID, newEntityAttributes(es[i]))
+	}
+	return newCollectionResponse(items)
+}
+
 func newMicroservicesResponse(ms []*model.Microservice) *collectionResponse {
 	items := make([]*jsonApiResponse, len(ms))
 	for i := range ms {

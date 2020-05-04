@@ -31,14 +31,18 @@ func newEntitiesController(
 }
 
 func (e *entities) index(ctx echo.Context) error {
-	entities, err := e.er.Select()
+	q := ctx.Request().URL.Query()
+
+	s := createSort(q)
+	f := createFilter(q, []string{"serviceId"})
+	p := createPagination(q, 50)
+
+	entities, err := e.er.Select(f, s, p)
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(200, map[string]interface{}{
-		"data": entities,
-	})
+	return ctx.JSON(200, newEntitiesResponse(entities))
 }
 
 func (e *entities) show(ctx echo.Context) error {
@@ -53,7 +57,5 @@ func (e *entities) show(ctx echo.Context) error {
 		return ctx.JSON(notFound(err))
 	}
 
-	return ctx.JSON(200, map[string]interface{}{
-		"data": entity,
-	})
+	return ctx.JSON(200, newEntityResponse(entity))
 }

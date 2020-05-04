@@ -7,38 +7,6 @@ import (
 	"github.com/denismitr/auditbase/utils/validator"
 )
 
-type Order string
-
-const DESCOrder Order = "DESC"
-const ASCOrder Order = "ASC"
-
-type Sort struct {
-	Items []map[string]Order
-}
-
-type Pagination struct {
-	Page    int
-	PerPage int
-}
-
-type EventFilter struct {
-	ActorID          string
-	ActorEntityID    string
-	ActorEntityName  string
-	TargetID         string
-	TargetEntityID   string
-	TargetEntityName string
-	ActorServiceID   string
-	TargetServiceID  string
-	EventName        string
-	EmittedAtGt      int64
-	EmittedAtLt      int64
-}
-
-func (ef EventFilter) Empty() bool {
-	return ef.ActorID == "" && ef.ActorEntityID == ""
-}
-
 type Event struct {
 	ID            string `json:"id"`
 	ParentEventID string `json:"parentEventId"`
@@ -95,5 +63,5 @@ type EventRepository interface {
 	Delete(ID) error
 	Count() (int, error)
 	FindOneByID(ID) (*Event, error)
-	Select(EventFilter, Sort, Pagination) ([]*Event, error)
+	Select(EventFilter, *Sort, Pagination) ([]*Event, error)
 }

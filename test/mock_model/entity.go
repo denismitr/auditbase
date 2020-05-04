@@ -34,18 +34,18 @@ func (m *MockEntityRepository) EXPECT() *MockEntityRepositoryMockRecorder {
 }
 
 // Select mocks base method
-func (m *MockEntityRepository) Select() ([]*model.Entity, error) {
+func (m *MockEntityRepository) Select(arg0 *model.Filter, arg1 *model.Sort, arg2 *model.Pagination) ([]*model.Entity, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Select")
+	ret := m.ctrl.Call(m, "Select", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*model.Entity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Select indicates an expected call of Select
-func (mr *MockEntityRepositoryMockRecorder) Select() *gomock.Call {
+func (mr *MockEntityRepositoryMockRecorder) Select(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Select", reflect.TypeOf((*MockEntityRepository)(nil).Select))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Select", reflect.TypeOf((*MockEntityRepository)(nil).Select), arg0, arg1, arg2)
 }
 
 // Create mocks base method

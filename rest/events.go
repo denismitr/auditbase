@@ -1,8 +1,6 @@
 package rest
 
 import (
-	"strconv"
-
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/clock"
@@ -73,7 +71,9 @@ func (ec *eventsController) create(ctx echo.Context) error {
 func (ec *eventsController) index(ctx echo.Context) error {
 	f := createEventFilterFromContext(ctx)
 
-	events, err := ec.events.Select(f, model.Sort{}, model.Pagination{PerPage: 100})
+	sort := model.NewSort().Add("emittedAt", model.ASCOrder)
+
+	events, err := ec.events.Select(f, sort, model.Pagination{PerPage: 100})
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
@@ -83,8 +83,8 @@ func (ec *eventsController) index(ctx echo.Context) error {
 
 func (ec *eventsController) show(ctx echo.Context) error {
 	ID := extractIDParamFrom(ctx)
-	if errors := ID.Validate(); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors.All()...))
+	if errBag := ID.Validate(); errBag.NotEmpty() {
+		return ctx.JSON(validationFailed(errBag.All()...))
 	}
 
 	event, err := ec.events.FindOneByID(ID)
@@ -129,8 +129,8 @@ func (ec *eventsController) inspect(ctx echo.Context) error {
 
 func (ec *eventsController) delete(ctx echo.Context) error {
 	ID := extractIDParamFrom(ctx)
-	if errors := ID.Validate(); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors.All()...))
+	if errBag := ID.Validate(); errBag.NotEmpty() {
+		return ctx.JSON(validationFailed(errBag.All()...))
 	}
 
 	err := ec.events.Delete(ID)
@@ -139,30 +139,4 @@ func (ec *eventsController) delete(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(204, nil)
-}
-
-func createEventFilterFromContext(ctx echo.Context) model.EventFilter {
-	var emittedAtGt int
-	var emittedAtLt int
-
-	if ctx.QueryParam("filter[emittedAt][gt]") != "" {
-		emittedAtGt, _ = strconv.Atoi(ctx.QueryParam("filter[emittedAt][gt]"))
-	}
-
-	if ctx.QueryParam("filter[emittedAt][lt]") != "" {
-		emittedAtLt, _ = strconv.Atoi(ctx.QueryParam("filter[emittedAt][lt]"))
-	}
-
-	return model.EventFilter{
-		ActorEntityID:    ctx.QueryParam("filter[actorEntityId]"),
-		ActorEntityName:  ctx.QueryParam("filter[actorEntityName]"),
-		ActorID:          ctx.QueryParam("filter[actorId]"),
-		ActorServiceID:   ctx.QueryParam("filter[actorServiceId]"),
-		TargetID:         ctx.QueryParam("filter[targetId]"),
-		TargetEntityID:   ctx.QueryParam("filter[targetEntityId]"),
-		TargetEntityName: ctx.QueryParam("filter[targetEntityName]"),
-		TargetServiceID:  ctx.QueryParam("filter[targetServiceId]"),
-		EmittedAtGt:      int64(emittedAtGt),
-		EmittedAtLt:      int64(emittedAtLt),
-	}
 }

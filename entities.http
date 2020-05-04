@@ -1,11 +1,6 @@
-@host = http://localhost:8888
-
-GET {{host}}/api/v1/entities
-Content-Type: application/json
+GET http://localhost:{{back-office-port}}/api/v1/entities?page=1&perPage=30&filter[serviceId]=422c56aa-bce7-4362-b3be-95a09950582c
 Accept: application/json
+Cache-Control: no-cache
 
 ###
 
-GET {{host}}/api/v1/entities/c54405a3-a712-4a8e-b5e2-29b18d5d5824
-Content-Type: application/json
-Accept: application/json

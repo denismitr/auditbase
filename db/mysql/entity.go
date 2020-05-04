@@ -21,6 +21,7 @@ func (e entity) ToModel() *model.Entity {
 	return &model.Entity{
 		ID:          e.ID,
 		Name:        e.Name,
+		ServiceID:   e.ServiceID,
 		Description: e.Description,
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,
@@ -43,16 +44,22 @@ func NewEntityRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, logger logger
 
 const selectEntities = `
 	SELECT 
-		BIN_TO_UUID(id) as id, BIN_TO_UUID(service_id) as id, name, description, created_at, updated_at 
+		BIN_TO_UUID(id) as id, BIN_TO_UUID(service_id) as service_id, name, description, created_at, updated_at 
 	FROM entities
 `
 
 // Select all entities
-func (r *EntityRepository) Select() ([]*model.Entity, error) {
-	entities := []entity{}
+func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagination) ([]*model.Entity, error) {
+	var entities []entity
+	query, args := createSelectEntitiesQuery(f, s, p)
+	r.logger.Debugf("q %s limit=%d offset=%d", query, p.PerPage, p.Offset())
+	stmt, err := r.conn.PrepareNamed(query)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not prepare named stmt to select entities")
+	}
 
-	if err := r.conn.Select(&entities, selectEntities); err != nil {
-		return nil, errors.Wrap(err, "could not select all entitys")
+	if err := stmt.Select(&entities, args); err != nil {
+		return nil, errors.Wrap(err, "could not select all entities")
 	}
 
 	result := make([]*model.Entity, len(entities))
@@ -148,4 +155,28 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 	}
 
 	return ent, nil
+}
+
+func createSelectEntitiesQuery(f *model.Filter, s *model.Sort, p *model.Pagination) (string, map[string]interface{}) {
+	stmt := selectEntities
+	args := make(map[string]interface{})
+
+	if f.Has("serviceId") {
+		stmt += ` where service_id = uuid_to_bin(:serviceId)`
+		args["serviceId"] = f.StringOrDefault("serviceId", "")
+	}
+
+	if s.Has("name") {
+		stmt += ` order by name ` + s.GetOrDefault("name", model.ASCOrder).String()
+	} else if !f.Has("serviceId") {
+		stmt += ` order by created_at DESC`
+	} else {
+		stmt += ` order by service_id DESC`
+	}
+
+	stmt += ` limit :offset, :limit`
+	args["limit"] = p.PerPage
+	args["offset"] = p.Offset()
+
+	return stmt, args
 }

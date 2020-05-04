@@ -253,12 +253,12 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 // Select events using filter, sort, and pagination
 func (r *EventRepository) Select(
 	filter model.EventFilter,
-	sort model.Sort,
+	sort *model.Sort,
 	pagination model.Pagination,
 ) ([]*model.Event, error) {
 	q, args := prepareSelectEventsQueryWithArgs(filter, sort, pagination)
 
-	events := []event{}
+	var events []event
 	result := make([]*model.Event, 0)
 
 	stmt, err := r.conn.PrepareNamed(q)
@@ -374,7 +374,7 @@ func (r *EventRepository) joinPropertiesToEvents(events []event) (map[string][]p
 
 func prepareSelectEventsQueryWithArgs(
 	filter model.EventFilter,
-	sort model.Sort,
+	sort *model.Sort,
 	pagination model.Pagination,
 ) (string, map[string]interface{}) {
 	q := selectEvents

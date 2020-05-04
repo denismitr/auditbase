@@ -19,7 +19,7 @@ import (
 
 func TestCreateEventWith(t *testing.T) {
 	e := echo.New()
-	logger := logger.NewStdoutLogger("test", "events_test")
+	log := logger.NewStdoutLogger("test", "events_test")
 
 	t.Run("create event with ID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -49,7 +49,7 @@ func TestCreateEventWith(t *testing.T) {
 		clockMock.EXPECT().CurrentTime().Return(time.Unix(1578173214, 0))
 		flowMock.EXPECT().Send(gomock.Any()).Return(nil)
 
-		controller := newEventsController(logger, uuidMock, clockMock, eventsMock, flowMock)
+		controller := newEventsController(log, uuidMock, clockMock, eventsMock, flowMock)
 
 		req := test.Request{
 			Method:            http.MethodPost,

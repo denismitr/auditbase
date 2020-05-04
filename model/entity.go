@@ -6,6 +6,7 @@ import "fmt"
 // or something that can be a subject to change or both
 type Entity struct {
 	ID          string        `json:"id"`
+	ServiceID   string        `json:"serviceId"`
 	Service     *Microservice `json:"service,omitempty"`
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
@@ -15,7 +16,7 @@ type Entity struct {
 
 // EntityRepository governs entities data interactions
 type EntityRepository interface {
-	Select() ([]*Entity, error)
+	Select(*Filter, *Sort, *Pagination) ([]*Entity, error)
 	Create(*Entity) error
 	FirstByNameAndService(string, *Microservice) (*Entity, error)
 	FirstByID(string) (*Entity, error)
