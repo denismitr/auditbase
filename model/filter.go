@@ -1,6 +1,9 @@
 package model
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Order string
 
@@ -92,6 +95,14 @@ func (f *Filter) StringOrDefault(k, d string) string {
 	}
 
 	return d
+}
+
+func (f *Filter) MustString(k string) string {
+	if ! f.Has(k) {
+		panic(fmt.Sprintf("no suchkey in filter %s", k))
+	}
+
+	return f.items[k]
 }
 
 func (f *Filter) IntOrDefault(k string, d int) int {

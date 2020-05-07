@@ -69,11 +69,21 @@ func (ec *eventsController) create(ctx echo.Context) error {
 }
 
 func (ec *eventsController) index(ctx echo.Context) error {
-	f := createEventFilterFromContext(ctx)
+	q := ctx.Request().URL.Query()
 
-	sort := model.NewSort().Add("emittedAt", model.ASCOrder)
+	s := createSort(q)
+	f := createFilter(q, []string{
+		"actorServiceId",
+		"targetServiceId",
+		"eventName",
+		"targetEntityId",
+		"actorEntityId",
+		"targetId",
+		"actorId",
+	})
+	p := createPagination(q, 50)
 
-	events, err := ec.events.Select(f, sort, model.Pagination{PerPage: 100})
+	events, err := ec.events.Select(f, s, p)
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}

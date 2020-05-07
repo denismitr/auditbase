@@ -63,5 +63,5 @@ type EventRepository interface {
 	Delete(ID) error
 	Count() (int, error)
 	FindOneByID(ID) (*Event, error)
-	Select(EventFilter, *Sort, Pagination) ([]*Event, error)
+	Select(*Filter, *Sort, *Pagination) ([]*Event, error)
 }

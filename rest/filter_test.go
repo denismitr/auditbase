@@ -13,7 +13,7 @@ func TestCreateFilter(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		f := createFilter(q.Query())
+		f := createFilter(q.Query(), []string{"serviceId"})
 
 		assert.True(t, f.Has("serviceId"), "no serviceId in filter")
 		assert.Equal(t, "123", f.StringOrDefault("serviceId", ""))
@@ -25,7 +25,7 @@ func TestCreateFilter(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		f := createFilter(q.Query())
+		f := createFilter(q.Query(), []string{"foo"})
 
 		assert.False(t, f.Has("bar"))
 		assert.Equal(t, "", f.StringOrDefault("bar", ""))

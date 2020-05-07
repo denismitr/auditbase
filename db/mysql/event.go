@@ -252,9 +252,9 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 
 // Select events using filter, sort, and pagination
 func (r *EventRepository) Select(
-	filter model.EventFilter,
+	filter *model.Filter,
 	sort *model.Sort,
-	pagination model.Pagination,
+	pagination *model.Pagination,
 ) ([]*model.Event, error) {
 	q, args := prepareSelectEventsQueryWithArgs(filter, sort, pagination)
 
@@ -373,41 +373,46 @@ func (r *EventRepository) joinPropertiesToEvents(events []event) (map[string][]p
 }
 
 func prepareSelectEventsQueryWithArgs(
-	filter model.EventFilter,
+	filter *model.Filter,
 	sort *model.Sort,
-	pagination model.Pagination,
+	pagination *model.Pagination,
 ) (string, map[string]interface{}) {
 	q := selectEvents
 	args := make(map[string]interface{})
 
-	if filter.ActorEntityID != "" {
+	if filter.Has("actorEntityId") {
 		q += ` where actor_entity_id = UUID_TO_BIN(:actor_entity_id)`
-		args["actor_entity_id"] = filter.ActorEntityID
+		args["actor_entity_id"] = filter.MustString("actorEntityId",)
 	}
 
-	if filter.ActorID != "" {
+	if filter.Has("actorId") {
 		q += ` where actor_id = :actor_id`
-		args["actor_id"] = filter.ActorID
+		args["actor_id"] = filter.MustString("actorId")
 	}
 
-	if filter.ActorServiceID != "" {
+	if filter.Has("actorServiceId") {
 		q += ` where actor_service_id = UUID_TO_BIN(:actor_service_id)`
-		args["actor_service_id"] = filter.ActorServiceID
+		args["actor_service_id"] = filter.MustString("actorServiceId")
 	}
 
-	if filter.TargetID != "" {
+	if filter.Has("targetId") {
 		q += ` where target_id = :target_id`
-		args["target_id"] = filter.TargetID
+		args["target_id"] = filter.MustString("targetId")
 	}
 
-	if filter.TargetEntityID != "" {
+	if filter.Has("targetEntityId") {
 		q += ` where target_entity_id = UUID_TO_BIN(:target_entity_id)`
-		args["target_entity_id"] = filter.TargetEntityID
+		args["target_entity_id"] = filter.MustString("targetEntityId")
 	}
 
-	if filter.TargetServiceID != "" {
+	if filter.Has("targetServiceId") {
 		q += ` where target_service_id = UUID_TO_BIN(:target_service_id)`
-		args["target_service_id"] = filter.TargetServiceID
+		args["target_service_id"] = filter.MustString("targetServiceId")
+	}
+
+	if filter.Has("eventName") {
+		q += ` where event_name = :event_name`
+		args["event_name"] = filter.MustString("eventName")
 	}
 
 	return q, args

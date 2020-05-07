@@ -1,4 +1,4 @@
-GET http://localhost:{{back-office-port}}/api/v1/entities?page=1&perPage=30&filter[serviceId]=422c56aa-bce7-4362-b3be-95a09950582c
+GET {{back-office}}/api/v1/entities
 Accept: application/json
 Cache-Control: no-cache
 

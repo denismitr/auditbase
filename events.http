@@ -1,74 +1,27 @@
-@host = http://localhost:8888
-
-GET {{host}}/api/v1/events?filter[actorServiceId]=aa1f5ab0-8c72-4deb-8e3d-fea2e06b873d
-Content-Type: application/json
-Accept: application/json
-
-
-###
-
-GET {{host}}/api/v1/events/c5e78bed-0a04-4f74-a13f-d71c88aa8819
+GET {{back-office}}/api/v1/events?filter[targetServiceId]=d9f69955-873c-44a5-889e-3b27f5ea81df
 Content-Type: application/json
 Accept: application/json
 
 ###
 
-GET {{host}}/api/v1/events
+GET {{back-office}}/api/v1/events/c5e78bed-0a04-4f74-a13f-d71c88aa8819
 Content-Type: application/json
 Accept: application/json
 
 ###
 
-GET {{host}}/api/v1/events/count
+GET {{back-office}}/api/v1/events
 Content-Type: application/json
 Accept: application/json
 
 ###
 
-GET {{host}}/api/v1/events/queue
+GET {{back-office}}/api/v1/events/count
 Content-Type: application/json
 Accept: application/json
 
 ###
 
-POST {{host}}/api/v1/events
+GET {{back-office}}/api/v1/events/queue
 Content-Type: application/json
 Accept: application/json
-
-{
-    "targetId": "9219235",
-	"targetEntity": "article",
-	"targetService": "article-storage",
-	"actorId": "0000009",
-	"actorEntity": "promoter",
-	"actorService": "back-office",
-    "eventName": "articlePublished",
-    "emittedAt": 1578173213,
-	"delta": {
-		"status": [null, "PUBLISHED"],
-		"title": [null, "FOO"],
-		"description": [null, "BAR"]
-	}
-}
-
-###
-
-POST {{host}}/api/v1/events
-Content-Type: application/json
-Accept: application/json
-
-{
-	"id": "34e1d8fa-b065-436d-afd0-5fbcb752a4e1",
-    "targetId": "12345",
-	"targetEntity": "subscription",
-	"targetService": "billing",
-	"actorId": "999999",
-	"actorEntity": "user",
-	"actorService": "front",
-    "eventName": "subscriptionCanceled",
-    "emittedAt": 1578173212,
-	"delta": {
-		"status": ["ACTIVE", "CANCELED"],
-		"value": ["FOO", "BAR"]
-	}
-}
