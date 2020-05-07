@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -52,7 +52,7 @@ type RabbitQueue struct {
 	dsn             string
 	conn            *amqp.Connection
 	channel         *amqp.Channel
-	logger          utils.Logger
+	logger          logger.Logger
 	stopCh          chan struct{}
 	errorCh         chan error
 	connErrCh       chan *amqp.Error
@@ -65,7 +65,7 @@ type RabbitQueue struct {
 }
 
 // NewRabbitQueue - creates a new message queue with RabbitMQ implementation
-func NewRabbitQueue(dsn string, logger utils.Logger, maxConnRetries int) *RabbitQueue {
+func NewRabbitQueue(dsn string, logger logger.Logger, maxConnRetries int) *RabbitQueue {
 	return &RabbitQueue{
 		dsn:             dsn,
 		conn:            nil,
@@ -120,6 +120,10 @@ func (q *RabbitQueue) Publish(msg Message, exchange, routingKey string) error {
 		ContentType: msg.ContentType(),
 		Body:        msg.Body(),
 		Headers:     amqp.Table{"Attempt": msg.Attempt()},
+	}
+
+	if msg.Attempt() != 1 {
+		q.logger.Debugf("Requing an errored message attempt %d", msg.Attempt())
 	}
 
 	if err := q.channel.Publish(exchange, routingKey, false, false, p); err != nil {
@@ -201,7 +205,9 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 	for {
 		select {
 		case msg := <-msgs:
-			receiveCh <- newRabbitMQReceivedMessage(queue, msg.Body, msg.DeliveryTag)
+			rMsg := newRabbitMQReceivedMessage(queue, msg)
+			q.logger.Debugf("consumer %s received message from queue %s on its %d attempt", consumer, queue, rMsg.Attempt())
+			receiveCh <- rMsg
 		case <-q.stopCh:
 			close(receiveCh)
 		}

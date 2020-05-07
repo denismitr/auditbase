@@ -1,16 +1,27 @@
 version: "3.4"
 
 services:
-    auditbase_rest:
-        container_name: auditbase_rest
+    auditbase_receiver:
+        container_name: auditbase_receiver
         build:
             context: .
-            dockerfile: docker/dev/rest.Dockerfile
+            dockerfile: docker/dev/receiver.Dockerfile
         depends_on: 
             - auditbase_db
             - auditbase_rabbit
         ports:
             - "8888:3000"
+
+    auditbase_backoffice:
+        container_name: auditbase_backoffice
+        build:
+            context: .
+            dockerfile: docker/dev/backoffice.Dockerfile
+        depends_on:
+            - auditbase_db
+            - auditbase_rabbit
+        ports:
+            - "8889:3000"
 
     auditbase_consumer:
         container_name: auditbase_consumer
@@ -21,14 +32,24 @@ services:
             - auditbase_db
             - auditbase_rabbit
 
-    auditbase_requeued_consumer:
-        container_name: auditbase_requeued_consumer
+    auditbase_errors_consumer:
+        container_name: auditbase_errors_consumer
         build:
             context: .
-            dockerfile: docker/dev/requeued-consumer.Dockerfile
+            dockerfile: docker/dev/errors-consumer.Dockerfile
         depends_on: 
             - auditbase_db
             - auditbase_rabbit
+
+    auditbase_redis:
+        container_name: auditbase_redis
+        image: redis:5-alpine
+        env_file:
+            - ./.env
+        ports:
+            - 63799:6379
+        restart: always
+        tty: true
 
     auditbase_rabbit:
         hostname: auditbase_rabbit
@@ -55,10 +76,9 @@ services:
         ports:
             - "3306:3306"
         restart: always
-        tty: true
-                         
+        tty: true        
     
 volumes:
-    auditbase_db_volume:
     auditbase_rabbit_volume:
+        
             

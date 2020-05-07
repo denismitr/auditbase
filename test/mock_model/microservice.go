@@ -34,10 +34,10 @@ func (m *MockMicroserviceRepository) EXPECT() *MockMicroserviceRepositoryMockRec
 }
 
 // Create mocks base method
-func (m *MockMicroserviceRepository) Create(arg0 model.Microservice) (model.Microservice, error) {
+func (m *MockMicroserviceRepository) Create(arg0 *model.Microservice) (*model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", arg0)
-	ret0, _ := ret[0].(model.Microservice)
+	ret0, _ := ret[0].(*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -49,38 +49,38 @@ func (mr *MockMicroserviceRepositoryMockRecorder) Create(arg0 interface{}) *gomo
 }
 
 // Delete mocks base method
-func (m *MockMicroserviceRepository) Delete(ID string) error {
+func (m *MockMicroserviceRepository) Delete(arg0 model.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", ID)
+	ret := m.ctrl.Call(m, "Delete", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Delete indicates an expected call of Delete
-func (mr *MockMicroserviceRepositoryMockRecorder) Delete(ID interface{}) *gomock.Call {
+func (mr *MockMicroserviceRepositoryMockRecorder) Delete(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockMicroserviceRepository)(nil).Delete), ID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockMicroserviceRepository)(nil).Delete), arg0)
 }
 
 // Update mocks base method
-func (m_2 *MockMicroserviceRepository) Update(ID model.ID, m model.Microservice) error {
-	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "Update", ID, m)
+func (m *MockMicroserviceRepository) Update(arg0 model.ID, arg1 *model.Microservice) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update
-func (mr *MockMicroserviceRepositoryMockRecorder) Update(ID, m interface{}) *gomock.Call {
+func (mr *MockMicroserviceRepositoryMockRecorder) Update(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockMicroserviceRepository)(nil).Update), ID, m)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockMicroserviceRepository)(nil).Update), arg0, arg1)
 }
 
 // FirstByID mocks base method
-func (m *MockMicroserviceRepository) FirstByID(ID model.ID) (model.Microservice, error) {
+func (m *MockMicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FirstByID", ID)
-	ret0, _ := ret[0].(model.Microservice)
+	ret0, _ := ret[0].(*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -92,10 +92,10 @@ func (mr *MockMicroserviceRepositoryMockRecorder) FirstByID(ID interface{}) *gom
 }
 
 // FirstByName mocks base method
-func (m *MockMicroserviceRepository) FirstByName(name string) (model.Microservice, error) {
+func (m *MockMicroserviceRepository) FirstByName(name string) (*model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FirstByName", name)
-	ret0, _ := ret[0].(model.Microservice)
+	ret0, _ := ret[0].(*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -107,10 +107,10 @@ func (mr *MockMicroserviceRepositoryMockRecorder) FirstByName(name interface{}) 
 }
 
 // FirstOrCreateByName mocks base method
-func (m *MockMicroserviceRepository) FirstOrCreateByName(name string) (model.Microservice, error) {
+func (m *MockMicroserviceRepository) FirstOrCreateByName(name string) (*model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FirstOrCreateByName", name)
-	ret0, _ := ret[0].(model.Microservice)
+	ret0, _ := ret[0].(*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -122,10 +122,10 @@ func (mr *MockMicroserviceRepositoryMockRecorder) FirstOrCreateByName(name inter
 }
 
 // SelectAll mocks base method
-func (m *MockMicroserviceRepository) SelectAll() ([]model.Microservice, error) {
+func (m *MockMicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SelectAll")
-	ret0, _ := ret[0].([]model.Microservice)
+	ret0, _ := ret[0].([]*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -2,20 +2,21 @@ package rest
 
 import (
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
 
 type microservicesController struct {
-	logger        utils.Logger
-	uuid4         utils.UUID4Generatgor
+	logger        logger.Logger
+	uuid4         uuid.UUID4Generator
 	microservices model.MicroserviceRepository
 }
 
 func newMicroservicesController(
-	l utils.Logger,
-	uuid4 utils.UUID4Generatgor,
+	l logger.Logger,
+	uuid4 uuid.UUID4Generator,
 	m model.MicroserviceRepository,
 ) *microservicesController {
 	return &microservicesController{
@@ -25,10 +26,10 @@ func newMicroservicesController(
 	}
 }
 
-func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
-	m := model.Microservice{}
+func (mc *microservicesController) create(ctx echo.Context) error {
+	m := new(model.Microservice)
 
-	if err := ctx.Bind(&m); err != nil {
+	if err := ctx.Bind(m); err != nil {
 		return ctx.JSON(badRequest(errors.Wrap(err, "could not parse request payload")))
 	}
 
@@ -36,9 +37,9 @@ func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
 		m.ID = mc.uuid4.Generate()
 	}
 
-	errors := m.Validate(model.NewValidator())
+	errors := m.Validate()
 	if errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors, "bad data for a microservice"))
+		return ctx.JSON(validationFailed(errors.All()...))
 	}
 
 	savedMicroservice, err := mc.microservices.Create(m)
@@ -46,55 +47,50 @@ func (mc *microservicesController) CreateMicroservice(ctx echo.Context) error {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(201, newResponse(newMicroserviceResource(savedMicroservice)))
+	return ctx.JSON(201, newMicroserviceResponse(savedMicroservice))
 }
 
-func (mc *microservicesController) SelectMicroservices(ctx echo.Context) error {
+func (mc *microservicesController) index(ctx echo.Context) error {
 	ms, err := mc.microservices.SelectAll()
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(200, newResponse(ms))
+	return ctx.JSON(200, newMicroservicesResponse(ms))
 }
 
-func (mc *microservicesController) UpdateMicroservice(ctx echo.Context) error {
-	m := model.Microservice{}
-	if err := ctx.Bind(&m); err != nil {
+func (mc *microservicesController) update(ctx echo.Context) error {
+	m := new(model.Microservice)
+	if err := ctx.Bind(m); err != nil {
 		return ctx.JSON(badRequest(errors.Wrap(err, "could not parse JSON payload")))
 	}
 
-	if errors := m.Validate(model.NewValidator()); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors, "bad input data"))
+	if errors := m.Validate(); errors.NotEmpty() {
+		return ctx.JSON(validationFailed(errors.All()...))
 	}
 
 	ID := model.ID(ctx.Param("id"))
 	if errors := ID.Validate(); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors, ":id is invalid"))
+		return ctx.JSON(validationFailed(errors.All()...))
 	}
 
 	if err := mc.microservices.Update(ID, m); err != nil {
 		return ctx.JSON(badRequest(err))
 	}
 
-	updatedM, err := mc.microservices.FirstByID(ID)
-	if err != nil {
-		return ctx.JSON(badRequest(err))
-	}
-
-	return ctx.JSON(200, newResponse(newMicroserviceResource(updatedM)))
+	return ctx.JSON(200, newMicroserviceResponse(m))
 }
 
-func (mc *microservicesController) GetMicroservice(ctx echo.Context) error {
-	ID := model.ID(ctx.Param("id"))
+func (mc *microservicesController) show(ctx echo.Context) error {
+	ID := extractIDParamFrom(ctx)
 
 	if errors := ID.Validate(); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors, ":id is incorrect"))
+		return ctx.JSON(validationFailed(errors.All()...))
 	}
 
 	m, err := mc.microservices.FirstByID(ID)
 	if err != nil {
-		if err == model.ErrMicroserviceNotFound {
+		if err == ErrMicroserviceNotFound {
 			return ctx.JSON(
 				notFound(errors.Wrapf(err, "could not get microservice with ID %s from database", ID)))
 		}
@@ -102,7 +98,5 @@ func (mc *microservicesController) GetMicroservice(ctx echo.Context) error {
 		return ctx.JSON(badRequest(err))
 	}
 
-	r := newMicroserviceResource(m)
-
-	return ctx.JSON(200, newResponse(r))
+	return ctx.JSON(200, newMicroserviceResponse(m))
 }

@@ -34,7 +34,7 @@ func (m *MockEventRepository) EXPECT() *MockEventRepositoryMockRecorder {
 }
 
 // Create mocks base method
-func (m *MockEventRepository) Create(arg0 model.Event) error {
+func (m *MockEventRepository) Create(arg0 *model.Event) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", arg0)
 	ret0, _ := ret[0].(error)
@@ -48,7 +48,7 @@ func (mr *MockEventRepositoryMockRecorder) Create(arg0 interface{}) *gomock.Call
 }
 
 // Delete mocks base method
-func (m *MockEventRepository) Delete(arg0 string) error {
+func (m *MockEventRepository) Delete(arg0 model.ID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", arg0)
 	ret0, _ := ret[0].(error)
@@ -77,10 +77,10 @@ func (mr *MockEventRepositoryMockRecorder) Count() *gomock.Call {
 }
 
 // FindOneByID mocks base method
-func (m *MockEventRepository) FindOneByID(arg0 model.ID) (model.Event, error) {
+func (m *MockEventRepository) FindOneByID(arg0 model.ID) (*model.Event, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindOneByID", arg0)
-	ret0, _ := ret[0].(model.Event)
+	ret0, _ := ret[0].(*model.Event)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -92,10 +92,10 @@ func (mr *MockEventRepositoryMockRecorder) FindOneByID(arg0 interface{}) *gomock
 }
 
 // Select mocks base method
-func (m *MockEventRepository) Select(arg0 model.EventFilter, arg1 model.Sort, arg2 model.Pagination) ([]model.Event, error) {
+func (m *MockEventRepository) Select(arg0 model.EventFilter, arg1 *model.Sort, arg2 model.Pagination) ([]*model.Event, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Select", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]model.Event)
+	ret0, _ := ret[0].([]*model.Event)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

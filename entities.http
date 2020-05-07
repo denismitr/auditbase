@@ -1,0 +1,6 @@
+GET {{back-office}}/api/v1/entities
+Accept: application/json
+Cache-Control: no-cache
+
+###
+

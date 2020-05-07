@@ -3,28 +3,27 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"github.com/denismitr/auditbase/db"
+	"github.com/denismitr/auditbase/flow"
+	"github.com/denismitr/auditbase/queue"
+	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/pkg/errors"
 	"net/http"
 	"os"
 	"sync"
-	"time"
-
-	"github.com/denismitr/auditbase/flow"
-	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/utils"
-	"github.com/pkg/errors"
 )
 
 // Consumer - consumers from the event flow and
 // persists events to the permanent storage
 type Consumer struct {
-	logger    utils.Logger
+	logger    logger.Logger
 	eventFlow flow.EventFlow
+	persister db.Persister
 
-	receiveCh           chan queue.ReceivedMessage
-	stopCh              chan struct{}
-	eventFlowStateCh    chan flow.State
-	persistenceResultCh chan persistenceResult
+	receiveCh        chan queue.ReceivedMessage
+	stopCh           chan struct{}
+	eventFlowStateCh chan flow.State
+	pResultCh        chan db.PersistenceResult
 
 	persistedEvents int
 	failedEvents    int
@@ -38,51 +37,45 @@ type Consumer struct {
 // New consumer
 func New(
 	ef flow.EventFlow,
-	logger utils.Logger,
-	mq queue.MQ,
-	microservices model.MicroserviceRepository,
-	events model.EventRepository,
-	targetTypes model.TargetTypeRepository,
-	actorTypes model.ActorTypeRepository,
+	logger logger.Logger,
+	persister db.Persister,
 ) *Consumer {
-	resultCh := make(chan persistenceResult)
-
-	persister := newDBPersister(
-		microservices,
-		events,
-		targetTypes,
-		actorTypes,
-		logger,
-		resultCh,
-	)
-
+	pResultCh := make(chan db.PersistenceResult)
+	persister.NotifyOnResult(pResultCh)
 	tasks := newTasks(10, logger, persister, ef)
 
 	return &Consumer{
-		eventFlow:           ef,
-		tasks:               tasks,
-		logger:              logger,
-		persistenceResultCh: resultCh,
-		receiveCh:           make(chan queue.ReceivedMessage),
-		stopCh:              make(chan struct{}),
-		eventFlowStateCh:    make(chan flow.State),
-		mu:                  sync.RWMutex{},
-		statusOK:            true,
+		eventFlow:        ef,
+		tasks:            tasks,
+		persister:        persister,
+		logger:           logger,
+		pResultCh:        pResultCh,
+		receiveCh:        make(chan queue.ReceivedMessage),
+		stopCh:           make(chan struct{}),
+		eventFlowStateCh: make(chan flow.State),
+		mu:               sync.RWMutex{},
+		statusOK:         true,
 	}
 }
 
+type StopFunc func(ctx context.Context) error
+
 // Start consumer
-func (c *Consumer) Start(ctx context.Context, queueName, consumerName string) {
+func (c *Consumer) Start(queueName, consumerName string) StopFunc {
 	go c.healthCheck()
 	go c.tasks.run()
 	go c.processEvents(queueName, consumerName)
 
+	return c.stop
+}
+
+func (c *Consumer) stop(ctx context.Context) error {
+	close(c.stopCh)
+
 	for {
 		select {
 		case <-ctx.Done():
-			close(c.stopCh)
-			time.Sleep(10 * time.Second)
-			return
+			return nil
 		}
 	}
 }
@@ -101,12 +94,12 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 				continue
 			}
 
-			go c.tasks.process(e)
+			c.tasks.process(e)
 		case efState := <-c.eventFlowStateCh:
 			if efState == flow.Failed || efState == flow.Stopped {
 				c.markAsFailed()
 			}
-		case result := <-c.persistenceResultCh:
+		case result := <-c.pResultCh:
 			c.registerResult(result)
 		case <-c.stopCh:
 			c.logger.Debugf("Received on stop channel")
@@ -118,16 +111,14 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 	}
 }
 
-func (c *Consumer) registerResult(r persistenceResult) {
+func (c *Consumer) registerResult(r db.PersistenceResult) {
 	switch r {
-	case eventFlowFailed:
+	case db.EventFlowFailed:
 		c.incrementFailedEvents()
 		c.markAsFailed()
-	case success:
+	case db.Success:
 		c.incrementPersistedEvents()
-	case databaseFailed:
-		c.incrementFailedEvents()
-	case eventCouldNotBeProcessed:
+	case db.CriticalDatabaseFailure, db.LogicalError, db.EventCouldNotBeProcessed:
 		c.incrementFailedEvents()
 	}
 }

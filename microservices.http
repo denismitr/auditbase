@@ -1,6 +1,5 @@
-@host = http://localhost:8888
-
-GET {{host}}/api/v1/microservices
+GET {{back-office}}/api/v1/microservices
+Accept: application/json
 
 ###
 

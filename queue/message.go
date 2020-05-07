@@ -1,5 +1,13 @@
 package queue
 
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/pkg/errors"
+	"github.com/streadway/amqp"
+)
+
 type Message interface {
 	Body() []byte
 	ContentType() string
@@ -67,10 +75,30 @@ func (m *RabbitMQReceivedMessage) CloneToReque() Message {
 	return NewJSONMessage(b, m.Attempt()+1)
 }
 
-func newRabbitMQReceivedMessage(queueName string, body []byte, tag uint64) *RabbitMQReceivedMessage {
+func newRabbitMQReceivedMessage(queueName string, msg amqp.Delivery) *RabbitMQReceivedMessage {
+	attempt, err := extractAttemptFromHeader(msg.Headers)
+	if err != nil {
+		panic(err)
+	}
+
 	return &RabbitMQReceivedMessage{
 		queueName: queueName,
-		body:      body,
-		tag:       tag,
+		body:      msg.Body,
+		tag:       msg.DeliveryTag,
+		attempt:   attempt,
 	}
+}
+
+func extractAttemptFromHeader(h amqp.Table) (int, error) {
+	v, ok := h["Attempt"]
+	if !ok {
+		return 0, ErrNoAttemptInfo
+	}
+
+	attempt, err := strconv.Atoi(fmt.Sprintf("%d", v))
+	if err != nil {
+		return 0, errors.Wrap(ErrMalformedAttemptInfo, err.Error())
+	}
+
+	return attempt, nil
 }

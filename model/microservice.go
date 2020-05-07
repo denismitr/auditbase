@@ -1,8 +1,10 @@
 package model
 
-import "errors"
-
-var ErrMicroserviceNotFound = errors.New("not found")
+import (
+	"fmt"
+	"github.com/denismitr/auditbase/utils/errbag"
+	"github.com/denismitr/auditbase/utils/validator"
+)
 
 type Microservice struct {
 	ID          string `json:"id"`
@@ -13,31 +15,37 @@ type Microservice struct {
 }
 
 type MicroserviceRepository interface {
-	Create(Microservice) (Microservice, error)
-	Delete(ID string) error
-	Update(ID ID, m Microservice) error
-	FirstByID(ID ID) (Microservice, error)
-	FirstByName(name string) (Microservice, error)
-	FirstOrCreateByName(name string) (Microservice, error)
-	SelectAll() ([]Microservice, error)
+	Create(*Microservice) (*Microservice, error)
+	Delete(ID) error
+	Update(ID, *Microservice) error
+	FirstByID(ID ID) (*Microservice, error)
+	FirstByName(name string) (*Microservice, error)
+	FirstOrCreateByName(name string) (*Microservice, error)
+	SelectAll() ([]*Microservice, error)
 }
 
-func (m *Microservice) Validate(ve Validator) ValidationErrors {
-	if !ve.IsUUID4(m.ID) {
-		ve.Add("ID", ":id must be a valid UUID4 or be null for auto assigning")
+func (m *Microservice) Validate() *errbag.ErrorBag {
+	eb := errbag.New()
+
+	if !validator.IsUUID4(m.ID) {
+		eb.Add("ID", ErrInvalidUUID4)
 	}
 
-	if m.Name == "" {
-		ve.Add("name", ":name field is required")
+	if validator.IsEmptyString(m.Name) {
+		eb.Add("name", ErrNameIsRequired)
 	}
 
-	if len(m.Name) > 36 {
-		ve.Add("name", ":name should be less than 36 characters")
+	if validator.StringLenGt(m.Name, 36) {
+		eb.Add("name", ErrMicroserviceNameTooLong)
 	}
 
-	if len(m.Description) > 255 {
-		ve.Add("description", ":description should be less than 255 characters")
+	if validator.StringLenGt(m.Description, 255) {
+		eb.Add("description", ErrMicroserviceDescriptionTooLong)
 	}
 
-	return ve.Errors()
+	return eb
+}
+
+func MicroserviceItemCacheKey(name string) string {
+	return fmt.Sprintf("microservice_name_%s", name)
 }

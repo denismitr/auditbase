@@ -1,0 +1,68 @@
+version: "3.4"
+
+services:
+    auditbase_rest:
+        container_name: auditbase_rest
+        build:
+            context: .
+            dockerfile: docker/debug/receiver.Dockerfile
+        depends_on: 
+            - auditbase_db
+            - auditbase_rabbit
+        ports:
+            - "8888:3000"
+        volumes:
+            - ./debug/receiver:/tmp/debug/receiver
+
+    auditbase_consumer:
+        container_name: auditbase_consumer
+        build:
+            context: .
+            dockerfile: docker/debug/consumer.Dockerfile
+        depends_on: 
+            - auditbase_db
+            - auditbase_rabbit
+        volumes:
+            - ./debug/consumer:/tmp/debug/consumer
+
+    auditbase_requeued_consumer:
+        container_name: auditbase_requeued_consumer
+        build:
+            context: .
+            dockerfile: docker/debug/requeued-consumer.Dockerfile
+        depends_on: 
+            - auditbase_db
+            - auditbase_rabbit
+
+    auditbase_rabbit:
+        hostname: auditbase_rabbit
+        image: rabbitmq:3-management-alpine
+        container_name: auditbase_rabbit
+        volumes:
+            - auditbase_rabbit_volume:/var/lib/rabbitmq
+        ports: 
+            - 15672:15672
+        env_file:
+            - ./.env
+
+    auditbase_db:
+        image: mysql:8.0.18
+        container_name: auditbase_db
+        env_file:
+            - ./.env
+        cap_add:
+            - SYS_NICE
+        command: ['--max_allowed_packet=9999G',
+                    '--character-set-server=utf8mb4',
+                    '--collation-server=utf8mb4_unicode_ci',
+                    '--wait_timeout=999999']
+        ports:
+            - "3306:3306"
+        restart: always
+        tty: true
+                         
+    
+volumes:
+    auditbase_db_volume:
+    auditbase_rabbit_volume:
+            

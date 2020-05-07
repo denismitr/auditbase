@@ -12,7 +12,7 @@ vars:
 	@echo REST_PORT=${REST_PORT}
 	@echo PERCONA_PORT=${PERCONA_PORT}
 
-.PHONY: test clean mock wrk
+.PHONY: test clean mock wrk debug
 
 up: vars
 	docker-compose -f docker-compose-dev.yml up --build --force-recreate
@@ -23,6 +23,8 @@ down:
 clean:
 	docker-compose -f docker-compose-dev.yml down --remove-orphans
 	docker-compose -f docker-compose-dev.yml rm -svf
+	docker-compose -f docker-compose-debug.yml down --remove-orphans
+	docker-compose -f docker-compose-debug.yml rm -svf
 	docker-compose -f docker-compose-test.yml down --remove-orphans
 	docker-compose -f docker-compose-test.yml rm -svf
 
@@ -33,13 +35,25 @@ mock:
 	mockgen -source queue/message.go -destination ./test/mock_queue/message.go
 	mockgen -source model/event.go -destination ./test/mock_model/event.go
 	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
-	mockgen -source model/types.go -destination ./test/mock_model/types.go
+	mockgen -source model/entity.go -destination ./test/mock_model/entity.go
+	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
+	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
+	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
 
+integration_test:
+	go test ./test/integration
+
+debug: vars
+	docker-compose -f docker-compose-debug.yml up --build --force-recreate
+
 wrk/local:
 	wrk -c50 -t3 -d100s -s ./test/lua/events.lua http://127.0.0.1:8888
+
+wrk/debug:
+	wrk -c20 -t2 -d20s -s ./test/lua/events.lua http://127.0.0.1:8888
 
 docker-remove:
 	docker rm --force `docker ps -a -q` || true

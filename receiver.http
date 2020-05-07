@@ -1,0 +1,41 @@
+POST {{receiver}}/api/v1/events
+Content-Type: application/json
+Accept: application/json
+
+{
+    "targetId": "9219235",
+	"targetEntity": "article",
+	"targetService": "article-storage",
+	"actorId": "0000009",
+	"actorEntity": "promoter",
+	"actorService": "back-office",
+    "eventName": "articlePublished",
+    "emittedAt": 1578173213,
+	"delta": {
+		"status": [null, "PUBLISHED"],
+		"title": [null, "FOO"],
+		"description": [null, "BAR"]
+	}
+}
+
+###
+
+POST {{receiver}}/api/v1/events
+Content-Type: application/json
+Accept: application/json
+
+{
+	"id": "34e1d8fa-b065-436d-afd0-5fbcb752a4e1",
+    "targetId": "12345",
+	"targetEntity": "subscription",
+	"targetService": "billing",
+	"actorId": "999999",
+	"actorEntity": "user",
+	"actorService": "front",
+    "eventName": "subscriptionCanceled",
+    "emittedAt": 1578173212,
+	"delta": {
+		"status": ["ACTIVE", "CANCELED"],
+		"value": ["FOO", "BAR"]
+	}
+}

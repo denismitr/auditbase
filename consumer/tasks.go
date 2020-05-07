@@ -3,11 +3,16 @@ package consumer
 import (
 	"sync"
 
+	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/flow"
-	"github.com/denismitr/auditbase/utils"
+	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils/errtype"
+	"github.com/denismitr/auditbase/utils/logger"
 )
 
-type semaphore int
+const ErrInvalidReceivedEvent = errtype.StringError("invalid received event")
+
+type semaphore struct{}
 
 type processor interface {
 	process(flow.ReceivedEvent)
@@ -17,13 +22,13 @@ type processor interface {
 type tasks struct {
 	sem       chan semaphore
 	eventsCh  chan flow.ReceivedEvent
-	persister persister
+	persister db.Persister
 	ef        flow.EventFlow
-	logger    utils.Logger
+	logger    logger.Logger
 	mu        sync.Mutex
 }
 
-func newTasks(maxTasks int, logger utils.Logger, persister persister, ef flow.EventFlow) *tasks {
+func newTasks(maxTasks int, logger logger.Logger, persister db.Persister, ef flow.EventFlow) *tasks {
 	return &tasks{
 		sem:       make(chan semaphore, maxTasks),
 		eventsCh:  make(chan flow.ReceivedEvent),
@@ -39,29 +44,38 @@ func (t *tasks) process(e flow.ReceivedEvent) {
 }
 
 func (t *tasks) run() {
-	for e := range t.eventsCh {
-		if e == nil {
+	for re := range t.eventsCh {
+		if re == nil {
+			t.logger.Error(ErrInvalidReceivedEvent)
 			return
 		}
 
-		event := e
-		t.sem <- 1
+		event, err := re.Event()
+		if err != nil {
+			t.logger.Error(err)
+			t.ef.Requeue(re)
+			return
+		}
 
-		go func() {
-			if err := t.persister.persist(event); err != nil {
-				if err := t.ef.Requeue(event); err != nil {
+		t.sem <- struct{}{}
+
+		go func(re flow.ReceivedEvent, event model.Event) {
+			if err := t.persister.Persist(&event); err != nil {
+				t.logger.Error(err)
+
+				if err := t.ef.Requeue(re); err != nil {
 					t.logger.Error(err)
 				}
 				// fixme emit success process event
 			} else {
 				// fixme emit success process event
-				if err := t.ef.Ack(event); err != nil {
+				if err := t.ef.Ack(re); err != nil {
 					t.logger.Error(err)
 				}
 			}
 
 			<-t.sem
-		}()
+		}(re, event)
 	}
 }
 
