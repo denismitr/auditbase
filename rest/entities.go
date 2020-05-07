@@ -59,3 +59,16 @@ func (e *entities) show(ctx echo.Context) error {
 
 	return ctx.JSON(200, newEntityResponse(entity))
 }
+
+//func (e *entities) properties(ctx echo.Context) error {
+//	ID := ctx.Param("id")
+//	if ID == "" {
+//		return ctx.JSON(badRequest(errors.New("ID is missing")))
+//	}
+//
+//	entity, err := e.er.FirstByID(ID)
+//	if err != nil {
+//		e.logger.Error(err)
+//		return ctx.JSON(notFound(err))
+//	}
+//}

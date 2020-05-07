@@ -51,7 +51,7 @@ const selectEvents = `
 const selectEventProperties = `
 	SELECT
 		BIN_TO_UUID(id) as id, BIN_TO_UUID(event_id) as event_id,
-		name, changed_from, changed_to
+		BIN_TO_UUID(entity_id) as entity_id, name, changed_from, changed_to
 	FROM properties
 		WHERE event_id = UUID_TO_BIN(?)
 `
@@ -59,16 +59,16 @@ const selectEventProperties = `
 const selectEventListProperties = `
 	SELECT
 		BIN_TO_UUID(id) as id, BIN_TO_UUID(event_id) as event_id,
-		name, changed_from, changed_to 
+		BIN_TO_UUID(entity_id) as entity_id, name, changed_from, changed_to 
 	FROM properties
 		WHERE event_id IN (:eventIds)
 `
 
 const insertProperties = `
 	INSERT INTO properties 
-		(id, event_id, name, changed_from, changed_to)
+		(id, event_id, entity_id, name, changed_from, changed_to)
 	VALUES 
-		(UUID_TO_BIN(?), UUID_TO_BIN(?), ?, ?, ?)
+		(UUID_TO_BIN(?), UUID_TO_BIN(?), UUID_TO_BIN(?), ?, ?, ?)
 `
 
 type event struct {
@@ -133,7 +133,7 @@ func (r *EventRepository) Create(e *model.Event) error {
 	}
 
 	if _, err := tx.NamedExec(createEvent, &dbEvent); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return errors.Wrapf(err, "could not insert new event with ID %s", e.ID)
 	}
 
@@ -143,11 +143,12 @@ func (r *EventRepository) Create(e *model.Event) error {
 			insertProperties,
 			id,
 			e.ID,
+			e.TargetEntity.ID,
 			e.Delta[i].Name,
 			e.Delta[i].ChangedFrom,
 			e.Delta[i].ChangedTo,
 		); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return errors.Wrapf(err, "could not insert property for event with ID %s", e.ID)
 		}
 	}
@@ -307,6 +308,8 @@ func (r *EventRepository) Select(
 				p := model.Property{
 					ID:   props[events[i].ID][j].ID,
 					Name: props[events[i].ID][j].Name,
+					EventID: props[events[i].ID][j].EventID,
+					EntityID: props[events[i].ID][j].EntityID,
 				}
 
 				if props[events[i].ID][j].ChangedFrom.Valid {
@@ -359,7 +362,7 @@ func (r *EventRepository) joinPropertiesToEvents(events []event) (map[string][]p
 
 		for rows.Next() {
 			var p property
-			rows.StructScan(&p)
+			_ = rows.StructScan(&p)
 
 			if _, ok := props[p.EventID]; !ok {
 				props[p.EventID] = make([]property, 0)
