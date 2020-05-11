@@ -17,10 +17,20 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+type setUp struct {
+	createdEvents []rest.CreateEvent
+	mu sync.Mutex
+}
+
+func (s *setUp) addEvent(e rest.CreateEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.createdEvents = append(s.createdEvents, e)
+}
+
 func TestCreateEventWithID(t *testing.T) {
 	tt := []rest.CreateEvent{
 		rest.CreateEvent{
-			ID: "15ee8662-90a1-4a1c-85bf-ef53f1eaaa29",
 			EventName:     "foo",
 			TargetID:      "1234",
 			TargetEntity:  "article",
@@ -34,7 +44,6 @@ func TestCreateEventWithID(t *testing.T) {
 		},
 
 		rest.CreateEvent{
-			ID: "15ee8662-90a1-4f1c-89bf-ef53f1eaaa29",
 			EventName:     "bar",
 			TargetID:      "938-UE",
 			TargetEntity:  "post",
@@ -51,48 +60,53 @@ func TestCreateEventWithID(t *testing.T) {
 		},
 	}
 
-	for i, tc := range tt {
-		name := fmt.Sprintf("%s_%d", tc.EventName, i)
+	var wg sync.WaitGroup
+	wg.Add(len(tt))
+
+	for i := range tt {
+		go func(ce *rest.CreateEvent) {
+			defer wg.Done()
+			id, err := createEvent(ce)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			ce.ID = id.String()
+		}(&tt[i])
+	}
+
+	wg.Wait()
+
+	for _, tc := range tt {
+		name := fmt.Sprintf("event_id_%s", tc.ID)
+
 		t.Run(name, func(t *testing.T) {
-
-
-			var wg sync.WaitGroup
-
 			wg.Add(1)
-
-			go func(ce rest.CreateEvent) {
+			go func() {
 				defer wg.Done()
+				tick := time.After(1 * time.Second)
 
-				id, err := createEvent(ce)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					tick := time.After(1 * time.Second)
-
-					select {
-					case <-tick:
-						js, err := requestEventJSONByID(id)
-						if err != nil {
-							t.Error(err)
-							return
-						}
-
-						assert.Equal(t, tc.EventName, gjson.Get(js, "data.attributes.eventName").String())
+				select {
+				case <-tick:
+					js, err := requestEventJSONByID(model.ID(tc.ID))
+					if err != nil {
+						t.Error(err)
+						return
 					}
-				}()
-			}(tc)
+
+					assert.Equal(t, tc.ID, gjson.Get(js, "data.id").String())
+					assert.Equal(t, tc.EventName, gjson.Get(js, "data.attributes.eventName").String())
+					assert.Equal(t, time.Unix(tc.EmittedAt, 0).UTC().Format(model.DefaultTimeFormat), gjson.Get(js, "data.attributes.emittedAt").String())
+					assert.Equal(t, tc.TargetID, gjson.Get(js, "data.attributes.targetId").String())
+				}
+			}()
 
 			wg.Wait()
 		})
 	}
 }
 
-func createEvent(e rest.CreateEvent) (model.ID, error) {
+func createEvent(e *rest.CreateEvent) (model.ID, error) {
 	b, err := json.Marshal(e)
 	if err != nil {
 		return "", errors.Wrap(err, "could not marshal event")

@@ -98,8 +98,8 @@ func (ce CreateEvent) ToEvent() *model.Event {
 			Name: ce.TargetService,
 		},
 		EventName:    ce.EventName,
-		EmittedAt:    clock.TimestampToTime(ce.EmittedAt),
-		RegisteredAt: clock.TimestampToTime(ce.RegisteredAt),
+		EmittedAt:    model.JSONTime{Time: clock.TimestampToTime(ce.EmittedAt)},
+		RegisteredAt: model.JSONTime{Time: clock.TimestampToTime(ce.RegisteredAt)},
 		Delta:        props,
 	}
 }

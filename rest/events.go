@@ -55,10 +55,10 @@ func (ec *eventsController) create(ctx echo.Context) error {
 	}
 
 	if e.EmittedAt.IsZero() {
-		e.EmittedAt = ec.clock.CurrentTime()
+		e.EmittedAt.Time = ec.clock.CurrentTime()
 	}
 
-	e.RegisteredAt = ec.clock.CurrentTime()
+	e.RegisteredAt.Time = ec.clock.CurrentTime()
 	e.Hash = ctx.Request().Header.Get("Body-Hash")
 
 	if err := ec.ef.Send(e); err != nil {

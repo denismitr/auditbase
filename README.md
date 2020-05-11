@@ -1,6 +1,17 @@
-# Auditbase - an audit log system suitable for microservices
+# Auditbase 
+### an audit log system specifically designed for microservices
 
-### RUN
+### WIP
+
+Auditbase denormalizes events to make them suitable for analytics
+
+consists of **receiver** REST API, **back-office** REST API, 
+RabbitMQ events consumer, RabbitMQ errors consumer
+
+at the moment only MySQL storage is available, MongoDB is planned,
+Redis as cache for faster denormalization, RabbitMQ as message broker
+
+### RUN DEV MODE
 ```make up```
 
 ### TESTS
@@ -10,26 +21,24 @@ RUN:
 - ```make test```
 
 ### RUN "WRK" BENCHMARK
+install `wrk` tool
 ```
 wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:8888
 ```
 
-## TODO
-- graceful shutdown
-- healthcheck for rest API
-- more tests
-- refactor ID to object
-- requeue events on temporary DB connection failure
+## REST API
 
-### ENDPOINTS
+### RECEIVER ENDPOINT
+-  POST /api/v1/events
+
+### BACK-OFFICE ENDPOINTS
 
 ##### Events
--  POST /api/v1/events
 -  GET /api/v1/events
+-  GET /api/v1/events/:id
 -  GET /api/v1/events/count
 -  GET /api/v1/events/queue
 -  DELETE /api/v1/events/:id
--  GET /api/v1/events/:id
 
 ##### Microservices
 - /api/v1/microservices
@@ -37,10 +46,16 @@ wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:888
 - /api/v1/microservices/:id
 - /api/v1/microservices/:id
 
-##### Actor types
-- /api/v1/actor-types
-- /api/v1/actor-types/:id
+##### Entities
+- /api/v1/entities
+- /api/v1/entities/:id
 
-##### Target types
-- /api/v1/target-types
-- /api/v1/target-types/:id
+## TODO
+- unit tests
+- more integration tests
+- SQL query builder
+- refactor ID to object where suitable
+- create back-office UI dashboard
+- MongoDB as alternative storage
+- research GRPC
+

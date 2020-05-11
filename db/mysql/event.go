@@ -117,8 +117,8 @@ func (r *EventRepository) Create(e *model.Event) error {
 		TargetEntityID:  e.TargetEntity.ID,
 		TargetServiceID: e.TargetService.ID,
 		EventName:       e.EventName,
-		EmittedAt:       e.EmittedAt,
-		RegisteredAt:    e.RegisteredAt,
+		EmittedAt:       e.EmittedAt.Time,
+		RegisteredAt:    e.RegisteredAt.Time,
 	}
 
 	if e.ParentEventID == "" {
@@ -245,8 +245,8 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 		TargetEntity:  tt,
 		TargetService: ts,
 		EventName:     e.EventName,
-		EmittedAt:     e.EmittedAt,
-		RegisteredAt:  e.RegisteredAt,
+		EmittedAt:     model.JSONTime{Time: e.EmittedAt},
+		RegisteredAt:  model.JSONTime{Time: e.RegisteredAt},
 		Delta:         delta,
 	}, nil
 }
@@ -335,8 +335,8 @@ func (r *EventRepository) Select(
 			TargetEntity:  tt,
 			TargetService: ts,
 			EventName:     events[i].EventName,
-			EmittedAt:     events[i].EmittedAt,
-			RegisteredAt:  events[i].RegisteredAt,
+			EmittedAt:     model.JSONTime{Time: events[i].EmittedAt},
+			RegisteredAt:  model.JSONTime{Time: events[i].RegisteredAt},
 			Delta:         delta,
 		})
 	}
