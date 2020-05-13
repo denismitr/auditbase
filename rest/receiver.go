@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"github.com/denismitr/auditbase/cache"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/clock"
@@ -16,6 +17,7 @@ func NewReceiverAPI(
 	log logger.Logger,
 	events model.EventRepository,
 	ef flow.EventFlow,
+	cacher cache.Cacher,
 ) *API {
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))
 	e.Use(middleware.Logger())
@@ -24,7 +26,7 @@ func NewReceiverAPI(
 
 	uuid4 := uuid.NewUUID4Generator()
 
-	eventsController := newEventsController(log, uuid4, clock.New(), events, ef)
+	eventsController := newEventsController(log, uuid4, clock.New(), events, ef, cacher)
 
 	e.POST("/api/v1/events", eventsController.create)
 

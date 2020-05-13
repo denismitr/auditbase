@@ -10,14 +10,17 @@ import (
 )
 
 const ErrCouldNotPutValueToCache = errtype.StringError("could not put value to cache")
-const ErrCouldNotRawValueToTarget = errtype.StringError("could bot parse raw value and convert to target")
+const ErrCouldNotRawValueToTarget = errtype.StringError("could not parse raw value and convert to target")
+const ErrCouldNotCheckKeyExistence = errtype.StringError("could not check key existence")
 
 type ResultFunc func() (interface{}, error)
 type TargetParser func(v, target interface{}) error
 type RememberFunc func(string, time.Duration, interface{}, ResultFunc) error
 
 type Cacher interface {
-	RememberFunc(TargetParser) RememberFunc
+	Remember(TargetParser) RememberFunc
+	Has(key string) (bool, error)
+	CreateKey(key string, ttl time.Duration) error
 }
 
 type RedisCache struct {
@@ -32,7 +35,7 @@ func NewRedisCache(store  *redis.Client, log logger.Logger) *RedisCache {
 	}
 }
 
-func (c *RedisCache) RememberFunc(parser TargetParser) RememberFunc {
+func (c *RedisCache) Remember(parser TargetParser) RememberFunc {
 	return func(key string, ttl time.Duration, target interface{}, f ResultFunc) error {
 		str, err := c.store.Get(key).Result()
 		if str != "" {
@@ -66,6 +69,24 @@ func (c *RedisCache) RememberFunc(parser TargetParser) RememberFunc {
 
 		return nil
 	}
+}
+
+func (c *RedisCache) Has(key string) (bool, error) {
+	found, err := c.store.Exists(key).Result()
+	if err != nil {
+		return false, errors.Wrapf(err, "could not check existence for key %s", key)
+	}
+
+	return found == 1, nil
+}
+
+func (c *RedisCache) CreateKey(key string, ttl time.Duration) error {
+	_, err := c.store.Set(key, 1, ttl).Result()
+	if err != nil {
+		return errors.Wrapf(err, "could not create key %s", key)
+	}
+
+	return nil
 }
 
 

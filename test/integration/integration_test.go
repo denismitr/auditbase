@@ -17,65 +17,43 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-type setUp struct {
-	createdEvents []rest.CreateEvent
-	mu sync.Mutex
+const backOfficeAddr = "localhost:8889"
+
+var tt = []rest.CreateEvent{
+	rest.CreateEvent{
+		EventName:     "foo",
+		TargetID:      "1234",
+		TargetEntity:  "article",
+		TargetService: "article-storage",
+		ActorID:       "4321",
+		ActorEntity:   "editor",
+		ActorService:  "back-office",
+		EmittedAt:     int64(1578173213),
+		RegisteredAt:  int64(1578173214),
+		Delta:         map[string][]interface{}{"name": []interface{}{"PENDING", "PUBLISHED"}},
+	},
+
+	rest.CreateEvent{
+		EventName:     "bar",
+		TargetID:      "938-UE",
+		TargetEntity:  "post",
+		TargetService: "blog",
+		ActorID:       "999",
+		ActorEntity:   "writer",
+		ActorService:  "user-service",
+		EmittedAt:     int64(1578178213),
+		RegisteredAt:  int64(1578178314),
+		Delta:         map[string][]interface{}{
+			"text": []interface{}{"FOO", "BAR"},
+			"status": []interface{}{nil, "published"},
+		},
+	},
 }
 
-func (s *setUp) addEvent(e rest.CreateEvent) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.createdEvents = append(s.createdEvents, e)
-}
+var wg sync.WaitGroup
 
-func TestCreateEventWithID(t *testing.T) {
-	tt := []rest.CreateEvent{
-		rest.CreateEvent{
-			EventName:     "foo",
-			TargetID:      "1234",
-			TargetEntity:  "article",
-			TargetService: "article-storage",
-			ActorID:       "4321",
-			ActorEntity:   "editor",
-			ActorService:  "back-office",
-			EmittedAt:     int64(1578173213),
-			RegisteredAt:  int64(1578173214),
-			Delta:         map[string][]interface{}{"name": []interface{}{"PENDING", "PUBLISHED"}},
-		},
-
-		rest.CreateEvent{
-			EventName:     "bar",
-			TargetID:      "938-UE",
-			TargetEntity:  "post",
-			TargetService: "blog",
-			ActorID:       "999",
-			ActorEntity:   "writer",
-			ActorService:  "user-service",
-			EmittedAt:     int64(1578178213),
-			RegisteredAt:  int64(1578178314),
-			Delta:         map[string][]interface{}{
-				"text": []interface{}{"FOO", "BAR"},
-				"status": []interface{}{nil, "published"},
-			},
-		},
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(len(tt))
-
-	for i := range tt {
-		go func(ce *rest.CreateEvent) {
-			defer wg.Done()
-			id, err := createEvent(ce)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			ce.ID = id.String()
-		}(&tt[i])
-	}
-
-	wg.Wait()
+func TestEvents(t *testing.T) {
+	setup(t)
 
 	for _, tc := range tt {
 		name := fmt.Sprintf("event_id_%s", tc.ID)
@@ -98,12 +76,58 @@ func TestCreateEventWithID(t *testing.T) {
 					assert.Equal(t, tc.EventName, gjson.Get(js, "data.attributes.eventName").String())
 					assert.Equal(t, time.Unix(tc.EmittedAt, 0).UTC().Format(model.DefaultTimeFormat), gjson.Get(js, "data.attributes.emittedAt").String())
 					assert.Equal(t, tc.TargetID, gjson.Get(js, "data.attributes.targetId").String())
+					assert.Equal(t, tc.ActorID, gjson.Get(js, "data.attributes.actorId").String())
+					assert.Equal(t, tc.TargetEntity, gjson.Get(js, "data.attributes.targetEntity.name").String())
+					assert.Equal(t, tc.TargetService, gjson.Get(js, "data.attributes.targetService.name").String())
+					assert.Equal(t, tc.ActorEntity, gjson.Get(js, "data.attributes.actorEntity.name").String())
+					assert.Equal(t, tc.ActorService, gjson.Get(js, "data.attributes.actorService.name").String())
 				}
 			}()
 
 			wg.Wait()
 		})
 	}
+
+	t.Run("select all events", func(t *testing.T) {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			tick := time.After(1 * time.Second)
+
+			select {
+			case <-tick:
+				js, err := requestAllEvents()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+				assert.True(t, gjson.Get(js, "data").IsArray())
+				assert.GreaterOrEqual(t, len(gjson.Get(js, "data").Array()), len(tt))
+			}
+		}()
+
+		wg.Wait()
+	})
+}
+
+func setup(t *testing.T) {
+	wg.Add(len(tt))
+
+	for i := range tt {
+		go func(ce *rest.CreateEvent) {
+			defer wg.Done()
+			id, err := createEvent(ce)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			ce.ID = id.String()
+		}(&tt[i])
+	}
+
+	wg.Wait()
 }
 
 func createEvent(e *rest.CreateEvent) (model.ID, error) {
@@ -149,6 +173,24 @@ func requestEventJSONByID(ID model.ID) (string, error) {
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", errors.Errorf("could not parse json response for ID [%s]", ID.String())
+	}
+
+	return string(b), nil
+}
+
+func requestAllEvents() (string, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/api/v1/events", backOfficeAddr))
+	if err != nil {
+		return "", errors.Errorf("could not get list of events")
+	}
+
+	if resp.StatusCode != 200 {
+		return "", errors.Errorf("could not get event list: code [%d] received", resp.StatusCode)
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.New("could not parse json response for event list")
 	}
 
 	return string(b), nil

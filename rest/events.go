@@ -1,6 +1,8 @@
 package rest
 
 import (
+	"fmt"
+	"github.com/denismitr/auditbase/cache"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/clock"
@@ -8,6 +10,7 @@ import (
 	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
+	"time"
 )
 
 type eventsController struct {
@@ -16,6 +19,7 @@ type eventsController struct {
 	events model.EventRepository
 	ef     flow.EventFlow
 	clock  clock.Clock
+	cacher cache.Cacher
 }
 
 func newEventsController(
@@ -24,6 +28,7 @@ func newEventsController(
 	clock clock.Clock,
 	events model.EventRepository,
 	ef flow.EventFlow,
+	cacher cache.Cacher,
 ) *eventsController {
 	return &eventsController{
 		logger: l,
@@ -31,6 +36,7 @@ func newEventsController(
 		uuid4:  uuid4,
 		events: events,
 		ef:     ef,
+		cacher: cacher,
 	}
 }
 
@@ -49,6 +55,16 @@ func (ec *eventsController) create(ctx echo.Context) error {
 	}
 
 	e := req.ToEvent()
+	e.Hash = ctx.Request().Header.Get("Body-Hash")
+
+	found, err := ec.cacher.Has(hashKey(e.Hash));
+	if err != nil {
+		return ctx.JSON(internalError(err))
+	}
+
+	if found {
+		return ctx.JSON(conflict(ErrEventAlreadyReceived, "event already processed"))
+	}
 
 	if e.ID == "" {
 		e.ID = ec.uuid4.Generate()
@@ -59,7 +75,10 @@ func (ec *eventsController) create(ctx echo.Context) error {
 	}
 
 	e.RegisteredAt.Time = ec.clock.CurrentTime()
-	e.Hash = ctx.Request().Header.Get("Body-Hash")
+
+	if err := ec.cacher.CreateKey(hashKey(e.Hash), 1 * time.Hour); err != nil {
+		return ctx.JSON(internalError(err))
+	}
 
 	if err := ec.ef.Send(e); err != nil {
 		return ctx.JSON(internalError(err))
@@ -149,4 +168,8 @@ func (ec *eventsController) delete(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(204, nil)
+}
+
+func hashKey(hash string) string {
+	return fmt.Sprintf("hash_key_%s", hash)
 }

@@ -17,7 +17,7 @@ type StopFunc func(context.Context) error
 func (a *API) Start() StopFunc {
 	go func() {
 		if err := a.e.Start(a.cfg.Port); err != nil {
-			a.e.Logger.Info("shutting down the server")
+			a.e.Logger.Errorf("shutting down the server", err)
 		}
 	}()
 

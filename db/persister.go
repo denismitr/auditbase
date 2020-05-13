@@ -87,7 +87,7 @@ func (dbp *DBPersister) Persist(e *model.Event) error {
 }
 
 func (dbp *DBPersister) prepare(p *payload) {
-	remember := dbp.cacher.RememberFunc(func(v, target interface{}) error {
+	remember := dbp.cacher.Remember(func(v, target interface{}) error {
 		switch t := target.(type) {
 		case *model.Microservice:
 			*t =  *v.(*model.Microservice)

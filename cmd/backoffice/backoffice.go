@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/denismitr/auditbase/cache"
+	"github.com/go-redis/redis/v7"
 	"github.com/labstack/echo"
 	"os"
 	"os/signal"
@@ -28,7 +30,7 @@ func main() {
 	fmt.Println("Waiting for DB connection...")
 	time.Sleep(20 * time.Second)
 
-	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+	log := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 	uuid4 := uuid.NewUUID4Generator()
 
 	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
@@ -44,9 +46,9 @@ func main() {
 
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
 	events := mysql.NewEventRepository(dbConn, uuid4)
-	entities := mysql.NewEntityRepository(dbConn, uuid4, lg)
+	entities := mysql.NewEntityRepository(dbConn, uuid4, log)
 
-	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), lg, 4)
+	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 4)
 
 	if err := mq.Connect(); err != nil {
 		panic(err)
@@ -55,7 +57,7 @@ func main() {
 	port := ":" + env.MustString("REST_API_PORT")
 
 	flowCfg := flow.NewConfigFromGlobals()
-	ef := flow.New(mq, lg, flowCfg)
+	ef := flow.New(mq, log, flowCfg)
 
 	if err := ef.Scaffold(); err != nil {
 		panic(err)
@@ -67,15 +69,17 @@ func main() {
 	}
 
 	e := echo.New()
+	cacher := connectRedis(log)
 
 	backOffice := rest.NewBackOfficeAPI(
 		e,
 		restCfg,
-		lg,
+		log,
 		ef,
 		microservices,
 		events,
 		entities,
+		cacher,
 	)
 
 	terminate := make(chan os.Signal)
@@ -88,7 +92,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := stop(ctx); err != nil {
-		lg.Error(err)
+		log.Error(err)
 	}
 }
 
@@ -102,4 +106,18 @@ func debug() {
 			stopper.Stop()
 		}()
 	}
+}
+
+func connectRedis(log logger.Logger) *cache.RedisCache {
+	c := redis.NewClient(&redis.Options{
+		Addr:     env.MustString("REDIS_HOST") + ":" + env.MustString("REDIS_PORT"),
+		Password: env.String("REDIS_PASSWORD"),
+		DB:       env.IntOrDefault("REDIS_DB", 0),
+	})
+
+	if err := c.Ping().Err(); err != nil {
+		panic(err)
+	}
+
+	return cache.NewRedisCache(c, log)
 }
