@@ -33,6 +33,12 @@ type entityAttributes struct {
 	Description string `json:"description"`
 	CreatedAt   string `json:"createdAt,omitempty"`
 	UpdatedAt   string `json:"updatedAt,omitempty"`
+	Properties []propertyStatAttribute `json:"properties,omitempty"`
+}
+
+type propertyStatAttribute struct {
+	Name        string `json:"name"`
+	EventCount int `json:"eventCount"`
 }
 
 func newMicroserviceAttributes(m *model.Microservice) *microserviceAttributes {
@@ -51,5 +57,22 @@ func newEntityAttributes(e *model.Entity) *entityAttributes {
 		Description: e.Description,
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,
+	}
+}
+
+func newEntityWithPropertiesAttributes(e *model.Entity, ps []*model.PropertyStat) *entityAttributes {
+	props := make([]propertyStatAttribute, len(ps))
+
+	for i := range ps {
+		props[i] = propertyStatAttribute{Name: ps[i].Name, EventCount: ps[i].EventCount}
+	}
+
+	return &entityAttributes{
+		Name:        e.Name,
+		ServiceID:   e.ServiceID,
+		Description: e.Description,
+		CreatedAt:   e.CreatedAt,
+		UpdatedAt:   e.UpdatedAt,
+		Properties:  props,
 	}
 }

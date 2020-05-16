@@ -48,6 +48,7 @@ func NewBackOfficeAPI(
 	// Entities
 	e.GET("/api/v1/entities", entitiesController.index)
 	e.GET("/api/v1/entities/:id", entitiesController.show)
+	e.GET("/api/v1/entities/:id/properties", entitiesController.properties)
 
 	return &API{
 		e:   e,

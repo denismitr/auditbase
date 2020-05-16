@@ -5,6 +5,7 @@ import (
 	"github.com/denismitr/auditbase/utils/clock"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
+	"github.com/denismitr/auditbase/utils/validator"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
@@ -60,15 +61,23 @@ func (e *entities) show(ctx echo.Context) error {
 	return ctx.JSON(200, newEntityResponse(entity))
 }
 
-//func (e *entities) properties(ctx echo.Context) error {
-//	ID := ctx.Param("id")
-//	if ID == "" {
-//		return ctx.JSON(badRequest(errors.New("ID is missing")))
-//	}
-//
-//	entity, err := e.er.FirstByID(ID)
-//	if err != nil {
-//		e.logger.Error(err)
-//		return ctx.JSON(notFound(err))
-//	}
-//}
+func (e *entities) properties(ctx echo.Context) error {
+	ID := ctx.Param("id")
+	if ID == "" || ! validator.IsUUID4(ID) {
+		return ctx.JSON(badRequest(errors.New("ID is missing or invalid")))
+	}
+
+	entity, err := e.er.FirstByID(ID)
+	if err != nil {
+		e.logger.Error(err)
+		return ctx.JSON(notFound(err))
+	}
+
+	stats, err := e.er.Properties(ID)
+	if err != nil {
+		e.logger.Error(err)
+		return ctx.JSON(internalError(err))
+	}
+
+	return ctx.JSON(200, newEntityWithPropertiesResponse(entity, stats))
+}

@@ -71,6 +71,30 @@ func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagin
 	return result, nil
 }
 
+func (r *EntityRepository) Properties(ID string) ([]*model.PropertyStat, error) {
+	query := `
+		SELECT 
+			name, COUNT(event_id) AS event_count 
+		FROM properties 
+			WHERE entity_id = UUID_TO_BIN(?) 
+		GROUP BY name
+	`
+
+	var properties []propertyStat
+
+	if err := r.conn.Select(&properties, query, ID); err != nil {
+		return nil, errors.Wrapf(err, "could not get property stat from entity with ID [%s]", ID)
+	}
+
+	stats := make([]*model.PropertyStat, len(properties))
+
+	for i := range properties {
+		stats[i] = properties[i].ToModel()
+	}
+
+	return stats, nil
+}
+
 // Create an entity
 func (r *EntityRepository) Create(e *model.Entity) error {
 	stmt := `

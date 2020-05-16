@@ -8,3 +8,8 @@ type Property struct {
 	ChangedFrom *string `json:"changedFrom"`
 	ChangedTo   *string `json:"changedTo"`
 }
+
+type PropertyStat struct {
+	Name       string `json:"name"`
+	EventCount int    `json:"eventCount"`
+}
