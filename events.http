@@ -1,10 +1,10 @@
-GET {{back-office}}/api/v1/events?filter[targetServiceId]=d9f69955-873c-44a5-889e-3b27f5ea81df
+GET {{back-office}}/api/v1/events?page=82&perPage=76
 Content-Type: application/json
 Accept: application/json
 
 ###
 
-GET {{back-office}}/api/v1/events/c5e78bed-0a04-4f74-a13f-d71c88aa8819
+GET {{back-office}}/api/v1/events/18420701-7852-4361-8e91-a660385dd0c5
 Content-Type: application/json
 Accept: application/json
 

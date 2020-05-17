@@ -77,7 +77,7 @@ func run(log logger.Logger, cfg flow.Config, consumerName, queueName string) {
 	}
 
 	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
-	events := mysql.NewEventRepository(dbConn, uuid4)
+	events := mysql.NewEventRepository(dbConn, uuid4, log)
 	entities := mysql.NewEntityRepository(dbConn, uuid4, log)
 
 	cacher := connectRedis(log)

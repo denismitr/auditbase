@@ -44,7 +44,7 @@ func main() {
 		panic(err)
 	}
 
-	events := mysql.NewEventRepository(dbConn, uuid4)
+	events := mysql.NewEventRepository(dbConn, uuid4, log)
 
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 4)
 

@@ -52,7 +52,7 @@ const selectEntities = `
 func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagination) ([]*model.Entity, error) {
 	var entities []entity
 	query, args := createSelectEntitiesQuery(f, s, p)
-	r.logger.Debugf("q %s limit=%d offset=%d", query, p.PerPage, p.Offset())
+	r.logger.SQL(query, args)
 	stmt, err := r.conn.PrepareNamed(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not prepare named stmt to select entities")
@@ -165,7 +165,7 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 		return ent, nil
 	}
 
-	r.logger.Debugf(err.Error())
+	//r.logger.Debugf(err.Error())
 
 	ent = &model.Entity{
 		ID:          r.uuid4.Generate(),

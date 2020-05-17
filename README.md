@@ -14,7 +14,7 @@ Redis as cache for faster denormalization, RabbitMQ as message broker
 ### RUN DEV MODE
 ```make up```
 
-### TESTS
+### UNIT TESTS
 RUN:
 
 - ```make mock```
@@ -49,6 +49,7 @@ wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:888
 ##### Entities
 - /api/v1/entities
 - /api/v1/entities/:id
+- /api/v1/entities/:id/properties
 
 ## TODO
 - unit tests
@@ -57,5 +58,5 @@ wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:888
 - refactor ID to object where suitable
 - create back-office UI dashboard
 - MongoDB as alternative storage
-- research GRPC
+- research GRPC and Protobuf as alternative to HTTP REST
 

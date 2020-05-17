@@ -104,7 +104,7 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 		case <-c.stopCh:
 			c.logger.Debugf("Received on stop channel")
 			c.markAsFailed()
-			c.eventFlow.Stop()
+			_ = c.eventFlow.Stop()
 			c.tasks.stop()
 			return
 		}
@@ -134,12 +134,12 @@ func (c *Consumer) healthCheck() {
 		if c.statusIsOK() {
 			w.WriteHeader(200)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		} else {
 			c.logger.Debugf("Health check failed")
 			w.WriteHeader(500)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"status": "error"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error"})
 		}
 	})
 

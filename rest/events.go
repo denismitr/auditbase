@@ -100,14 +100,14 @@ func (ec *eventsController) index(ctx echo.Context) error {
 		"targetId",
 		"actorId",
 	})
-	p := createPagination(q, 50)
+	p := createPagination(q, 25)
 
-	events, err := ec.events.Select(f, s, p)
+	events, meta, err := ec.events.Select(f, s, p)
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(200, newEventsResponse(events))
+	return ctx.JSON(200, newEventsResponse(events, meta))
 }
 
 func (ec *eventsController) show(ctx echo.Context) error {

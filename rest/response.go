@@ -26,8 +26,8 @@ func newItemResponseWithMeta(r *jsonApiResponse, meta interface{}) *itemResponse
 	return &itemResponse{Data: r, Meta: meta}
 }
 
-func newCollectionResponse(r []*jsonApiResponse) *collectionResponse {
-	return &collectionResponse{Data: r}
+func newCollectionResponse(r []*jsonApiResponse, m *model.Meta) *collectionResponse {
+	return &collectionResponse{Data: r, Meta: m}
 }
 
 func newJsonApiResponse(typ, id string, attributes interface{}) *jsonApiResponse {
@@ -52,12 +52,12 @@ func newEventResponse(m *model.Event) *itemResponse {
 	return newItemResponse(newJsonApiResponse("events", m.ID, m))
 }
 
-func newEventsResponse(events []*model.Event) *collectionResponse {
+func newEventsResponse(events []*model.Event, meta *model.Meta) *collectionResponse {
 	items := make([]*jsonApiResponse, len(events))
 	for i := range events {
 		items[i] = newJsonApiResponse("events", events[i].ID, events[i])
 	}
-	return newCollectionResponse(items)
+	return newCollectionResponse(items, meta)
 }
 
 func newMicroserviceResponse(m *model.Microservice) *itemResponse {
@@ -73,7 +73,7 @@ func newEntitiesResponse(es []*model.Entity) *collectionResponse {
 	for i := range es {
 		items[i] = newJsonApiResponse("entities", es[i].ID, newEntityAttributes(es[i]))
 	}
-	return newCollectionResponse(items)
+	return newCollectionResponse(items, nil) // fixme
 }
 
 func newEntityWithPropertiesResponse(e *model.Entity, ps []*model.PropertyStat) *itemResponse {
@@ -86,5 +86,5 @@ func newMicroservicesResponse(ms []*model.Microservice) *collectionResponse {
 	for i := range ms {
 		items[i] = newJsonApiResponse("microservices", ms[i].ID, newMicroserviceAttributes(ms[i]))
 	}
-	return newCollectionResponse(items)
+	return newCollectionResponse(items, nil) // fixme
 }

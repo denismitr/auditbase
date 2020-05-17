@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"database/sql"
+	"github.com/denismitr/auditbase/utils/logger"
 	"strings"
 	"time"
 
@@ -46,6 +47,10 @@ const selectEvents = `
 	ON ae.id = e.actor_entity_id
 		INNER JOIN entities as te
 	ON te.id = e.target_entity_id
+`
+
+const countEvents = `
+	SELECT COUNT(*) as total FROM events e
 `
 
 const selectEventProperties = `
@@ -96,12 +101,14 @@ type event struct {
 
 type EventRepository struct {
 	conn  *sqlx.DB
+	log logger.Logger
 	uuid4 uuid.UUID4Generator
 }
 
-func NewEventRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator) *EventRepository {
+func NewEventRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Logger) *EventRepository {
 	return &EventRepository{
 		conn:  conn,
+		log: log,
 		uuid4: uuid4,
 	}
 }
@@ -256,24 +263,36 @@ func (r *EventRepository) Select(
 	filter *model.Filter,
 	sort *model.Sort,
 	pagination *model.Pagination,
-) ([]*model.Event, error) {
-	q, args := prepareSelectEventsQueryWithArgs(filter, sort, pagination)
+) ([]*model.Event, *model.Meta, error) {
+	q := prepareSelectEventsQueryWithArgs(filter, sort, pagination)
+	r.log.SQL(q.query, q.queryArgs)
+	r.log.SQL(q.count, q.countArgs)
 
 	var events []event
+	var meta meta
 	result := make([]*model.Event, 0)
 
-	stmt, err := r.conn.PrepareNamed(q)
+	ss, err := r.conn.PrepareNamed(q.query)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not prepare select events stmt")
+		return nil, nil, errors.Wrapf(err, "could not prepare select events stmt")
 	}
 
-	if err := stmt.Select(&events, args); err != nil {
-		return nil, errors.Wrapf(err, "could not get a list of events from db")
+	cs, err := r.conn.PrepareNamed(q.count)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "could not prepare count events stmt")
+	}
+
+	if err := ss.Select(&events, q.queryArgs); err != nil {
+		return nil, nil, errors.Wrapf(err, "could not get a list of events from db")
+	}
+
+	if err := cs.Get(&meta, q.countArgs); err != nil {
+		return nil, nil, errors.Wrapf(err, "could not count events")
 	}
 
 	props, err := r.joinPropertiesToEvents(events)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not propertis to events")
+		return nil, nil, errors.Wrap(err, "could not propertis to events")
 	}
 
 	for i := range events {
@@ -341,7 +360,7 @@ func (r *EventRepository) Select(
 		})
 	}
 
-	return result, nil
+	return result, meta.ToModel(pagination), nil
 }
 
 func (r *EventRepository) joinPropertiesToEvents(events []event) (map[string][]property, error) {
@@ -379,44 +398,74 @@ func prepareSelectEventsQueryWithArgs(
 	filter *model.Filter,
 	sort *model.Sort,
 	pagination *model.Pagination,
-) (string, map[string]interface{}) {
-	q := selectEvents
+) *selectWithMetaQuery {
+	sq := selectEvents
+	cq := countEvents
 	args := make(map[string]interface{})
 
 	if filter.Has("actorEntityId") {
-		q += ` where actor_entity_id = UUID_TO_BIN(:actor_entity_id)`
-		args["actor_entity_id"] = filter.MustString("actorEntityId",)
+		add := ` where actor_entity_id = UUID_TO_BIN(:actor_entity_id)`
+		sq += add
+		cq += add
+		args["actor_entity_id"] = filter.MustString("actorEntityId")
 	}
 
 	if filter.Has("actorId") {
-		q += ` where actor_id = :actor_id`
+		add := ` where actor_id = :actor_id`
+		sq += add
+		cq += add
 		args["actor_id"] = filter.MustString("actorId")
 	}
 
 	if filter.Has("actorServiceId") {
-		q += ` where actor_service_id = UUID_TO_BIN(:actor_service_id)`
+		add := ` where actor_service_id = UUID_TO_BIN(:actor_service_id)`
+		sq += add
+		cq += add
 		args["actor_service_id"] = filter.MustString("actorServiceId")
 	}
 
 	if filter.Has("targetId") {
-		q += ` where target_id = :target_id`
+		add := ` where actor_service_id = UUID_TO_BIN(:actor_service_id)`
+		sq += add
+		cq += add
 		args["target_id"] = filter.MustString("targetId")
 	}
 
 	if filter.Has("targetEntityId") {
-		q += ` where target_entity_id = UUID_TO_BIN(:target_entity_id)`
+		add := ` where target_entity_id = UUID_TO_BIN(:target_entity_id)`
+		sq += add
+		cq += add
 		args["target_entity_id"] = filter.MustString("targetEntityId")
 	}
 
 	if filter.Has("targetServiceId") {
-		q += ` where target_service_id = UUID_TO_BIN(:target_service_id)`
+		add := ` where target_service_id = UUID_TO_BIN(:target_service_id)`
+		sq += add
+		cq += add
 		args["target_service_id"] = filter.MustString("targetServiceId")
 	}
 
 	if filter.Has("eventName") {
-		q += ` where event_name = :event_name`
+		add := ` where event_name = :event_name`
+		sq += add
+		cq += add
 		args["event_name"] = filter.MustString("eventName")
 	}
 
-	return q, args
+	if sort.Empty() {
+		sq += ` order by emitted_at DESC`
+	}
+
+	if pagination.Page > 0 && pagination.PerPage > 0 {
+		sq += ` limit :offset, :limit`
+		args["limit"] = pagination.PerPage
+		args["offset"] = pagination.Offset()
+	}
+
+	return &selectWithMetaQuery{
+		query: sq,
+		count: cq,
+		queryArgs: args,
+		countArgs: args,
+	}
 }
