@@ -54,7 +54,7 @@ func main() {
 		panic(err)
 	}
 
-	port := ":" + env.MustString("REST_API_PORT")
+	port := ":" + env.MustString("BACK_OFFICE_API_PORT")
 
 	flowCfg := flow.NewConfigFromGlobals()
 	ef := flow.New(mq, log, flowCfg)

@@ -60,7 +60,7 @@ func main() {
 	}
 
 	restCfg := rest.Config{
-		Port:      ":" + env.MustString("REST_API_PORT"),
+		Port:      ":" + env.MustString("RECEIVER_API_PORT"),
 		BodyLimit: "250K",
 	}
 
@@ -68,7 +68,6 @@ func main() {
 	cacher := connectRedis(log)
 
 	receiver := rest.NewReceiverAPI(e, restCfg, log, events, ef, cacher)
-	receiver.Start()
 
 	terminate := make(chan os.Signal)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)

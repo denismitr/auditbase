@@ -1,37 +1,66 @@
 -- init random
 math.randomseed(os.time())
 
-targetEntities = {'article','subscription','comment','foo-target','bar-target','baz-target','tariff','promocode'}
-services = {'back-office','front','billing','auth-service','security-service','foo-service','bar-service','baz-service'}
-actorEntities = {'user','admin','cto','promoter','employee','editor','hacker','foo-actor','bar-actor','baz-actor'}
-eventNames = {'SOMETHING_PUBLISHED','SOMETHING_HAPPENED','SOMETHING_CRASHED','SOMETHING_DELETED','SOMETHING_FOO','SOMETHING_BAR'}
-properties = {'foo-property', 'bar-property', 'baz-property', 'title', 'name', 'number', 'text', 'body', 'date'}
 stringChanges = {'null', '"boo"', '"foo"', '"baz"', '"abc"', '"123abc"'}
 numericChanges = {'null', '123', '987542', '1235.973', '999', '0'}
 dateChanges = {'null', '"1999-10-12"', '"2000-10-01"', '"1890-10-10"'}
 enumChanges = {'null', '"ACTIVE"', '"DELETED"', '"ON"', '"OFF"', '"MODERATED"', '"BANNED"', '"FAILED"'}
 
+-- Entities
+
+userEntity = {
+    name = "user",
+    properties = {"name", "phone", "email", "status", "address"},
+    events = {"user-updated", "user-upgraded", "user-downgraded", "user-banned"},
+}
+
+adminEntity = {
+    name = "admin",
+    properties = {"username", "password", "email", "status", "rights"},
+    events = {"admin-updated", "admin-banned", "admin-moved"}
+}
+
+actionEntity = {
+    name = "action",
+    properties = {"title", "createdAt", "data"},
+    events = {"action-recorded"}
+}
+
+tokenEntity = {
+    name = "token",
+    properties = {"body", "issuedAt"},
+    events = {"token-updated"}
+}
+
+subscriptionEntity = {
+    name = "token",
+    properties = {"type", "duration", "price", "period"},
+    events = {"subscription-updated", "subscription-created"}
+}
+
+-- services
+
 backOffice = {
     name = "back-office",
-    entities = {'user','admin','cto','promoter'}
+    entities = {userEntity, adminEntity, actionEntity}
 }
 
 front = {
     name = "front-service",
-    entities = {'token','ga','ya'}
+    entities = {actionEntity, tokenEntity}
 }
 
 auth = {
     name = "auth-service",
-    entities = {'user','mailing-list','hashing-alg'}
+    entities = {userEntity}
 }
 
 billing = {
     name = "billing-service",
-    entities = {'subscription','tariff','plan','promocode'}
+    entities = {subscriptionEntity}
 }
 
-targetServices = {backOffice, front, auth, billing}
+services = {backOffice, front, auth, billing}
 
 -- the request function that will run at each request
 request = function() 
@@ -40,29 +69,34 @@ request = function()
     actorId = '' .. math.random( 1, 20000 )
     targetId = '' .. math.random( 1, 20000 )
     emittedAt = math.random(1000000000, 2000000000)
-    targetService = targetServices[ math.random( #targetServices ) ]
-    targetEntity = targetService.entities[ math.random(#targetService.entities) ]
-    actorEntity = actorEntities[math.random( #actorEntities )]
-    actorService = services[math.random( #services )]
-    eventName = eventNames[math.random( #eventNames )]
 
-    delta = createDelta()
+    -- target
+    targetService = services[ math.random( #services ) ]
+    targetEntity = targetService.entities[ math.random(#targetService.entities) ]
+    eventName = targetEntity.events[math.random( #targetEntity.events )]
+
+     -- actor
+    actorService = services[math.random( #services )]
+    actorEntity = actorService.entities[math.random( #actorService.entities )]
+
+    delta = createDelta(targetEntity)
 
     body = string.format(
         '{"targetId":"%s","targetEntity":"%s","targetService":"%s","actorId":"%s","actorEntity":"%s","actorService":"%s","eventName":"%s","emittedAt":%d,"delta":%s}',
-        targetId, targetEntity, targetService, actorId, actorEntity,
-        actorService, eventName, emittedAt, delta)
+        targetId, targetEntity.name, targetService.name, actorId, actorEntity.name,
+        actorService.name, eventName, emittedAt, delta)
 
+    print("\n")
     print(body)
 
     return wrk.format('POST', url, {['Content-Type'] = 'application/json', ['Accept'] = 'application/json'}, body) 
 end
 
-createDelta = function()
-    enumProp = properties[ math.random( #properties ) ]
-    stringProp = properties[ math.random( #properties ) ]
-    numericProp = properties[ math.random( #properties ) ]
-    dateProp = properties[ math.random( #properties ) ]
+createDelta = function(targetEntity)
+    enumProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
+    stringProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
+    numericProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
+    dateProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
 
     enumChangedFrom = enumChanges[ math.random( #enumChanges ) ]
     enumChangedTo = enumChanges[ math.random( #enumChanges ) ]
