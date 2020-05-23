@@ -33,7 +33,7 @@ COPY --from=builder /app/.env .
 RUN chmod +x ./consumer
 RUN chmod +x ./healthcheck
 
-ENV HEALTH_PORT=3000
+ENV HEALTH_PORT=3002
 EXPOSE ${HEALTH_PORT}
 
 HEALTHCHECK --interval=5s --timeout=1s --start-period=120s --retries=3 CMD [ "./healthcheck" ] || exit 1

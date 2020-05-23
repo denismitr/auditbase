@@ -20,6 +20,7 @@ type EntityRepository interface {
 	Create(*Entity) error
 	FirstByNameAndService(string, *Microservice) (*Entity, error)
 	FirstByID(string) (*Entity, error)
+	Properties(ID string) ([]*PropertyStat, error)
 	FirstOrCreateByNameAndService(string, *Microservice) (*Entity, error)
 }
 

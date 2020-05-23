@@ -17,11 +17,13 @@ const ErrTargetServiceEmpty = errtype.StringError("TargetService must not be emp
 const ErrMicroserviceNameTooLong = errtype.StringError("microservice name is too long")
 const ErrMicroserviceDescriptionTooLong = errtype.StringError("microservice description is too long")
 const ErrMicroserviceNotFound = errtype.StringError("not found")
+const ErrEventAlreadyReceived = errtype.StringError("event already received recently")
 
 const msgBadRequest = "Bad request"
 const msgInternalError = "Auditbase internal error"
 const msgNotFound = "Entity not found"
 const msgValidationFailed = "Validation failed"
+const msgConflict = "entity you are trying to create already exists"
 
 type errorResource struct {
 	Title   string `json:"title"`
@@ -67,6 +69,13 @@ func internalError(errors ...error) (int, *errorResponse) {
 	}
 
 	return http.StatusInternalServerError, newErrorResponse(http.StatusInternalServerError, resources)
+}
+
+func conflict(err error, msg string) (int, *errorResponse) {
+	resources := make([]errorResource, 1)
+	resources[0] = newErrorResourceWithDetails("EVENT_ALREADY_RECEIVED", msg, err.Error())
+
+	return http.StatusConflict, newErrorResponse(http.StatusConflict, resources)
 }
 
 func notFound(errors ...error) (int, *errorResponse) {

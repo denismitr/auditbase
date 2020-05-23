@@ -52,7 +52,7 @@ const selectEntities = `
 func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagination) ([]*model.Entity, error) {
 	var entities []entity
 	query, args := createSelectEntitiesQuery(f, s, p)
-	r.logger.Debugf("q %s limit=%d offset=%d", query, p.PerPage, p.Offset())
+	r.logger.SQL(query, args)
 	stmt, err := r.conn.PrepareNamed(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not prepare named stmt to select entities")
@@ -69,6 +69,30 @@ func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagin
 	}
 
 	return result, nil
+}
+
+func (r *EntityRepository) Properties(ID string) ([]*model.PropertyStat, error) {
+	query := `
+		SELECT 
+			name, COUNT(event_id) AS event_count 
+		FROM properties 
+			WHERE entity_id = UUID_TO_BIN(?) 
+		GROUP BY name
+	`
+
+	var properties []propertyStat
+
+	if err := r.conn.Select(&properties, query, ID); err != nil {
+		return nil, errors.Wrapf(err, "could not get property stat from entity with ID [%s]", ID)
+	}
+
+	stats := make([]*model.PropertyStat, len(properties))
+
+	for i := range properties {
+		stats[i] = properties[i].ToModel()
+	}
+
+	return stats, nil
 }
 
 // Create an entity
@@ -141,7 +165,7 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 		return ent, nil
 	}
 
-	r.logger.Debugf(err.Error())
+	//r.logger.Debugf(err.Error())
 
 	ent = &model.Entity{
 		ID:          r.uuid4.Generate(),

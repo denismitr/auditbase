@@ -78,6 +78,7 @@ const entitySchema = `
 const propertySchema = `
 	CREATE TABLE IF NOT EXISTS properties (
 		id binary(16) PRIMARY KEY,
+		entity_id binary(16) NOT NULL,
 		event_id binary(16) NOT NULL,
 		name VARCHAR(64),
 		changed_from TEXT,

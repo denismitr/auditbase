@@ -1,8 +1,6 @@
 package model
 
 import (
-	"time"
-
 	"github.com/denismitr/auditbase/utils/errbag"
 	"github.com/denismitr/auditbase/utils/validator"
 )
@@ -18,8 +16,8 @@ type Event struct {
 	TargetEntity  Entity       `json:"targetEntity"`
 	TargetService Microservice `json:"targetService"`
 	EventName     string       `json:"eventName"`
-	EmittedAt     time.Time    `json:"emittedAt"`
-	RegisteredAt  time.Time    `json:"registeredAt"`
+	EmittedAt     JSONTime     `json:"emittedAt"`
+	RegisteredAt  JSONTime     `json:"registeredAt"`
 	Delta         []Property   `json:"delta"`
 }
 
@@ -63,5 +61,5 @@ type EventRepository interface {
 	Delete(ID) error
 	Count() (int, error)
 	FindOneByID(ID) (*Event, error)
-	Select(*Filter, *Sort, *Pagination) ([]*Event, error)
+	Select(*Filter, *Sort, *Pagination) ([]*Event, *Meta, error)
 }

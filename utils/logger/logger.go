@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,7 @@ const Prod = "prod"
 type Logger interface {
 	Error(err error)
 	Debugf(format string, args ...interface{})
+	SQL(query string, args map[string]interface{})
 }
 
 // NewStdoutLogger creates StdLogger that uses stderr and stdout for logging
@@ -36,7 +38,7 @@ type StdLogger struct {
 
 // Error - logs error message using error logger driver
 func (l *StdLogger) Error(err error) {
-	l.errLogger.Output(2, fmt.Sprintf("\nERROR in ["+l.env+"] env: %s", err.Error()))
+	_ = l.errLogger.Output(2, fmt.Sprintf("\nERROR in ["+l.env+"] env: %s", err.Error()))
 }
 
 // Debugf - prints debug message with params
@@ -45,5 +47,30 @@ func (l *StdLogger) Debugf(format string, args ...interface{}) {
 		return
 	}
 
-	l.debugLogger.Output(2, fmt.Sprintf("\nDEBUG in ["+l.env+"] "+format, args...))
+	_ = l.debugLogger.Output(2, fmt.Sprintf("\nDEBUG in ["+l.env+"] "+format, args...))
+}
+
+func (l *StdLogger) SQL(query string, args map[string]interface{}) {
+	if l.env == Prod {
+		return
+	}
+
+	var buf = &bytes.Buffer{}
+
+	buf.WriteString("\nSQL in [")
+	buf.WriteString(l.env)
+	buf.WriteString("] query: ")
+	buf.WriteString(query)
+	buf.WriteString(" \nargs: ")
+
+	i := 0
+	for k, v := range args {
+		if i + 1 < len(args) {
+			buf.WriteString(fmt.Sprintf("{%s: %#v}, ", k, v))
+		} else {
+			buf.WriteString(fmt.Sprintf("{%s: %#v}", k, v))
+		}
+	}
+
+	_ = l.debugLogger.Output(2, buf.String())
 }

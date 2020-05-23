@@ -10,7 +10,7 @@ services:
             - auditbase_db
             - auditbase_rabbit
         ports:
-            - "8888:3000"
+            - "8888:3001"
 
     auditbase_backoffice:
         container_name: auditbase_backoffice

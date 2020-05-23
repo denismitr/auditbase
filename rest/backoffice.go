@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"github.com/denismitr/auditbase/cache"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/clock"
@@ -18,6 +19,7 @@ func NewBackOfficeAPI(
 	microservices model.MicroserviceRepository,
 	events model.EventRepository,
 	entities model.EntityRepository,
+	cacher cache.Cacher,
 ) *API {
 	e.Use(middleware.Logger())
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))
@@ -27,7 +29,7 @@ func NewBackOfficeAPI(
 	uuid4 := uuid.NewUUID4Generator()
 
 	microservicesController := newMicroservicesController(log, uuid4, microservices)
-	eventsController := newEventsController(log, uuid4, clock.New(), events, ef)
+	eventsController := newEventsController(log, uuid4, clock.New(), events, ef, cacher)
 	entitiesController := newEntitiesController(log, uuid4, clock.New(), entities)
 
 	// Microservices
@@ -46,6 +48,7 @@ func NewBackOfficeAPI(
 	// Entities
 	e.GET("/api/v1/entities", entitiesController.index)
 	e.GET("/api/v1/entities/:id", entitiesController.show)
+	e.GET("/api/v1/entities/:id/properties", entitiesController.properties)
 
 	return &API{
 		e:   e,

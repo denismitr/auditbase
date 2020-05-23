@@ -3,41 +3,41 @@ Accept: application/json
 
 ###
 
-POST {{host}}/api/v1/microservices HTTP/1.1
+POST {{back-office}}/api/v1/microservices HTTP/1.1
 content-type: application/json
 
 {
-    "name": "accounting",
-    "description": "Accounting service"
+  "name": "accounting",
+  "description": "Accounting service"
 }
 
 ###
 
-POST {{host}}/api/v1/microservices HTTP/1.1
+POST {{back-office}}/api/v1/microservices HTTP/1.1
 content-type: application/json
 
 {
-    "name": "users-service",
-    "description": "Users service"
+  "name": "users-service",
+  "description": "Users service"
 }
 
 ###
 
-POST {{host}}/api/v1/microservices HTTP/1.1
+POST {{back-office}}/api/v1/microservices HTTP/1.1
 content-type: application/json
 
 {
-    "id": "35e46ed5-fe56-4445-878e-9c32ae54bfd0",
-    "name": "log",
-    "description": "Log service"
+  "id": "35e46ed5-fe56-4445-878e-9c32ae54bfd0",
+  "name": "log",
+  "description": "Log service"
 }
 
 ###
 
-PUT {{host}}/api/v1/microservices/35e46ed5-fe56-4445-878e-9c32ae54bfd0
+PUT {{back-office}}/api/v1/microservices/35e46ed5-fe56-4445-878e-9c32ae54bfd0
 content-type: application/json
 
 {
-    "name": "LOG",
-    "description": "The Log service"
+  "name": "LOG",
+  "description": "The Log service"
 }

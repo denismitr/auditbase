@@ -16,12 +16,28 @@ func IsEmptyString(s string) bool {
 	return s == ""
 }
 
-func StringLenGt(s string, max int) bool {
-	if len(s) > max {
-		return true
-	}
+func StringLenBetween(s string, min, max int) bool {
+	return len(s) > min && len(s) < max
+}
 
-	return false
+func StringLenBetweenOrEq(s string, min, max int) bool {
+	return len(s) >= min && len(s) <= max
+}
+
+func StringLenGt(s string, min int) bool {
+	return len(s) > min
+}
+
+func StringLenGte(s string, min int) bool {
+	return len(s) > min
+}
+
+func StringLenLt(s string , max int) bool {
+	return len(s) < max
+}
+
+func StringLenLte(s string , max int) bool {
+	return len(s) <= max
 }
 
 func IsUUID4(s string) bool {
