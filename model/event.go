@@ -6,9 +6,9 @@ import (
 )
 
 type Event struct {
-	ID            string `json:"id"`
-	ParentEventID string `json:"parentEventId"`
-	Hash          string
+	ID            string       `json:"id"`
+	ParentEventID string       `json:"parentEventId"`
+	Hash          string       `json:"hash"`
 	ActorID       string       `json:"actorId"`
 	ActorEntity   Entity       `json:"actorEntity"`
 	ActorService  Microservice `json:"actorService"`

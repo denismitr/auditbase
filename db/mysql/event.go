@@ -10,6 +10,7 @@ import (
 	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	sq "github.com/Masterminds/squirrel"
 )
 
 const createEvent = `
@@ -24,33 +25,6 @@ const createEvent = `
 		UUID_TO_BIN(:target_entity_id), UUID_TO_BIN(:target_service_id), :event_name, 
 		:emitted_at, :registered_at
 	)
-`
-
-const selectEvents = `
-	SELECT 
-		BIN_TO_UUID(e.id) as id, BIN_TO_UUID(parent_event_id) as parent_event_id,
-		hash, actor_id, BIN_TO_UUID(actor_entity_id) as actor_entity_id, 
-		BIN_TO_UUID(actor_service_id) as actor_service_id, 
-		target_id, BIN_TO_UUID(target_entity_id) as target_entity_id, 
-		BIN_TO_UUID(target_service_id) as target_service_id, 
-		event_name, emitted_at, registered_at,
-		ams.name as actor_service_name, tms.name as target_service_name,
-		ams.description as actor_service_description, tms.description as target_service_description,
-		ae.name as actor_entity_name, ae.description as actor_entity_description,
-		te.name as target_entity_name, te.description as target_entity_description 
-	FROM events as e
-		INNER JOIN microservices as ams
-	ON ams.id = e.actor_service_id
-		INNER JOIN microservices as tms
-	ON tms.id = e.target_service_id
-		INNER JOIN entities as ae
-	ON ae.id = e.actor_entity_id
-		INNER JOIN entities as te
-	ON te.id = e.target_entity_id
-`
-
-const countEvents = `
-	SELECT COUNT(*) as total FROM events e
 `
 
 const selectEventProperties = `
@@ -185,7 +159,11 @@ func (r *EventRepository) Count() (int, error) {
 }
 
 func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
-	stmt := selectEvents + " WHERE e.id = UUID_TO_BIN(?)"
+	selectEvents := createBaseSelectEventsQuery().Where("e.id = UUID_TO_BIN(?)")
+	stmt, _, err := selectEvents.ToSql()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not build query")
+	}
 
 	e := event{}
 	props := make([]property, 0)
@@ -264,7 +242,11 @@ func (r *EventRepository) Select(
 	sort *model.Sort,
 	pagination *model.Pagination,
 ) ([]*model.Event, *model.Meta, error) {
-	q := prepareSelectEventsQueryWithArgs(filter, sort, pagination)
+	q, err := prepareSelectEventsQueryWithArgs(filter, sort, pagination)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "could not create sql query")
+	}
+
 	r.log.SQL(q.query, q.queryArgs)
 	r.log.SQL(q.count, q.countArgs)
 
@@ -398,74 +380,114 @@ func prepareSelectEventsQueryWithArgs(
 	filter *model.Filter,
 	sort *model.Sort,
 	pagination *model.Pagination,
-) *selectWithMetaQuery {
-	sq := selectEvents
-	cq := countEvents
+) (*selectWithMetaQuery, error) {
+	selectEvents := createBaseSelectEventsQuery()
+	countEvents := createBaseCountEventsQuery()
 	args := make(map[string]interface{})
 
 	if filter.Has("actorEntityId") {
-		add := ` where actor_entity_id = UUID_TO_BIN(:actor_entity_id)`
-		sq += add
-		cq += add
+		w := `actor_entity_id = UUID_TO_BIN(:actor_entity_id)`
+		selectEvents = selectEvents.Where(w)
+		countEvents = countEvents.Where(w)
 		args["actor_entity_id"] = filter.MustString("actorEntityId")
 	}
 
 	if filter.Has("actorId") {
-		add := ` where actor_id = :actor_id`
-		sq += add
-		cq += add
+		w := `actor_id = :actor_id`
+		selectEvents = selectEvents.Where(w)
+		countEvents = countEvents.Where(w)
 		args["actor_id"] = filter.MustString("actorId")
 	}
 
 	if filter.Has("actorServiceId") {
-		add := ` where actor_service_id = UUID_TO_BIN(:actor_service_id)`
-		sq += add
-		cq += add
+		w := `actor_service_id = UUID_TO_BIN(:actor_service_id)`
+		selectEvents = selectEvents.Where(w)
+		countEvents = countEvents.Where(w)
 		args["actor_service_id"] = filter.MustString("actorServiceId")
 	}
 
 	if filter.Has("targetId") {
-		add := ` where actor_service_id = UUID_TO_BIN(:actor_service_id)`
-		sq += add
-		cq += add
+		w:= `actor_service_id = UUID_TO_BIN(:actor_service_id)`
+		selectEvents = selectEvents.Where(w)
+		countEvents = countEvents.Where(w)
 		args["target_id"] = filter.MustString("targetId")
 	}
 
 	if filter.Has("targetEntityId") {
-		add := ` where target_entity_id = UUID_TO_BIN(:target_entity_id)`
-		sq += add
-		cq += add
+		w := `target_entity_id = UUID_TO_BIN(:target_entity_id)`
+		selectEvents = selectEvents.Where(w)
+		countEvents = countEvents.Where(w)
 		args["target_entity_id"] = filter.MustString("targetEntityId")
 	}
 
 	if filter.Has("targetServiceId") {
-		add := ` where target_service_id = UUID_TO_BIN(:target_service_id)`
-		sq += add
-		cq += add
+		w := `target_service_id = UUID_TO_BIN(:target_service_id)`
+		selectEvents = selectEvents.Where(w)
+		countEvents = countEvents.Where(w)
 		args["target_service_id"] = filter.MustString("targetServiceId")
 	}
 
 	if filter.Has("eventName") {
-		add := ` where event_name = :event_name`
-		sq += add
-		cq += add
+		w := `event_name = :event_name`
+		selectEvents = selectEvents.Where(w)
+		countEvents = countEvents.Where(w)
 		args["event_name"] = filter.MustString("eventName")
 	}
 
 	if sort.Empty() {
-		sq += ` order by emitted_at DESC`
+		selectEvents = selectEvents.OrderBy("emitted_at DESC")
 	}
 
 	if pagination.Page > 0 && pagination.PerPage > 0 {
-		sq += ` limit :offset, :limit`
-		args["limit"] = pagination.PerPage
-		args["offset"] = pagination.Offset()
+		selectEvents = selectEvents.Limit(uint64(pagination.PerPage)).Offset(uint64(pagination.Offset()))
+	}
+
+	selectEventsQuery, _, err := selectEvents.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	countEventsQuery, _, err := countEvents.ToSql()
+	if err != nil {
+		return nil, err
 	}
 
 	return &selectWithMetaQuery{
-		query: sq,
-		count: cq,
+		query:     selectEventsQuery,
+		count:     countEventsQuery,
 		queryArgs: args,
 		countArgs: args,
-	}
+	}, nil
+}
+
+func createBaseSelectEventsQuery() sq.SelectBuilder {
+	query := sq.Select(
+		"BIN_TO_UUID(e.id) as id",
+		"BIN_TO_UUID(parent_event_id) as parent_event_id",
+		"BIN_TO_UUID(actor_entity_id) as actor_entity_id",
+		"BIN_TO_UUID(actor_service_id) as actor_service_id",
+		"BIN_TO_UUID(target_entity_id) as target_entity_id",
+		"BIN_TO_UUID(target_service_id) as target_service_id",
+		"hash", "actor_id", "target_id", "event_name",
+		"emitted_at", "registered_at",
+		"ams.name as actor_service_name",
+		"tms.name as target_service_name",
+		"ams.description as actor_service_description",
+		"tms.description as target_service_description",
+		"ae.name as actor_entity_name",
+		"ae.description as actor_entity_description",
+		"te.name as target_entity_name",
+		"te.description as target_entity_description",
+	)
+
+	query = query.From("events as e")
+	query = query.Join("microservices as ams ON ams.id = e.actor_service_id")
+	query = query.Join("microservices as tms ON tms.id = e.target_service_id")
+	query = query.Join("entities as ae ON ae.id = e.actor_entity_id")
+	query = query.Join("entities as te ON te.id = e.target_entity_id")
+	return query
+}
+
+func createBaseCountEventsQuery() sq.SelectBuilder {
+	return sq.Select("COUNT(*) as total FROM events e")
 }
