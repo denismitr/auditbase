@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/denismitr/auditbase/cache"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 
@@ -30,29 +31,23 @@ type Persister interface {
 }
 
 type DBPersister struct {
-	microservices model.MicroserviceRepository
-	events        model.EventRepository
-	entities      model.EntityRepository
-	logger        logger.Logger
-	cacher        cache.Cacher
+	factory model.RepositoryFactory
+	logger  logger.Logger
+	cacher  cache.Cacher
 
 	results []chan<- PersistenceResult
 }
 
 // NewDBPersister - creates neew persister
 func NewDBPersister(
-	microservices model.MicroserviceRepository,
-	events model.EventRepository,
-	entities model.EntityRepository,
+	factory model.RepositoryFactory,
 	logger logger.Logger,
 	cacher cache.Cacher,
 ) *DBPersister {
 	return &DBPersister{
-		microservices: microservices,
-		events:        events,
-		entities:      entities,
-		logger:        logger,
-		cacher:        cacher,
+		factory: factory,
+		logger:  logger,
+		cacher:  cacher,
 	}
 }
 
@@ -77,7 +72,7 @@ func (dbp *DBPersister) Persist(e *model.Event) error {
 		e.TargetEntity.Service = &e.TargetService
 	})
 
-	if err := dbp.events.Create(p.event()); err != nil {
+	if err := dbp.factory.Events().Create(p.event()); err != nil {
 		dbp.logger.Error(err)
 		dbp.notifyResultObservers(covertToPersistenceResult(err))
 		return ErrCouldNotCreateEvent
@@ -90,9 +85,13 @@ func (dbp *DBPersister) prepare(p *payload) {
 	remember := dbp.cacher.Remember(func(v, target interface{}) error {
 		switch t := target.(type) {
 		case *model.Microservice:
-			*t =  *v.(*model.Microservice)
+			*t = *v.(*model.Microservice)
 		case *model.Entity:
 			*t = *v.(*model.Entity)
+		case *model.Property:
+			*t = *v.(*model.Property)
+		case *string:
+			*t = *v.(*string)
 		default:
 			return cache.ErrCouldNotRawValueToTarget
 		}
@@ -104,12 +103,12 @@ func (dbp *DBPersister) prepare(p *payload) {
 	wg.Add(2)
 
 	go dbp.assignActorEntity(remember, p, &wg)
-	go dbp.assignTargetEntity(remember, p, &wg)
+	go dbp.assignTargetEntityAndProperties(remember, p, &wg)
 
 	wg.Wait()
 }
 
-func (dbp *DBPersister) assignTargetEntity(remember cache.RememberFunc, p *payload, wg *sync.WaitGroup) {
+func (dbp *DBPersister) assignTargetEntityAndProperties(remember cache.RememberFunc, p *payload, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	te := p.targetEntity()
@@ -119,7 +118,7 @@ func (dbp *DBPersister) assignTargetEntity(remember cache.RememberFunc, p *paylo
 	serviceCacheKey := model.MicroserviceItemCacheKey(ts.Name)
 
 	err := remember(serviceCacheKey, 3*time.Minute, service, func() (interface{}, error) {
-		v, err := dbp.microservices.FirstOrCreateByName(ts.Name)
+		v, err := dbp.factory.Microservices().FirstOrCreateByName(ts.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +135,7 @@ func (dbp *DBPersister) assignTargetEntity(remember cache.RememberFunc, p *paylo
 	entityCacheKey := model.EntityItemCacheKey(te.Name, service)
 
 	if err := remember(entityCacheKey, 5*time.Minute, targetEntity, func() (interface{}, error) {
-		v, err := dbp.entities.FirstOrCreateByNameAndService(te.Name, service)
+		v, err := dbp.factory.Entities().FirstOrCreateByNameAndService(te.Name, service)
 		if err != nil {
 			return nil, err
 		}
@@ -148,9 +147,24 @@ func (dbp *DBPersister) assignTargetEntity(remember cache.RememberFunc, p *paylo
 		return
 	}
 
+	props, err := dbp.getOrCreatePropertyIds(p.changingProperties(), targetEntity)
+	if err != nil {
+		dbp.logger.Error(err)
+		p.appendError(ErrDBWriteFailed)
+		return
+	}
+
 	p.update(func(e *model.Event) {
 		e.TargetEntity = *targetEntity
 		e.TargetService = *service
+
+		for name, id := range props {
+			for i := range e.Changes {
+				if e.Changes[i].PropertyName == name {
+					e.Changes[i].PropertyID = id
+				}
+			}
+		}
 	})
 }
 
@@ -163,8 +177,8 @@ func (dbp *DBPersister) assignActorEntity(remember cache.RememberFunc, p *payloa
 	service := new(model.Microservice)
 	serviceCacheKey := model.MicroserviceItemCacheKey(as.Name)
 
-	if err := remember(serviceCacheKey, 3 * time.Minute, service, func() (interface{}, error) {
-		v, err := dbp.microservices.FirstOrCreateByName(as.Name)
+	if err := remember(serviceCacheKey, 3*time.Minute, service, func() (interface{}, error) {
+		v, err := dbp.factory.Microservices().FirstOrCreateByName(as.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -178,8 +192,8 @@ func (dbp *DBPersister) assignActorEntity(remember cache.RememberFunc, p *payloa
 	entity := new(model.Entity)
 	entityCacheKey := model.EntityItemCacheKey(ae.Name, service)
 
-	if err := remember(entityCacheKey, 5 * time.Minute, entity, func() (interface{}, error) {
-		v, err := dbp.entities.FirstOrCreateByNameAndService(ae.Name, service)
+	if err := remember(entityCacheKey, 5*time.Minute, entity, func() (interface{}, error) {
+		v, err := dbp.factory.Entities().FirstOrCreateByNameAndService(ae.Name, service)
 		if err != nil {
 			return nil, err
 		}
@@ -203,4 +217,37 @@ func (dbp *DBPersister) notifyResultObservers(result PersistenceResult) {
 		default:
 		}
 	}
+}
+
+func (dbp *DBPersister) getOrCreatePropertyIds(propertyNames []string, entity *model.Entity) (map[string]string, error) {
+	sink := newPropertySink()
+
+	var wg sync.WaitGroup
+
+	for _, name := range propertyNames {
+		wg.Add(1)
+		go func(propertyName string) {
+			defer wg.Done()
+
+			id, err := dbp.factory.Properties().GetIDOrCreate(propertyName, entity.ID)
+
+			if err != nil {
+				sink.err(err)
+			} else {
+				sink.add(propertyName, id)
+			}
+		}(name)
+	}
+
+	wg.Wait()
+
+	if sink.hasErrors() {
+		return nil, sink.firstError()
+	}
+
+	if sink.count() != len(propertyNames) {
+		return nil, errors.Errorf("could not get all IDs for all properties: %#v", propertyNames)
+	}
+
+	return sink.all(), nil
 }

@@ -34,19 +34,19 @@ func (m *MockReceivedEvent) EXPECT() *MockReceivedEventMockRecorder {
 	return m.recorder
 }
 
-// Event mocks base method
+// Events mocks base method
 func (m *MockReceivedEvent) Event() (model.Event, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Event")
+	ret := m.ctrl.Call(m, "Events")
 	ret0, _ := ret[0].(model.Event)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Event indicates an expected call of Event
+// Events indicates an expected call of Events
 func (mr *MockReceivedEventMockRecorder) Event() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Event", reflect.TypeOf((*MockReceivedEvent)(nil).Event))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Events", reflect.TypeOf((*MockReceivedEvent)(nil).Event))
 }
 
 // CloneMsgToRequeue mocks base method

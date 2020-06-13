@@ -15,18 +15,35 @@ func extractIDParamFrom(ctx echo.Context) model.ID {
 	return model.ID(id)
 }
 
+type Change struct {
+	PropertyName        string `json:"propertyName"`
+	CurrentPropertyType string `json:"currentPropertyType"`
+	From                string `json:"from"`
+	To                  string `json:"to"`
+}
+
+func (c *Change) ToModel(eventID string) *model.PropertyChange {
+	return &model.PropertyChange{
+		PropertyName: c.PropertyName,
+		EventID:      eventID,
+		From:         interfaceToString(c.From),
+		To:           interfaceToString(c.To),
+	}
+}
+
 type CreateEvent struct {
-	ID            string                   `json:"id"`
-	ActorID       string                   `json:"actorId"`
-	ActorEntity   string                   `json:"actorEntity"`
-	ActorService  string                   `json:"actorService"`
-	TargetID      string                   `json:"targetId"`
-	TargetEntity  string                   `json:"targetEntity"`
-	TargetService string                   `json:"targetService"`
-	EventName     string                   `json:"eventName"`
-	EmittedAt     int64                    `json:"emittedAt"`
-	RegisteredAt  int64                    `json:"registeredAt"`
-	Delta         map[string][]interface{} `json:"delta"`
+	ID            string   `json:"id"`
+	Operation     string   `json:"operation"`
+	ActorID       string   `json:"actorId"`
+	ActorEntity   string   `json:"actorEntity"`
+	ActorService  string   `json:"actorService"`
+	TargetID      string   `json:"targetId"`
+	TargetEntity  string   `json:"targetEntity"`
+	TargetService string   `json:"targetService"`
+	EventName     string   `json:"eventName"`
+	EmittedAt     int64    `json:"emittedAt"`
+	RegisteredAt  int64    `json:"registeredAt"`
+	Changes       []Change `json:"changes"`
 }
 
 func (ce CreateEvent) Validate() *errbag.ErrorBag {
@@ -56,29 +73,20 @@ func (ce CreateEvent) Validate() *errbag.ErrorBag {
 		eb.Add("targetService", ErrTargetServiceEmpty)
 	}
 
+	for i := range ce.Changes {
+		if validator.IsEmptyString(ce.Changes[i].PropertyName) {
+			eb.Add(fmt.Sprintf("changes.%d", i), ErrEmptyPropertyName)
+		}
+	}
+
 	return eb
 }
 
 func (ce CreateEvent) ToEvent() *model.Event {
-	props := make([]model.Property, len(ce.Delta))
+	changes := make([]*model.PropertyChange, len(ce.Changes))
 
-	i := 0
-	for k, values := range ce.Delta {
-		if len(values) != 2 {
-			continue
-		}
-
-		changedTo := interfaceToString(values[1])
-		changedFrom := interfaceToString(values[0])
-
-		props[i] = model.Property{
-			Name:        k,
-			EventID:     ce.ID,
-			ChangedFrom: changedFrom,
-			ChangedTo:   changedTo,
-		}
-
-		i++
+	for i := range ce.Changes {
+		changes[i] = ce.Changes[i].ToModel(ce.ID)
 	}
 
 	return &model.Event{
@@ -100,7 +108,7 @@ func (ce CreateEvent) ToEvent() *model.Event {
 		EventName:    ce.EventName,
 		EmittedAt:    model.JSONTime{Time: clock.TimestampToTime(ce.EmittedAt)},
 		RegisteredAt: model.JSONTime{Time: clock.TimestampToTime(ce.RegisteredAt)},
-		Delta:        props,
+		Changes:      changes,
 	}
 }
 

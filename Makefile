@@ -12,13 +12,16 @@ vars:
 	@echo REST_PORT=${REST_PORT}
 	@echo PERCONA_PORT=${PERCONA_PORT}
 
-.PHONY: test clean mock wrk debug
+.PHONY: test clean mock wrk debug recompile up
 
 up: vars
-	docker-compose -f docker-compose-dev.yml up --build --force-recreate
+	docker-compose -f docker-compose-dev.yml up -d --build --force-recreate
 
 down:
 	docker-compose -f docker-compose-dev.yml down --remove-orphans
+
+recompile:
+	docker-compose -f docker-compose-dev.yml up -d --build --force-recreate auditbase_receiver auditbase_backoffice auditbase_consumer auditbase_errors_consumer
 
 clean:
 	docker-compose -f docker-compose-dev.yml down --remove-orphans
@@ -39,6 +42,9 @@ mock:
 	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
 	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
 	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
+
+test-local:
+	go test ./db/mysql
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate

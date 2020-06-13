@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -19,16 +20,19 @@ type microservice struct {
 type MicroserviceRepository struct {
 	conn  *sqlx.DB
 	uuid4 uuid.UUID4Generator
+	log logger.Logger
 }
 
 // NewMicroserviceRepository - constructor function
 func NewMicroserviceRepository(
 	conn *sqlx.DB,
 	uuid4 uuid.UUID4Generator,
+	log logger.Logger,
 ) *MicroserviceRepository {
 	return &MicroserviceRepository{
 		conn:  conn,
 		uuid4: uuid4,
+		log: log,
 	}
 }
 

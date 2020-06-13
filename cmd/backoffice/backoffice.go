@@ -92,7 +92,7 @@ func createBackOffice() (*rest.API, error) {
 		panic(err)
 	}
 
-	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
+	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4, lg)
 	events := mysql.NewEventRepository(dbConn, uuid4, lg)
 	entities := mysql.NewEntityRepository(dbConn, uuid4, lg)
 

@@ -196,6 +196,8 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 		nil,      // args
 	)
 
+
+
 	if err != nil {
 		panic(err)
 	}

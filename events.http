@@ -10,7 +10,7 @@ Accept: application/json
 
 ###
 
-GET {{back-office}}/api/v1/events?
+GET {{back-office}}/api/v1/events
 Content-Type: application/json
 Accept: application/json
 

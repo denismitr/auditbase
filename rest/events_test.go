@@ -76,14 +76,14 @@ func TestCreateEventWith(t *testing.T) {
 
 	// 		id := "11122233-4445-43b0-9c71-797da1da242b"
 
-	// 		fakeEvent := model.Event{
+	// 		fakeEvent := model.Events{
 	// 			ID:            "",
 	// 			TargetID:      "1234",
 	// 			TargetType:    model.TargetType{Name: "article"},
-	// 			TargetService: model.Microservice{Name: "article-storage"},
+	// 			TargetService: model.Microservices{Name: "article-storage"},
 	// 			ActorID:       "4321",
 	// 			ActorType:     model.ActorType{Name: "editor"},
-	// 			ActorService:  model.Microservice{Name: "back-office"},
+	// 			ActorService:  model.Microservices{Name: "back-office"},
 	// 			EventName:     "article_published",
 	// 			EmittedAt:     1578173213,
 	// 			RegisteredAt:  1578173214,
@@ -131,14 +131,14 @@ func TestCreateEventWith(t *testing.T) {
 
 	// 		id := "11122233-4445-43b0-9c71-797da1da242b"
 
-	// 		fakeEvent := model.Event{
+	// 		fakeEvent := model.Events{
 	// 			ID:            id,
 	// 			TargetID:      "1234",
 	// 			TargetType:    model.TargetType{Name: "article"},
-	// 			TargetService: model.Microservice{Name: "article-storage"},
+	// 			TargetService: model.Microservices{Name: "article-storage"},
 	// 			ActorID:       "4321",
 	// 			ActorType:     model.ActorType{Name: "editor"},
-	// 			ActorService:  model.Microservice{Name: "back-office"},
+	// 			ActorService:  model.Microservices{Name: "back-office"},
 	// 			EventName:     "article_published",
 	// 			EmittedAt:     1578173213,
 	// 			RegisteredAt:  1578173214,

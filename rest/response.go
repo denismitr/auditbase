@@ -76,9 +76,12 @@ func newEntitiesResponse(es []*model.Entity) *collectionResponse {
 	return newCollectionResponse(items, nil) // fixme
 }
 
-func newEntityWithPropertiesResponse(e *model.Entity, ps []*model.PropertyStat) *itemResponse {
-	return newItemResponse(
-		newJsonApiResponse("entities", e.ID, newEntityWithPropertiesAttributes(e, ps)))
+func newPropertiesResponse(ps []*model.Property) *collectionResponse {
+	items := make([]*jsonApiResponse, len(ps))
+	for i := range ps {
+		items[i] = newJsonApiResponse("properties", ps[i].ID, newPropertyAttributes(ps[i]))
+	}
+	return newCollectionResponse(items, nil)
 }
 
 func newMicroservicesResponse(ms []*model.Microservice) *collectionResponse {

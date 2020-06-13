@@ -6,6 +6,7 @@ import (
 	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	sq "github.com/Masterminds/squirrel"
 )
 
 type entity struct {
@@ -71,28 +72,47 @@ func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagin
 	return result, nil
 }
 
-func (r *EntityRepository) Properties(ID string) ([]*model.PropertyStat, error) {
-	query := `
-		SELECT 
-			name, COUNT(event_id) AS event_count 
-		FROM properties 
-			WHERE entity_id = UUID_TO_BIN(?) 
-		GROUP BY name
-	`
+func (r *EntityRepository) Properties(ID string) ([]*model.Property, error) {
+	query, err := createSelectPropertiesForEntity(ID)
 
-	var properties []propertyStat
+	if err != nil {
+		return nil, err
+	}
+
+	r.logger.Debugf(query)
+
+	var properties []property
 
 	if err := r.conn.Select(&properties, query, ID); err != nil {
 		return nil, errors.Wrapf(err, "could not get property stat from entity with ID [%s]", ID)
 	}
 
-	stats := make([]*model.PropertyStat, len(properties))
+	stats := make([]*model.Property, len(properties))
 
 	for i := range properties {
 		stats[i] = properties[i].ToModel()
 	}
 
 	return stats, nil
+}
+
+func createSelectPropertiesForEntity(_ string) (string, error) {
+	query, _, err := sq.Select(
+		"BIN_TO_UUID(p.id) as id",
+		"BIN_TO_UUID(p.entity_id) as entity_id",
+		"COUNT(c.id) as change_count",
+		"p.name", "p.type",
+	).From(
+		"properties as p",
+	).Join(
+		"changes as c ON c.property_id = p.id",
+	).Where(
+		"p.entity_id = UUID_TO_BIN(?)",
+	).GroupBy(
+		"p.id", "p.entity_id", "p.name", "p.type",
+	).ToSql()
+
+	return query, err
 }
 
 // Create an entity

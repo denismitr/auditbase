@@ -67,17 +67,17 @@ func (e *entities) properties(ctx echo.Context) error {
 		return ctx.JSON(badRequest(errors.New("ID is missing or invalid")))
 	}
 
-	entity, err := e.er.FirstByID(ID)
+	_, err := e.er.FirstByID(ID)
 	if err != nil {
 		e.logger.Error(err)
 		return ctx.JSON(notFound(err))
 	}
 
-	stats, err := e.er.Properties(ID)
+	properties, err := e.er.Properties(ID)
 	if err != nil {
 		e.logger.Error(err)
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(200, newEntityWithPropertiesResponse(entity, stats))
+	return ctx.JSON(200, newPropertiesResponse(properties))
 }

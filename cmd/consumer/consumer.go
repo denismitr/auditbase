@@ -76,12 +76,11 @@ func run(log logger.Logger, cfg flow.Config, consumerName, queueName string) {
 		panic(err)
 	}
 
-	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
-	events := mysql.NewEventRepository(dbConn, uuid4, log)
-	entities := mysql.NewEntityRepository(dbConn, uuid4, log)
+	factory := mysql.NewRepositoryFactory(dbConn, uuid4, log)
+
 
 	cacher := connectRedis(log)
-	persister := db.NewDBPersister(microservices, events, entities, log, cacher)
+	persister := db.NewDBPersister(factory, log, cacher)
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 3)
 
 	if err := mq.Connect(); err != nil {
