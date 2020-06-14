@@ -81,9 +81,9 @@ const propertySchema = `
 		id binary(16) PRIMARY KEY,
 		entity_id binary(16) NOT NULL,
 		name VARCHAR(64) NOT NULL,
-		type VARCHAR(20),
-
+		
 		UNIQUE KEY unique_entity_and_name (entity_id, name),
+		INDEX name_index (name),
 
 		FOREIGN KEY (entity_id)
         REFERENCES entities(id)
@@ -98,6 +98,7 @@ const changeSchema = `
 		event_id binary(16) NOT NULL,
 		from_value TEXT,
 		to_value TEXT,
+		current_data_type VARCHAR(20),
 
 		INDEX event_and_property_index (event_id, property_id),
 		INDEX event_index (event_id),

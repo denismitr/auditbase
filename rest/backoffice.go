@@ -29,6 +29,7 @@ func NewBackOfficeAPI(
 	microservicesController := newMicroservicesController(log, uuid4, factory.Microservices())
 	eventsController := newEventsController(log, uuid4, clock.New(), factory.Events(), ef, cacher)
 	entitiesController := newEntitiesController(log, uuid4, clock.New(), factory.Entities())
+	propertiesController := newPropertiesController(uuid4, log, factory.Properties())
 
 	// Microservices
 	e.GET("/api/v1/microservices", microservicesController.index)
@@ -46,7 +47,9 @@ func NewBackOfficeAPI(
 	// Entities
 	e.GET("/api/v1/entities", entitiesController.index)
 	e.GET("/api/v1/entities/:id", entitiesController.show)
-	e.GET("/api/v1/entities/:id/properties", entitiesController.properties)
+
+	// Properties
+	e.GET("/api/v1/properties", propertiesController.index)
 
 	return &API{
 		e:   e,

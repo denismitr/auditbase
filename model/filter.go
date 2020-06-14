@@ -37,6 +37,10 @@ func (s *Sort) Has(k string) bool {
 	return false
 }
 
+func (s *Sort) All()  map[string]Order {
+	return s.items
+}
+
 func (s *Sort) GetOrDefault(k string, d Order) Order {
 	v, ok := s.items[k]
 	if !ok {
@@ -53,12 +57,14 @@ func (s *Sort) Empty() bool {
 type Filter struct {
 	allowed []string
 	items map[string]string
+	includeCount []string
 }
 
 func NewFilter(allowed []string) *Filter {
 	return &Filter{
 		items: make(map[string]string),
 		allowed: allowed,
+		includeCount: make([]string, 0),
 	}
 }
 
@@ -74,6 +80,11 @@ func (f *Filter) Allows(k string) bool {
 	}
 
 	return false
+}
+
+func (f *Filter) IncludeCount(includes ...string) *Filter {
+	f.includeCount = append(f.includeCount, includes...)
+	return f
 }
 
 func (f *Filter) Add(k, v string) *Filter {

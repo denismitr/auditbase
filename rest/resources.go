@@ -72,7 +72,6 @@ func newPropertyAttributes(p *model.Property) *propertyAttributes {
 	return &propertyAttributes{
 		Name:        p.Name,
 		EntityID:    p.EntityID,
-		Type:        p.Type,
 		ChangeCount: p.ChangeCount,
 		Changes:     p.Changes,
 	}

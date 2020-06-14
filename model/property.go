@@ -4,7 +4,6 @@ type Property struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	EntityID    string   `json:"entityId"`
-	Type        string   `json:"type"`
 	ChangeCount int      `json:"changeCount"`
 	Changes     []Change `json:"changes"`
 }
@@ -16,4 +15,6 @@ type PropertyStat struct {
 
 type PropertyRepository interface {
 	GetIDOrCreate(name, entityID string) (string, error)
+	FirstByID(ID string) (*Property, error)
+	Select(*Filter, *Sort, *Pagination) ([]*Property, *Meta, error)
 }
