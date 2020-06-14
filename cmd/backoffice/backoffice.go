@@ -92,9 +92,7 @@ func createBackOffice() (*rest.API, error) {
 		panic(err)
 	}
 
-	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4, lg)
-	events := mysql.NewEventRepository(dbConn, uuid4, lg)
-	entities := mysql.NewEntityRepository(dbConn, uuid4, lg)
+	factory := mysql.NewRepositoryFactory(dbConn, uuid4, lg)
 
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), lg, 4)
 
@@ -121,14 +119,5 @@ func createBackOffice() (*rest.API, error) {
 
 	cacher := connectRedis(lg)
 
-	return rest.NewBackOfficeAPI(
-		e,
-		restCfg,
-		lg,
-		ef,
-		microservices,
-		events,
-		entities,
-		cacher,
-	), nil
+	return rest.NewBackOfficeAPI(e, restCfg, lg, ef, factory, cacher), nil
 }

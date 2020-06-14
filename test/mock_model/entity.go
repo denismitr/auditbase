@@ -92,6 +92,21 @@ func (mr *MockEntityRepositoryMockRecorder) FirstByID(arg0 interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FirstByID", reflect.TypeOf((*MockEntityRepository)(nil).FirstByID), arg0)
 }
 
+// Properties mocks base method
+func (m *MockEntityRepository) Properties(ID string) ([]*model.Property, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Properties", ID)
+	ret0, _ := ret[0].([]*model.Property)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Properties indicates an expected call of Properties
+func (mr *MockEntityRepositoryMockRecorder) Properties(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Properties", reflect.TypeOf((*MockEntityRepository)(nil).Properties), ID)
+}
+
 // FirstOrCreateByNameAndService mocks base method
 func (m *MockEntityRepository) FirstOrCreateByNameAndService(arg0 string, arg1 *model.Microservice) (*model.Entity, error) {
 	m.ctrl.T.Helper()

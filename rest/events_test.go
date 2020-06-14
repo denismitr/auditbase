@@ -2,11 +2,8 @@ package rest
 
 import (
 	"encoding/json"
-	"net/http"
-	"testing"
-	"time"
-
 	"github.com/denismitr/auditbase/test"
+	"github.com/denismitr/auditbase/test/mock_cache"
 	"github.com/denismitr/auditbase/test/mock_flow"
 	"github.com/denismitr/auditbase/test/mock_model"
 	"github.com/denismitr/auditbase/test/mock_utils/mock_clock"
@@ -15,6 +12,9 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
+	"net/http"
+	"testing"
+	"time"
 )
 
 func TestCreateEventWith(t *testing.T) {
@@ -29,7 +29,9 @@ func TestCreateEventWith(t *testing.T) {
 		flowMock := mock_flow.NewMockEventFlow(ctrl)
 		clockMock := mock_clock.NewMockClock(ctrl)
 		uuidMock := mock_uuid.NewMockUUID4Generator(ctrl)
+		cacheMock := mock_cache.NewMockCacher(ctrl)
 
+		// Todo: create event factory
 		fakeEvent := CreateEvent{
 			ID:            "897fe984-4445-43b0-9c71-797da1da242b",
 			TargetID:      "1234",
@@ -41,15 +43,17 @@ func TestCreateEventWith(t *testing.T) {
 			EventName:     "article_published",
 			EmittedAt:     int64(1578173213),
 			RegisteredAt:  int64(1578173214),
-			Delta:         map[string][]interface{}{"name": []interface{}{"PENDING", "PUBLISHED"}},
+			Changes:       make([]Change, 0),
 		}
 
 		body, _ := json.Marshal(fakeEvent)
 
 		clockMock.EXPECT().CurrentTime().Return(time.Unix(1578173214, 0))
 		flowMock.EXPECT().Send(gomock.Any()).Return(nil)
+		cacheMock.EXPECT().Has(gomock.Any()).Return(false, nil) // fixme
+		cacheMock.EXPECT().CreateKey(gomock.Any(), 1 * time.Minute).Return(nil)
 
-		controller := newEventsController(log, uuidMock, clockMock, eventsMock, flowMock)
+		controller := newEventsController(log, uuidMock, clockMock, eventsMock, flowMock, cacheMock)
 
 		req := test.Request{
 			Method:            http.MethodPost,

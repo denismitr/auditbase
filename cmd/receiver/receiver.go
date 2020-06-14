@@ -44,7 +44,7 @@ func main() {
 		panic(err)
 	}
 
-	events := mysql.NewEventRepository(dbConn, uuid4, log)
+	factory := mysql.NewRepositoryFactory(dbConn, uuid4, log)
 
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 4)
 
@@ -67,7 +67,7 @@ func main() {
 	e := echo.New()
 	cacher := connectRedis(log)
 
-	receiver := rest.NewReceiverAPI(e, restCfg, log, events, ef, cacher)
+	receiver := rest.NewReceiverAPI(e, restCfg, log, factory, ef, cacher)
 
 	terminate := make(chan os.Signal)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)

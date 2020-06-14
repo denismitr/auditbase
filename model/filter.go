@@ -124,6 +124,10 @@ type Pagination struct {
 }
 
 func (p *Pagination) Offset() int {
+	if p.Page <= 1 {
+		return 0
+	}
+
 	return (p.Page - 1) * p.PerPage
 }
 

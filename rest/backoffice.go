@@ -16,9 +16,7 @@ func NewBackOfficeAPI(
 	cfg Config,
 	log logger.Logger,
 	ef flow.EventFlow,
-	microservices model.MicroserviceRepository,
-	events model.EventRepository,
-	entities model.EntityRepository,
+	factory model.RepositoryFactory,
 	cacher cache.Cacher,
 ) *API {
 	e.Use(middleware.Logger())
@@ -28,9 +26,9 @@ func NewBackOfficeAPI(
 
 	uuid4 := uuid.NewUUID4Generator()
 
-	microservicesController := newMicroservicesController(log, uuid4, microservices)
-	eventsController := newEventsController(log, uuid4, clock.New(), events, ef, cacher)
-	entitiesController := newEntitiesController(log, uuid4, clock.New(), entities)
+	microservicesController := newMicroservicesController(log, uuid4, factory.Microservices())
+	eventsController := newEventsController(log, uuid4, clock.New(), factory.Events(), ef, cacher)
+	entitiesController := newEntitiesController(log, uuid4, clock.New(), factory.Entities())
 
 	// Microservices
 	e.GET("/api/v1/microservices", microservicesController.index)

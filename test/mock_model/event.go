@@ -92,12 +92,13 @@ func (mr *MockEventRepositoryMockRecorder) FindOneByID(arg0 interface{}) *gomock
 }
 
 // Select mocks base method
-func (m *MockEventRepository) Select(arg0 model.EventFilter, arg1 *model.Sort, arg2 model.Pagination) ([]*model.Event, error) {
+func (m *MockEventRepository) Select(arg0 *model.Filter, arg1 *model.Sort, arg2 *model.Pagination) ([]*model.Event, *model.Meta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Select", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*model.Event)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(*model.Meta)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Select indicates an expected call of Select

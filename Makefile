@@ -34,17 +34,19 @@ clean:
 mock:
 	mockgen -source flow/flow.go -destination ./test/mock_flow/flow.go
 	mockgen -source flow/event.go -destination ./test/mock_flow/event.go
+	mockgen -source cache/cache.go -destination ./test/mock_cache/cache.go
 	mockgen -source queue/queue.go -destination ./test/mock_queue/queue.go
 	mockgen -source queue/message.go -destination ./test/mock_queue/message.go
 	mockgen -source model/event.go -destination ./test/mock_model/event.go
 	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
 	mockgen -source model/entity.go -destination ./test/mock_model/entity.go
+	mockgen -source model/factory.go -destination ./test/mock_model/factory.go
 	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
 	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
 	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
 
 test-local:
-	go test ./db/mysql
+	go test ./db/mysql ./model ./rest
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
