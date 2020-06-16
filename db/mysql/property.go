@@ -48,7 +48,22 @@ func (p *property) ToModel() *model.Property {
 }
 
 func (p *PropertyRepository) FirstByID(ID string) (*model.Property, error) {
-	panic("implement me")
+	sql, args, err := createFirstByIDQuery(ID)
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err := p.conn.Preparex(sql)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not prepare %s statement", sql)
+	}
+
+	var prop property
+	if err := stmt.Get(&prop, args...); err != nil {
+		return nil, errors.Wrapf(err, "could not get property with ID %s", ID)
+	}
+
+	return prop.ToModel(), nil
 }
 
 func (p *PropertyRepository) Select(filter *model.Filter, sort *model.Sort, pagination *model.Pagination) ([]*model.Property, *model.Meta, error) {
@@ -89,29 +104,31 @@ func (p *PropertyRepository) Select(filter *model.Filter, sort *model.Sort, pagi
 func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error) {
 	var result string
 
-	_, err := sq.Insert("properties").
-		Columns("id", "name", "entity_id").
-		Values(
-			sq.Expr("UUID_TO_BIN(?)", r.uuid4.Generate()),
-			name,
-			sq.Expr("UUID_TO_BIN(?)", entityID),
-		).RunWith(r.conn).Query()
-
+	createSql, createArgs, err := createInsertPropertyQuery(r.uuid4.Generate(), name, entityID)
 	if err != nil {
+		return result, errors.Wrap(err, "could not create insert property query")
+	}
+
+	getSql, getArgs, err := createGetPropertyIDQuery(name, entityID)
+	if err != nil {
+		return result, errors.Wrap(err, "could not create get property ID query")
+	}
+
+	createStmt, err := r.conn.Preparex(createSql)
+	if err != nil {
+		return result, errors.Wrap(err, "could not prepare insert property query")
+	}
+
+	getStmt, err := r.conn.Preparex(getSql)
+	if err != nil {
+		return result, errors.Wrap(err, "could not prepare get property ID query")
+	}
+
+	if _, err := createStmt.Exec(createArgs...); err != nil {
 		r.log.Error(err)
 	}
 
-	id := sq.
-		Select("BIN_TO_UUID(id) as id").
-		From("properties").
-		Where(sq.Eq{"name": name}).
-		Where("entity_id = UUID_TO_BIN(?)", entityID).
-		Limit(1)
-
-	sql, args, _ := id.ToSql()
-	r.log.Debugf("%s -- %#v", sql, args)
-
-	rows, err := id.RunWith(r.conn).Query()
+	rows, err := getStmt.Query(getArgs...)
 	if err != nil {
 		return result, errors.Wrapf(err, "could not select id from property with name %s and entityID %s", name, entityID)
 	}
@@ -125,6 +142,60 @@ func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error
 	}
 
 	return result, errors.Errorf("failed to create or retrieve property with name %s and entityId %s", name, entityID)
+}
+
+func createInsertPropertyQuery(ID, name, entityID string) (string, []interface{}, error) {
+	if validator.IsEmptyString(name) {
+		return "", nil, errors.New("property name is empty")
+	}
+
+	if ! validator.IsUUID4(entityID) {
+		return "", nil, errors.Errorf("%s is not a valid uuid4", entityID)
+	}
+
+	if ! validator.IsUUID4(ID) {
+		return "", nil, errors.Errorf("%s is not a valid uuid4", ID)
+	}
+
+	return sq.Insert("properties").
+		Columns("id", "name", "entity_id").
+		Values(
+			sq.Expr("UUID_TO_BIN(?)", ID),
+			name,
+			sq.Expr("UUID_TO_BIN(?)", entityID),
+		).ToSql()
+}
+
+func createGetPropertyIDQuery(name, entityID string) (string, []interface{}, error) {
+	if validator.IsEmptyString(name) {
+		return "", nil, errors.New("property name is empty")
+	}
+
+	if ! validator.IsUUID4(entityID) {
+		return "", nil, errors.Errorf("%s is not a valid uuid4", entityID)
+	}
+
+	return sq.
+		Select("BIN_TO_UUID(id) as id").
+		From("properties").
+		Where(sq.Eq{"name": name}).
+		Where("entity_id = UUID_TO_BIN(?)", entityID).
+		Limit(1).ToSql()
+}
+
+func createFirstByIDQuery(ID string) (string, []interface{}, error) {
+	if ! validator.IsUUID4(ID) {
+		return "", nil, errors.Errorf("%s is not a valid uuid4", ID)
+	}
+
+	return sq.Select(
+		"BIN_TO_UUID(p.id) as id",
+		"BIN_TO_UUID(p.entity_id) as entity_id",
+		"p.name",
+	).
+		From("properties as p").
+		Where("p.id = UUID_TO_BIN(?)", ID).
+		ToSql()
 }
 
 func createSelectPropertiesQuery(
