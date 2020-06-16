@@ -28,7 +28,7 @@ func main() {
 	debug()
 
 	fmt.Println("Waiting for DB connection...")
-	time.Sleep(25 * time.Second)
+	time.Sleep(40 * time.Second)
 
 	log := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 	uuid4 := uuid.NewUUID4Generator()

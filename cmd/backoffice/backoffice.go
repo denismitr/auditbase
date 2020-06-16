@@ -30,7 +30,7 @@ func main() {
 	debug(env.IsTruthy("APP_TRACE"))
 
 	fmt.Println("Waiting for DB connection...")
-	time.Sleep(20 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	backOffice, err := createBackOffice()
 	if err != nil {

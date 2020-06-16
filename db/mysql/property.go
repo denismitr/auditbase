@@ -89,7 +89,7 @@ func (p *PropertyRepository) Select(filter *model.Filter, sort *model.Sort, pagi
 		return nil, nil, errors.Wrap(err, "could not select properties")
 	}
 
-	if err := countStmt.Select(&m, q.selectArgs...); err != nil {
+	if err := countStmt.Get(&m, q.selectArgs...); err != nil {
 		return nil, nil, errors.Wrap(err, "could not select properties")
 	}
 

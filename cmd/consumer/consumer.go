@@ -61,7 +61,7 @@ func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (st
 
 func run(log logger.Logger, cfg flow.Config, consumerName, queueName string) {
 	fmt.Println("Waiting for DB connection")
-	time.Sleep(20 * time.Second)
+	time.Sleep(40 * time.Second)
 
 	uuid4 := uuid.NewUUID4Generator()
 
