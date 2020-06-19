@@ -88,3 +88,17 @@ func (mr *MockRepositoryFactoryMockRecorder) Microservices() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Microservices", reflect.TypeOf((*MockRepositoryFactory)(nil).Microservices))
 }
+
+// Changes mocks base method
+func (m *MockRepositoryFactory) Changes() model.ChangeRepository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Changes")
+	ret0, _ := ret[0].(model.ChangeRepository)
+	return ret0
+}
+
+// Changes indicates an expected call of Changes
+func (mr *MockRepositoryFactoryMockRecorder) Changes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Changes", reflect.TypeOf((*MockRepositoryFactory)(nil).Changes))
+}

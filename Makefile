@@ -40,6 +40,8 @@ mock:
 	mockgen -source model/event.go -destination ./test/mock_model/event.go
 	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
 	mockgen -source model/entity.go -destination ./test/mock_model/entity.go
+	mockgen -source model/change.go -destination ./test/mock_model/change.go
+	mockgen -source model/property.go -destination ./test/mock_model/property.go
 	mockgen -source model/factory.go -destination ./test/mock_model/factory.go
 	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
 	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
