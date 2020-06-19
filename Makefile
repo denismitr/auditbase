@@ -47,7 +47,7 @@ mock:
 	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
 	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
 
-test-local:
+test/local:
 	go test ./db/mysql ./model ./rest
 
 test:

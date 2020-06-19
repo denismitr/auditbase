@@ -48,7 +48,7 @@ func TestChangesController(t *testing.T) {
 
 		req := test.Request{
 			Method:            http.MethodPut,
-			Target:            "/api/v1/microservices/:id",
+			Target:            "/api/v1/changes/:id",
 			IsContentTypeJSON: true,
 			Controller:        newChangesController(uuidMock, lg, repoMock).show,
 			Segments:          map[string]string{"id": id},

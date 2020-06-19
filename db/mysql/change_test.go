@@ -31,11 +31,11 @@ func TestCreateSelectChangesQuery(t *testing.T) {
 			err:        nil,
 		},
 		{
-			name:       "default",
+			name:       "with-property-id-and-event-id",
 			selectSQL:  `SELECT BIN_TO_UUID(c.id) as id, BIN_TO_UUID(c.property_id) as property_id, BIN_TO_UUID(c.event_id) as event_id, e.emitted_at as created_at, from_value, to_value FROM changes as c JOIN events as e on e.id = c.event_id WHERE c.property_id = UUID_TO_BIN(?) AND c.event_id = UUID_TO_BIN(?) ORDER BY e.emitted_at DESC LIMIT 30 OFFSET 0`,
 			countSQL:   `SELECT count(*) as total FROM changes as c WHERE c.property_id = UUID_TO_BIN(?) AND c.event_id = UUID_TO_BIN(?)`,
-			countArgs:  []interface {}{"bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11", "bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11"},
-			selectArgs: []interface {}{"bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11", "bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11"},
+			countArgs:  []interface{}{"bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11", "bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11"},
+			selectArgs: []interface{}{"bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11", "bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11"},
 			propertyID: "bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11",
 			eventID:    "eadd1efe-2430-4c9c-a7fc-04d1a8e82e96",
 			page:       1,
@@ -67,6 +67,35 @@ func TestCreateSelectChangesQuery(t *testing.T) {
 
 			assert.Equal(t, tc.selectArgs, q.selectArgs)
 			assert.Equal(t, tc.countArgs, q.countArgs)
+		})
+	}
+}
+
+func TestCreateFirstChangeByIDQuery(t *testing.T) {
+	tt := []struct {
+		name    string
+		SQL     string
+		args    []interface{}
+		ID      string
+		eventID string
+		err     error
+	}{
+		{
+			name: "default",
+			SQL:  `SELECT BIN_TO_UUID(c.id) as id, BIN_TO_UUID(c.property_id) as property_id, BIN_TO_UUID(c.event_id) as event_id, e.emitted_at as created_at, from_value, to_value FROM changes as c JOIN events as e on e.id = c.event_id WHERE c.id = UUID_TO_BIN(?) LIMIT 1`,
+			args: []interface{}{"bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11"},
+			ID:   "bbdd1efe-2430-4c9c-a7fc-04d1a8e82e11",
+			err:  nil,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			q, args, err := createFirstChangeByIDQuery(tc.ID)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.args, args)
+			assert.Equal(t, tc.SQL, q)
 		})
 	}
 }
