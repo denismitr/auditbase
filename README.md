@@ -28,10 +28,14 @@ wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:888
 
 ## REST API
 
-### RECEIVER ENDPOINT
+### RECEIVER API
+Receives events to put them into queue for later processing by consumers
+
 -  POST /api/v1/events
 
-### BACK-OFFICE ENDPOINTS
+
+### BACK-OFFICE API
+API suitable for a back-office admin panel
 
 ##### Events
 -  GET /api/v1/events
@@ -49,7 +53,14 @@ wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:888
 ##### Entities
 - /api/v1/entities
 - /api/v1/entities/:id
-- /api/v1/entities/:id/properties
+
+##### Properties
+- /api/v1/properties
+- /api/v1/properties/:id
+
+##### Changes
+- /api/v1/changes
+- /api/v1/changes/:id
 
 ## TODO
 - unit tests

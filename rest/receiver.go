@@ -15,7 +15,7 @@ func NewReceiverAPI(
 	e *echo.Echo,
 	cfg Config,
 	log logger.Logger,
-	events model.EventRepository,
+	factory model.RepositoryFactory,
 	ef flow.EventFlow,
 	cacher cache.Cacher,
 ) *API {
@@ -26,7 +26,7 @@ func NewReceiverAPI(
 
 	uuid4 := uuid.NewUUID4Generator()
 
-	eventsController := newEventsController(log, uuid4, clock.New(), events, ef, cacher)
+	eventsController := newEventsController(log, uuid4, clock.New(), factory.Events(), ef, cacher)
 
 	e.POST("/api/v1/events", eventsController.create)
 

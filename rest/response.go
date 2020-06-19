@@ -38,8 +38,6 @@ func newJsonApiResponse(typ, id string, attributes interface{}) *jsonApiResponse
 	}
 }
 
-type statusMessage map[string]string
-
 func respondAccepted(typ, id string) (int, *itemResponse) {
 	return 202, newItemResponse(newJsonApiResponse(typ, id, nil))
 }
@@ -60,9 +58,21 @@ func newEventsResponse(events []*model.Event, meta *model.Meta) *collectionRespo
 	return newCollectionResponse(items, meta)
 }
 
+// Microservices
+
 func newMicroserviceResponse(m *model.Microservice) *itemResponse {
 	return newItemResponse(newJsonApiResponse("microservices", m.ID, newMicroserviceAttributes(m)))
 }
+
+func newMicroservicesResponse(ms []*model.Microservice) *collectionResponse {
+	items := make([]*jsonApiResponse, len(ms))
+	for i := range ms {
+		items[i] = newJsonApiResponse("microservices", ms[i].ID, newMicroserviceAttributes(ms[i]))
+	}
+	return newCollectionResponse(items, nil) // fixme
+}
+
+// Entities
 
 func newEntityResponse(e *model.Entity) *itemResponse {
 	return newItemResponse(newJsonApiResponse("entities", e.ID, newEntityAttributes(e)))
@@ -76,15 +86,30 @@ func newEntitiesResponse(es []*model.Entity) *collectionResponse {
 	return newCollectionResponse(items, nil) // fixme
 }
 
-func newEntityWithPropertiesResponse(e *model.Entity, ps []*model.PropertyStat) *itemResponse {
-	return newItemResponse(
-		newJsonApiResponse("entities", e.ID, newEntityWithPropertiesAttributes(e, ps)))
+// Properties
+
+func newPropertiesResponse(ps []*model.Property, m *model.Meta) *collectionResponse {
+	items := make([]*jsonApiResponse, len(ps))
+	for i := range ps {
+		items[i] = newJsonApiResponse("properties", ps[i].ID, newPropertyAttributes(ps[i]))
+	}
+	return newCollectionResponse(items, m)
 }
 
-func newMicroservicesResponse(ms []*model.Microservice) *collectionResponse {
-	items := make([]*jsonApiResponse, len(ms))
-	for i := range ms {
-		items[i] = newJsonApiResponse("microservices", ms[i].ID, newMicroserviceAttributes(ms[i]))
+func newPropertyResponse(p *model.Property) *itemResponse {
+	return newItemResponse(newJsonApiResponse("properties", p.ID, newPropertyAttributes(p)))
+}
+
+// Changes
+
+func newChangesResponse(cc []*model.Change, m *model.Meta) *collectionResponse {
+	items := make([]*jsonApiResponse, len(cc))
+	for i := range cc {
+		items[i] = newJsonApiResponse("changes", cc[i].ID, newChangeAttributes(cc[i]))
 	}
-	return newCollectionResponse(items, nil) // fixme
+	return newCollectionResponse(items, m)
+}
+
+func newChangeResponse(c *model.Change) *itemResponse {
+	return newItemResponse(newJsonApiResponse("changes", c.ID, newChangeAttributes(c)))
 }

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -19,20 +20,23 @@ type microservice struct {
 type MicroserviceRepository struct {
 	conn  *sqlx.DB
 	uuid4 uuid.UUID4Generator
+	log logger.Logger
 }
 
 // NewMicroserviceRepository - constructor function
 func NewMicroserviceRepository(
 	conn *sqlx.DB,
 	uuid4 uuid.UUID4Generator,
+	log logger.Logger,
 ) *MicroserviceRepository {
 	return &MicroserviceRepository{
 		conn:  conn,
 		uuid4: uuid4,
+		log: log,
 	}
 }
 
-// Create microservice in MySQL DB
+// Create microservices in MySQL DB
 func (r *MicroserviceRepository) Create(m *model.Microservice) (*model.Microservice, error) {
 	stmt := "INSERT INTO microservices (id, name, description) VALUES (UUID_TO_BIN(?), ?, ?)"
 
@@ -67,29 +71,29 @@ func (r *MicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
 	return result, nil
 }
 
-// Delete microservice by ID
+// Delete microservices by ID
 func (r *MicroserviceRepository) Delete(ID model.ID) error {
 	stmt := `DELETE FROM microservices WHERE id = UUID_TO_BIN(?)`
 
 	if _, err := r.conn.Exec(stmt, ID.String()); err != nil {
-		return errors.Wrapf(err, "could not delete microservice with ID %s", ID.String())
+		return errors.Wrapf(err, "could not delete microservices with ID %s", ID.String())
 	}
 
 	return nil
 }
 
-// Update microservice by ID
+// Update microservices by ID
 func (r *MicroserviceRepository) Update(ID model.ID, m *model.Microservice) error {
 	stmt := `UPDATE microservices SET name = ?, description = ? WHERE id = UUID_TO_BIN(?)`
 
 	if _, err := r.conn.Exec(stmt, m.Name, m.Description, ID.String()); err != nil {
-		return errors.Wrapf(err, "could not update microservice with ID %s", m.ID)
+		return errors.Wrapf(err, "could not update microservices with ID %s", m.ID)
 	}
 
 	return nil
 }
 
-// FirstByID - find first microservice by ID
+// FirstByID - find first microservices by ID
 func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, error) {
 	m := new(microservice)
 
@@ -108,7 +112,7 @@ func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, er
 	}, nil
 }
 
-// FirstByName - gets first microservice by its name
+// FirstByName - gets first microservices by its name
 func (r *MicroserviceRepository) FirstByName(name string) (*model.Microservice, error) {
 	m := new(microservice)
 
@@ -120,7 +124,7 @@ func (r *MicroserviceRepository) FirstByName(name string) (*model.Microservice, 
 	`
 
 	if err := r.conn.Get(m, stmt, name); err != nil {
-		return nil, errors.Wrapf(err, "could not get microservice with name %s from database", name)
+		return nil, errors.Wrapf(err, "could not get microservices with name %s from database", name)
 	}
 
 	return &model.Microservice{
@@ -132,7 +136,7 @@ func (r *MicroserviceRepository) FirstByName(name string) (*model.Microservice, 
 	}, nil
 }
 
-// FirstOrCreateByName - gets first microservice with given name or tries to create
+// FirstOrCreateByName - gets first microservices with given name or tries to create
 // a new one, assigning new UUID4
 // fixme: refactor to transaction
 func (r *MicroserviceRepository) FirstOrCreateByName(name string) (*model.Microservice, error) {
@@ -148,7 +152,7 @@ func (r *MicroserviceRepository) FirstOrCreateByName(name string) (*model.Micros
 	}
 
 	if _, err := r.Create(m); err != nil {
-		return nil, errors.Wrapf(err, "microservice with name %s does not exist and cannot be created", name)
+		return nil, errors.Wrapf(err, "microservices with name %s does not exist and cannot be created", name)
 	}
 
 	return m, nil

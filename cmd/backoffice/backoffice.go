@@ -6,6 +6,8 @@ import (
 	"github.com/denismitr/auditbase/cache"
 	"github.com/go-redis/redis/v7"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
+	"github.com/labstack/gommon/log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,62 +27,15 @@ import (
 func main() {
 	env.LoadFromDotEnv()
 
-	debug()
+	debug(env.IsTruthy("APP_TRACE"))
 
 	fmt.Println("Waiting for DB connection...")
-	time.Sleep(20 * time.Second)
+	time.Sleep(30 * time.Second)
 
-	log := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
-	uuid4 := uuid.NewUUID4Generator()
-
-	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
+	backOffice, err := createBackOffice()
 	if err != nil {
 		panic(err)
 	}
-
-	migrator := mysql.Migrator(dbConn)
-
-	if err := migrator.Up(); err != nil {
-		panic(err)
-	}
-
-	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
-	events := mysql.NewEventRepository(dbConn, uuid4, log)
-	entities := mysql.NewEntityRepository(dbConn, uuid4, log)
-
-	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 4)
-
-	if err := mq.Connect(); err != nil {
-		panic(err)
-	}
-
-	port := ":" + env.MustString("BACK_OFFICE_API_PORT")
-
-	flowCfg := flow.NewConfigFromGlobals()
-	ef := flow.New(mq, log, flowCfg)
-
-	if err := ef.Scaffold(); err != nil {
-		panic(err)
-	}
-
-	restCfg := rest.Config{
-		Port:      port,
-		BodyLimit: "250K",
-	}
-
-	e := echo.New()
-	cacher := connectRedis(log)
-
-	backOffice := rest.NewBackOfficeAPI(
-		e,
-		restCfg,
-		log,
-		ef,
-		microservices,
-		events,
-		entities,
-		cacher,
-	)
 
 	terminate := make(chan os.Signal)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
@@ -96,8 +51,8 @@ func main() {
 	}
 }
 
-func debug() {
-	if env.IsTruthy("APP_TRACE") {
+func debug(run bool) {
+	if run {
 		stopper := profile.Start(profile.CPUProfile, profile.ProfilePath("/tmp/debug/backoffice"))
 
 		go func() {
@@ -120,4 +75,49 @@ func connectRedis(log logger.Logger) *cache.RedisCache {
 	}
 
 	return cache.NewRedisCache(c, log)
+}
+
+func createBackOffice() (*rest.API, error) {
+	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+	uuid4 := uuid.NewUUID4Generator()
+
+	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
+	if err != nil {
+		return nil, err
+	}
+
+	migrator := mysql.Migrator(dbConn)
+
+	if err := migrator.Up(); err != nil {
+		panic(err)
+	}
+
+	factory := mysql.NewRepositoryFactory(dbConn, uuid4, lg)
+
+	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), lg, 4)
+
+	if err := mq.Connect(); err != nil {
+		return nil, err
+	}
+
+	port := ":" + env.MustString("BACK_OFFICE_API_PORT")
+
+	flowCfg := flow.NewConfigFromGlobals()
+	ef := flow.New(mq, lg, flowCfg)
+
+	if err := ef.Scaffold(); err != nil {
+		return nil, err
+	}
+
+	restCfg := rest.Config{
+		Port:      port,
+		BodyLimit: "250K",
+	}
+
+	e := echo.New()
+	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
+
+	cacher := connectRedis(lg)
+
+	return rest.NewBackOfficeAPI(e, restCfg, lg, ef, factory, cacher), nil
 }

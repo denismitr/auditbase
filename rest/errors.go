@@ -18,10 +18,11 @@ const ErrMicroserviceNameTooLong = errtype.StringError("microservice name is too
 const ErrMicroserviceDescriptionTooLong = errtype.StringError("microservice description is too long")
 const ErrMicroserviceNotFound = errtype.StringError("not found")
 const ErrEventAlreadyReceived = errtype.StringError("event already received recently")
+const ErrEmptyPropertyName = errtype.StringError("property name cannot be empty")
 
 const msgBadRequest = "Bad request"
 const msgInternalError = "Auditbase internal error"
-const msgNotFound = "Entity not found"
+const msgNotFound = "Entities not found"
 const msgValidationFailed = "Validation failed"
 const msgConflict = "entity you are trying to create already exists"
 

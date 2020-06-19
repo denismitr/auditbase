@@ -15,7 +15,7 @@ func Migrator(conn *sqlx.DB) *SQLMigrator {
 	}
 }
 
-const microservicesSchema = `
+const microserviceSchema = `
 	CREATE TABLE IF NOT EXISTS microservices (
 		id binary(16) PRIMARY KEY,
 		name VARCHAR(36),
@@ -26,7 +26,7 @@ const microservicesSchema = `
 	) ENGINE=INNODB;
 `
 
-const eventsSchema = `
+const eventSchema = `
 	CREATE TABLE IF NOT EXISTS events (
 		id binary(16) PRIMARY KEY,
 		parent_event_id binary(16),
@@ -38,6 +38,7 @@ const eventsSchema = `
 		target_entity_id binary(16),
 		target_service_id binary(16) NOT NULL,
 		event_name VARCHAR(36) NOT NULL,
+		operation SMALLINT, 
 		emitted_at TIMESTAMP NOT NULL,
 		registered_at TIMESTAMP NOT NULL,
 
@@ -79,15 +80,35 @@ const propertySchema = `
 	CREATE TABLE IF NOT EXISTS properties (
 		id binary(16) PRIMARY KEY,
 		entity_id binary(16) NOT NULL,
-		event_id binary(16) NOT NULL,
-		name VARCHAR(64),
-		changed_from TEXT,
-		changed_to TEXT,
+		name VARCHAR(64) NOT NULL,
+		
+		UNIQUE KEY unique_entity_and_name (entity_id, name),
+		INDEX name_index (name),
 
-		INDEX event_and_name_index (event_id, name),
+		FOREIGN KEY (entity_id)
+        REFERENCES entities(id)
+        ON DELETE CASCADE
+	)
+`
+
+const changeSchema = `
+	CREATE TABLE IF NOT EXISTS changes (
+		id binary(16) PRIMARY KEY,
+		property_id binary(16) NOT NULL,
+		event_id binary(16) NOT NULL,
+		from_value TEXT,
+		to_value TEXT,
+		current_data_type VARCHAR(20),
+
+		INDEX event_and_property_index (event_id, property_id),
+		INDEX event_index (event_id),
 
 		FOREIGN KEY (event_id)
         REFERENCES events(id)
+        ON DELETE CASCADE,
+
+		FOREIGN KEY (property_id)
+        REFERENCES properties(id)
         ON DELETE CASCADE
 	)
 `
@@ -96,6 +117,7 @@ const flush = `
 	SET FOREIGN_KEY_CHECKS=0;
 
 	DROP TABLE IF EXISTS properties;
+	DROP TABLE IF EXISTS changes;
 	DROP TABLE IF EXISTS entities;
 	DROP TABLE IF EXISTS microservices;
 	DROP TABLE IF EXISTS events; 
@@ -104,7 +126,7 @@ const flush = `
 `
 
 func (m *SQLMigrator) Up() error {
-	if _, err := m.conn.Exec(microservicesSchema); err != nil {
+	if _, err := m.conn.Exec(microserviceSchema); err != nil {
 		return errors.Wrap(err, "could not create microservices table")
 	}
 
@@ -112,12 +134,16 @@ func (m *SQLMigrator) Up() error {
 		return errors.Wrap(err, "could not create entities table")
 	}
 
-	if _, err := m.conn.Exec(eventsSchema); err != nil {
+	if _, err := m.conn.Exec(eventSchema); err != nil {
 		return errors.Wrap(err, "could not create events table")
 	}
 
 	if _, err := m.conn.Exec(propertySchema); err != nil {
-		return errors.Wrap(err, "could not create entities table")
+		return errors.Wrap(err, "could not create properties table")
+	}
+
+	if _, err := m.conn.Exec(changeSchema); err != nil {
+		return errors.Wrap(err, "could not create change table")
 	}
 
 	return nil

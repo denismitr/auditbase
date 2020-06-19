@@ -29,7 +29,7 @@ package rest
 // 		uuidMock := mock_utils.NewMockUUID4Generatgor(ctrl)
 // 		mrMock := mock_model.NewMockMicroserviceRepository(ctrl)
 
-// 		m := model.Microservice{
+// 		m := model.Microservices{
 // 			ID:          id,
 // 			Name:        "FOO",
 // 			Description: "BAR",
@@ -70,7 +70,7 @@ package rest
 // 		mrMock.
 // 			EXPECT().
 // 			FirstByID(model.ID(id)).
-// 			Return(model.Microservice{}, model.ErrMicroserviceNotFound)
+// 			Return(model.Microservices{}, model.ErrMicroserviceNotFound)
 
 // 		req := test.Request{
 // 			Method:            http.MethodPut,
@@ -128,7 +128,7 @@ package rest
 // 		uuidMock := mock_utils.NewMockUUID4Generatgor(ctrl)
 // 		mrMock := mock_model.NewMockMicroserviceRepository(ctrl)
 
-// 		mm := []model.Microservice{
+// 		mm := []model.Microservices{
 // 			{ID: "35e46ed5-fe56-4445-878e-9c32ae54bfd0", Name: "Foo", Description: "Bar"},
 // 			{ID: "22e46ed5-fe56-4445-878e-9c32ae54bf11", Name: "Foo2", Description: "Bar2"},
 // 		}
@@ -174,7 +174,7 @@ package rest
 // 		uuidMock := mock_utils.NewMockUUID4Generatgor(ctrl)
 // 		mrMock := mock_model.NewMockMicroserviceRepository(ctrl)
 
-// 		m := model.Microservice{
+// 		m := model.Microservices{
 // 			ID:          id,
 // 			Name:        "FOO 23",
 // 			Description: "BAR 23",
@@ -218,7 +218,7 @@ package rest
 // 		uuidMock := mock_utils.NewMockUUID4Generatgor(ctrl)
 // 		mrMock := mock_model.NewMockMicroserviceRepository(ctrl)
 
-// 		m := model.Microservice{
+// 		m := model.Microservices{
 // 			Name:        "",
 // 			Description: "BAR 23",
 // 		}
@@ -254,7 +254,7 @@ package rest
 // 		uuidMock := mock_utils.NewMockUUID4Generatgor(ctrl)
 // 		mrMock := mock_model.NewMockMicroserviceRepository(ctrl)
 
-// 		m := model.Microservice{
+// 		m := model.Microservices{
 // 			Name:        "FOO 23",
 // 			Description: "BAR 23",
 // 		}
@@ -286,7 +286,7 @@ package rest
 // 	})
 // }
 
-// func cloneMicroserviceWithNewID(m model.Microservice, ID model.ID) model.Microservice {
+// func cloneMicroserviceWithNewID(m model.Microservices, ID model.ID) model.Microservices {
 // 	m.ID = ID.String()
 // 	return m
 // }

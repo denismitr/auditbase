@@ -4,7 +4,25 @@ Cache-Control: no-cache
 
 ###
 
-GET {{back-office}}/api/v1/entities/eadd1efe-2430-4c9c-a7fc-04d1a8e82e96/properties
+GET {{back-office}}/api/v1/entities/6f485be1-17f8-4dab-b697-22f025d607b6
+Accept: application/json
+Cache-Control: no-cache
+
+###
+
+GET {{back-office}}/api/v1/properties
+Accept: application/json
+Cache-Control: no-cache
+
+###
+
+GET {{back-office}}/api/v1/changes
+Accept: application/json
+Cache-Control: no-cache
+
+###
+
+GET {{back-office}}/api/v1/changes/dfc70b58-674b-43e3-9b2f-2eab074c4e68
 Accept: application/json
 Cache-Control: no-cache
 

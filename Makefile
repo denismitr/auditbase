@@ -12,13 +12,16 @@ vars:
 	@echo REST_PORT=${REST_PORT}
 	@echo PERCONA_PORT=${PERCONA_PORT}
 
-.PHONY: test clean mock wrk debug
+.PHONY: test clean mock wrk debug recompile up
 
 up: vars
-	docker-compose -f docker-compose-dev.yml up --build --force-recreate
+	docker-compose -f docker-compose-dev.yml up -d --build --force-recreate
 
 down:
 	docker-compose -f docker-compose-dev.yml down --remove-orphans
+
+recompile:
+	docker-compose -f docker-compose-dev.yml up -d --build --force-recreate auditbase_receiver auditbase_backoffice auditbase_consumer auditbase_errors_consumer
 
 clean:
 	docker-compose -f docker-compose-dev.yml down --remove-orphans
@@ -31,14 +34,21 @@ clean:
 mock:
 	mockgen -source flow/flow.go -destination ./test/mock_flow/flow.go
 	mockgen -source flow/event.go -destination ./test/mock_flow/event.go
+	mockgen -source cache/cache.go -destination ./test/mock_cache/cache.go
 	mockgen -source queue/queue.go -destination ./test/mock_queue/queue.go
 	mockgen -source queue/message.go -destination ./test/mock_queue/message.go
 	mockgen -source model/event.go -destination ./test/mock_model/event.go
 	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
 	mockgen -source model/entity.go -destination ./test/mock_model/entity.go
+	mockgen -source model/change.go -destination ./test/mock_model/change.go
+	mockgen -source model/property.go -destination ./test/mock_model/property.go
+	mockgen -source model/factory.go -destination ./test/mock_model/factory.go
 	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
 	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
 	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
+
+test/local:
+	go test ./db/mysql ./model ./rest
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate

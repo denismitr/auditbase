@@ -76,7 +76,7 @@ func (ec *eventsController) create(ctx echo.Context) error {
 
 	e.RegisteredAt.Time = ec.clock.CurrentTime()
 
-	if err := ec.cacher.CreateKey(hashKey(e.Hash), 1 * time.Hour); err != nil {
+	if err := ec.cacher.CreateKey(hashKey(e.Hash), 1 * time.Minute); err != nil {
 		return ctx.JSON(internalError(err))
 	}
 

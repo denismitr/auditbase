@@ -6,19 +6,19 @@ import (
 )
 
 type Event struct {
-	ID            string `json:"id"`
-	ParentEventID string `json:"parentEventId"`
-	Hash          string
-	ActorID       string       `json:"actorId"`
-	ActorEntity   Entity       `json:"actorEntity"`
-	ActorService  Microservice `json:"actorService"`
-	TargetID      string       `json:"targetId"`
-	TargetEntity  Entity       `json:"targetEntity"`
-	TargetService Microservice `json:"targetService"`
-	EventName     string       `json:"eventName"`
-	EmittedAt     JSONTime     `json:"emittedAt"`
-	RegisteredAt  JSONTime     `json:"registeredAt"`
-	Delta         []Property   `json:"delta"`
+	ID            string            `json:"id"`
+	ParentEventID string            `json:"parentEventId"`
+	Hash          string            `json:"hash"`
+	ActorID       string            `json:"actorId"`
+	ActorEntity   Entity            `json:"actorEntity"`
+	ActorService  Microservice      `json:"actorService"`
+	TargetID      string            `json:"targetId"`
+	TargetEntity  Entity            `json:"targetEntity"`
+	TargetService Microservice      `json:"targetService"`
+	EventName     string            `json:"eventName"`
+	EmittedAt     JSONTime          `json:"emittedAt"`
+	RegisteredAt  JSONTime          `json:"registeredAt"`
+	Changes       []*PropertyChange `json:"changes"`
 }
 
 func (e *Event) Validate() *errbag.ErrorBag {

@@ -61,7 +61,7 @@ func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (st
 
 func run(log logger.Logger, cfg flow.Config, consumerName, queueName string) {
 	fmt.Println("Waiting for DB connection")
-	time.Sleep(20 * time.Second)
+	time.Sleep(40 * time.Second)
 
 	uuid4 := uuid.NewUUID4Generator()
 
@@ -76,12 +76,11 @@ func run(log logger.Logger, cfg flow.Config, consumerName, queueName string) {
 		panic(err)
 	}
 
-	microservices := mysql.NewMicroserviceRepository(dbConn, uuid4)
-	events := mysql.NewEventRepository(dbConn, uuid4, log)
-	entities := mysql.NewEntityRepository(dbConn, uuid4, log)
+	factory := mysql.NewRepositoryFactory(dbConn, uuid4, log)
+
 
 	cacher := connectRedis(log)
-	persister := db.NewDBPersister(microservices, events, entities, log, cacher)
+	persister := db.NewDBPersister(factory, log, cacher)
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 3)
 
 	if err := mq.Connect(); err != nil {

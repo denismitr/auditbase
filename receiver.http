@@ -3,19 +3,28 @@ Content-Type: application/json
 Accept: application/json
 
 {
-    "targetId": "9219235",
+    "targetId": "9309225",
 	"targetEntity": "article",
 	"targetService": "article-storage",
 	"actorId": "0000009",
-	"actorEntity": "promoter",
+	"actorEntity": "promoter2",
 	"actorService": "back-office",
     "eventName": "articlePublished",
     "emittedAt": 1578173213,
-	"delta": {
-		"status": [null, "PUBLISHED"],
-		"title": [null, "FOO"],
-		"description": [null, "BAR"]
-	}
+	"changes": [
+      {
+        "propertyName": "status2",
+        "currentPropertyType": "string",
+        "from": null,
+        "to": "foo"
+      },
+      {
+        "propertyName": "value",
+        "currentPropertyType": "string",
+        "from": "bar",
+        "to": "baz"
+      }
+	]
 }
 
 ###
@@ -25,17 +34,27 @@ Content-Type: application/json
 Accept: application/json
 
 {
-	"id": "34e1d8fa-b065-436d-afd0-5fbcb752a4e1",
-    "targetId": "12345",
+	"id": "34e1d82a-a065-436d-afd0-5fbcb752a4e1",
+    "targetId": "122242120",
 	"targetEntity": "subscription",
 	"targetService": "billing",
-	"actorId": "999999",
+	"actorId": "88999",
 	"actorEntity": "user",
 	"actorService": "front",
     "eventName": "subscriptionCanceled",
     "emittedAt": 1578173212,
-	"delta": {
-		"status": ["ACTIVE", "CANCELED"],
-		"value": ["FOO", "BAR"]
-	}
+  "changes": [
+    {
+      "propertyName": "status_10",
+      "currentPropertyType": "string",
+      "from": "foo",
+      "to": "1234"
+    },
+    {
+      "propertyName": "value_2",
+      "currentPropertyType": "string",
+      "from": "baz",
+      "to": null
+    }
+  ]
 }

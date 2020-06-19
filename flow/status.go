@@ -44,12 +44,12 @@ func (s Status) OK() bool {
 func (s Status) Error() string {
 	switch s.State {
 	case Failed:
-		return "Event flow has failed"
+		return "Events flow has failed"
 	case Stopped:
-		return "Event flow is stopped"
+		return "Events flow is stopped"
 	case Idle:
-		return "Event flow is not active"
+		return "Events flow is not active"
 	default:
-		return "Event flow is not working well"
+		return "Events flow is not working well"
 	}
 }

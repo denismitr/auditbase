@@ -28,7 +28,7 @@ func main() {
 	debug()
 
 	fmt.Println("Waiting for DB connection...")
-	time.Sleep(25 * time.Second)
+	time.Sleep(40 * time.Second)
 
 	log := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 	uuid4 := uuid.NewUUID4Generator()
@@ -44,7 +44,7 @@ func main() {
 		panic(err)
 	}
 
-	events := mysql.NewEventRepository(dbConn, uuid4, log)
+	factory := mysql.NewRepositoryFactory(dbConn, uuid4, log)
 
 	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 4)
 
@@ -67,7 +67,7 @@ func main() {
 	e := echo.New()
 	cacher := connectRedis(log)
 
-	receiver := rest.NewReceiverAPI(e, restCfg, log, events, ef, cacher)
+	receiver := rest.NewReceiverAPI(e, restCfg, log, factory, ef, cacher)
 
 	terminate := make(chan os.Signal)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)

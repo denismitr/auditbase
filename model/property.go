@@ -1,15 +1,20 @@
 package model
 
 type Property struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	EventID     string  `json:"eventId"`
-	EntityID    string  `json:"entityId"`
-	ChangedFrom *string `json:"changedFrom"`
-	ChangedTo   *string `json:"changedTo"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	EntityID    string   `json:"entityId"`
+	ChangeCount int      `json:"changeCount"`
+	Changes     []Change `json:"changes"`
 }
 
 type PropertyStat struct {
 	Name       string `json:"name"`
 	EventCount int    `json:"eventCount"`
+}
+
+type PropertyRepository interface {
+	GetIDOrCreate(name, entityID string) (string, error)
+	FirstByID(ID string) (*Property, error)
+	Select(*Filter, *Sort, *Pagination) ([]*Property, *Meta, error)
 }

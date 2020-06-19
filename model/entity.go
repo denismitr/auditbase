@@ -2,7 +2,7 @@ package model
 
 import "fmt"
 
-// Entity - represents something that can act on data
+// Entities - represents something that can act on data
 // or something that can be a subject to change or both
 type Entity struct {
 	ID          string        `json:"id"`
@@ -20,7 +20,7 @@ type EntityRepository interface {
 	Create(*Entity) error
 	FirstByNameAndService(string, *Microservice) (*Entity, error)
 	FirstByID(string) (*Entity, error)
-	Properties(ID string) ([]*PropertyStat, error)
+	Properties(ID string) ([]*Property, error)
 	FirstOrCreateByNameAndService(string, *Microservice) (*Entity, error)
 }
 

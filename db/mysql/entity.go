@@ -4,8 +4,10 @@ import (
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
+	"github.com/denismitr/auditbase/utils/validator"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	sq "github.com/Masterminds/squirrel"
 )
 
 type entity struct {
@@ -51,15 +53,19 @@ const selectEntities = `
 // Select all entities
 func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagination) ([]*model.Entity, error) {
 	var entities []entity
-	query, args := createSelectEntitiesQuery(f, s, p)
-	r.logger.SQL(query, args)
-	stmt, err := r.conn.PrepareNamed(query)
+
+	sql, args, err := createSelectEntitiesQuery(f, s, p)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not prepare named stmt to select entities")
+		return nil, errors.Wrap(err, "could not create sql to select entities")
 	}
 
-	if err := stmt.Select(&entities, args); err != nil {
-		return nil, errors.Wrap(err, "could not select all entities")
+	stmt, err := r.conn.Preparex(sql)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not prepare sql to select entities")
+	}
+
+	if err := stmt.Select(&entities, args...); err != nil {
+		return nil, errors.Wrap(err, "could not execute sql to select entities")
 	}
 
 	result := make([]*model.Entity, len(entities))
@@ -71,22 +77,22 @@ func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagin
 	return result, nil
 }
 
-func (r *EntityRepository) Properties(ID string) ([]*model.PropertyStat, error) {
-	query := `
-		SELECT 
-			name, COUNT(event_id) AS event_count 
-		FROM properties 
-			WHERE entity_id = UUID_TO_BIN(?) 
-		GROUP BY name
-	`
+func (r *EntityRepository) Properties(ID string) ([]*model.Property, error) {
+	query, err := createSelectPropertiesForEntity(ID)
 
-	var properties []propertyStat
-
-	if err := r.conn.Select(&properties, query, ID); err != nil {
-		return nil, errors.Wrapf(err, "could not get property stat from entity with ID [%s]", ID)
+	if err != nil {
+		return nil, err
 	}
 
-	stats := make([]*model.PropertyStat, len(properties))
+	r.logger.Debugf(query)
+
+	var properties []property
+
+	if err := r.conn.Select(&properties, query, ID); err != nil {
+		return nil, errors.Wrapf(err, "could not get properties stat from entities with ID [%s]", ID)
+	}
+
+	stats := make([]*model.Property, len(properties))
 
 	for i := range properties {
 		stats[i] = properties[i].ToModel()
@@ -95,7 +101,26 @@ func (r *EntityRepository) Properties(ID string) ([]*model.PropertyStat, error) 
 	return stats, nil
 }
 
-// Create an entity
+func createSelectPropertiesForEntity(_ string) (string, error) {
+	query, _, err := sq.Select(
+		"BIN_TO_UUID(p.id) as id",
+		"BIN_TO_UUID(p.entity_id) as entity_id",
+		"COUNT(c.id) as change_count",
+		"p.name", "p.type",
+	).From(
+		"properties as p",
+	).Join(
+		"changes as c ON c.property_id = p.id",
+	).Where(
+		"p.entity_id = UUID_TO_BIN(?)",
+	).GroupBy(
+		"p.id", "p.entity_id", "p.name", "p.type",
+	).ToSql()
+
+	return query, err
+}
+
+// Create an entities
 func (r *EntityRepository) Create(e *model.Entity) error {
 	stmt := `
 		INSERT INTO entities (id, service_id, name, description) VALUES (
@@ -111,7 +136,7 @@ func (r *EntityRepository) Create(e *model.Entity) error {
 	}
 
 	if _, err := r.conn.NamedExec(stmt, tt); err != nil {
-		return errors.Wrapf(err, "could not create new entity with name %s", e.Name)
+		return errors.Wrapf(err, "could not create new entities with name %s", e.Name)
 	}
 
 	return nil
@@ -134,31 +159,33 @@ func (r *EntityRepository) FirstByNameAndService(name string, service *model.Mic
 	ent := new(entity)
 
 	if err := r.conn.Get(ent, stmt, service.ID, name); err != nil {
-		return nil, errors.Wrapf(err, "could not find entity with name %s", name)
+		return nil, errors.Wrapf(err, "could not find entities with name %s", name)
 	}
 
 	return ent.ToModel(), nil
 }
 
 func (r *EntityRepository) FirstByID(ID string) (*model.Entity, error) {
-	stmt := `
-		SELECT 
-			BIN_TO_UUID(id) as id, BIN_TO_UUID(service_id) as service_id, name, description, created_at, updated_at 
-		FROM entities
-			WHERE id = UUID_TO_BIN(?)
-		LIMIT 1
-	`
+	sql, args, err := createFirstEntityByIDQuery(ID)
+	if err != nil {
+		return nil, err
+	}
 
 	ent := entity{}
 
-	if err := r.conn.Get(&ent, stmt, ID); err != nil {
-		return nil, errors.Wrapf(err, "could not find entity with ID %s", ID)
+	stmt, err := r.conn.Preparex(sql)
+	if err != nil {
+		return nil, errors.Errorf("could not prepare sql statement %s", sql)
+	}
+
+	if err := stmt.Get(&ent, args...); err != nil {
+		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
 	}
 
 	return ent.ToModel(), nil
 }
 
-// FirstOrCreateByNameAndService - fetches first or creates an entity by its name and service
+// FirstOrCreateByNameAndService - fetches first or creates an entities by its name and service
 func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *model.Microservice) (*model.Entity, error) {
 	ent, err := r.FirstByNameAndService(name, service)
 	if err == nil {
@@ -175,32 +202,48 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 	}
 
 	if err := r.Create(ent); err != nil {
-		return nil, errors.Wrapf(err, "entity %s with service ID %s does not exist and cannot be created", name, service)
+		return nil, errors.Wrapf(err, "entities %s with service ID %s does not exist and cannot be created", name, service)
 	}
 
 	return ent, nil
 }
 
-func createSelectEntitiesQuery(f *model.Filter, s *model.Sort, p *model.Pagination) (string, map[string]interface{}) {
-	stmt := selectEntities
-	args := make(map[string]interface{})
+func createSelectEntitiesQuery(f *model.Filter, s *model.Sort, p *model.Pagination) (string, []interface{}, error) {
+	q := sq.Select(
+		"BIN_TO_UUID(id) as id",
+		"BIN_TO_UUID(service_id) as service_id",
+		"name", "description", "created_at", "updated_at",
+	).From("entities")
 
 	if f.Has("serviceId") {
-		stmt += ` where service_id = uuid_to_bin(:serviceId)`
-		args["serviceId"] = f.StringOrDefault("serviceId", "")
+		q = q.Where(`service_id = uuid_to_bin(?)`, f.StringOrDefault("serviceId", ""))
 	}
 
 	if s.Has("name") {
-		stmt += ` order by name ` + s.GetOrDefault("name", model.ASCOrder).String()
+		q = q.OrderByClause("name ?", s.GetOrDefault("name", model.ASCOrder).String())
 	} else if !f.Has("serviceId") {
-		stmt += ` order by created_at DESC`
+		q = q.OrderBy("created_at DESC")
 	} else {
-		stmt += ` order by service_id DESC`
+		q = q.OrderBy("service_id DESC")
 	}
 
-	stmt += ` limit :offset, :limit`
-	args["limit"] = p.PerPage
-	args["offset"] = p.Offset()
+	q = q.Limit(uint64(p.PerPage))
+	q = q.Offset(uint64(p.Offset()))
 
-	return stmt, args
+	return q.ToSql()
+}
+
+func createFirstEntityByIDQuery(ID string) (string, []interface{}, error) {
+	if ! validator.IsUUID4(ID) {
+		return "", nil, errors.Errorf("%s is not a valid UUID4", ID)
+	}
+
+	return sq.Select(
+		"BIN_TO_UUID(id) as id",
+		"BIN_TO_UUID(service_id) as service_id",
+		"name", "description", "created_at", "updated_at").
+	From("entities").
+	Where("id = UUID_TO_BIN(?)", ID).
+	Limit(1).
+	ToSql()
 }

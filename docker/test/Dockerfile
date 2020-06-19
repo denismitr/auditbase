@@ -16,5 +16,5 @@ COPY db/ ./db
 COPY test/ ./test
 COPY .env ./
 
-CMD go test ./flow ./rest ./model
+CMD go test ./flow ./rest ./model ./db/mysql
 

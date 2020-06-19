@@ -28,17 +28,34 @@ type microserviceAttributes struct {
 }
 
 type entityAttributes struct {
-	Name        string `json:"name"`
-	ServiceID   string `json:"serviceId"`
-	Description string `json:"description"`
-	CreatedAt   string `json:"createdAt,omitempty"`
-	UpdatedAt   string `json:"updatedAt,omitempty"`
-	Properties []propertyStatAttribute `json:"properties,omitempty"`
+	Name        string                  `json:"name"`
+	ServiceID   string                  `json:"serviceId"`
+	Description string                  `json:"description"`
+	CreatedAt   string                  `json:"createdAt,omitempty"`
+	UpdatedAt   string                  `json:"updatedAt,omitempty"`
+	Properties  []propertyStatAttribute `json:"properties,omitempty"`
+}
+
+type propertyAttributes struct {
+	Name        string         `json:"name"`
+	EntityID    string         `json:"entityId"`
+	Type        string         `json:"type"`
+	ChangeCount int            `json:"changeCount"`
+	Changes     []model.Change `json:"changes"`
 }
 
 type propertyStatAttribute struct {
-	Name        string `json:"name"`
-	EventCount int `json:"eventCount"`
+	Name       string `json:"name"`
+	EventCount int    `json:"eventCount"`
+}
+
+type changeAttributes struct {
+	ID              string  `json:"id"`
+	EventID         string  `json:"eventId"`
+	PropertyID      string  `json:"propertyId"`
+	CurrentDataType *string  `json:"currentDataType"`
+	From            *string `json:"from"`
+	To              *string `json:"to"`
 }
 
 func newMicroserviceAttributes(m *model.Microservice) *microserviceAttributes {
@@ -47,6 +64,17 @@ func newMicroserviceAttributes(m *model.Microservice) *microserviceAttributes {
 		Description: m.Description,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
+	}
+}
+
+func newChangeAttributes(c *model.Change) *changeAttributes {
+	return &changeAttributes{
+		ID: c.ID,
+		EventID: c.EventID,
+		PropertyID: c.PropertyID,
+		CurrentDataType: c.CurrentDataType,
+		From: c.From,
+		To: c.To,
 	}
 }
 
@@ -60,19 +88,11 @@ func newEntityAttributes(e *model.Entity) *entityAttributes {
 	}
 }
 
-func newEntityWithPropertiesAttributes(e *model.Entity, ps []*model.PropertyStat) *entityAttributes {
-	props := make([]propertyStatAttribute, len(ps))
-
-	for i := range ps {
-		props[i] = propertyStatAttribute{Name: ps[i].Name, EventCount: ps[i].EventCount}
-	}
-
-	return &entityAttributes{
-		Name:        e.Name,
-		ServiceID:   e.ServiceID,
-		Description: e.Description,
-		CreatedAt:   e.CreatedAt,
-		UpdatedAt:   e.UpdatedAt,
-		Properties:  props,
+func newPropertyAttributes(p *model.Property) *propertyAttributes {
+	return &propertyAttributes{
+		Name:        p.Name,
+		EntityID:    p.EntityID,
+		ChangeCount: p.ChangeCount,
+		Changes:     p.Changes,
 	}
 }

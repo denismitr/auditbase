@@ -51,6 +51,16 @@ func (p *payload) targetService() model.Microservice {
 	return p.e.TargetService
 }
 
+func (p *payload) changingProperties() []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	var propertyNames []string
+	for i := range p.e.Changes {
+		propertyNames = append(propertyNames, p.e.Changes[i].PropertyName)
+	}
+	return propertyNames
+}
+
 func (p *payload) actorEntity() model.Entity {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
