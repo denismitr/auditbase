@@ -45,22 +45,22 @@ API suitable for a back-office admin panel
 -  DELETE /api/v1/events/:id
 
 ##### Microservices
-- /api/v1/microservices
-- /api/v1/microservices
-- /api/v1/microservices/:id
-- /api/v1/microservices/:id
+- GET /api/v1/microservices
+- POST /api/v1/microservices
+- GET /api/v1/microservices/:id
+- PUT /api/v1/microservices/:id
 
 ##### Entities
-- /api/v1/entities
-- /api/v1/entities/:id
+- GET /api/v1/entities
+- GET /api/v1/entities/:id
 
 ##### Properties
-- /api/v1/properties
-- /api/v1/properties/:id
+- GET /api/v1/properties
+- GET /api/v1/properties/:id
 
 ##### Changes
-- /api/v1/changes
-- /api/v1/changes/:id
+- GET /api/v1/changes
+- GET /api/v1/changes/:id
 
 ## TODO
 - unit tests
