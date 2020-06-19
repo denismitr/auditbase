@@ -9,53 +9,53 @@ import (
 	"github.com/pkg/errors"
 )
 
-type properties struct {
+type changes struct {
 	logger logger.Logger
 	uuid4  uuid.UUID4Generator
-	repo model.PropertyRepository
+	repo model.ChangeRepository
 }
 
-func  newPropertiesController(
+func newChangesController(
 	uuid4  uuid.UUID4Generator,
 	logger logger.Logger,
-	repo model.PropertyRepository,
-) *properties {
-	return &properties{
+	repo model.ChangeRepository,
+) *changes {
+	return &changes{
 		uuid4: uuid4,
 		logger: logger,
 		repo: repo,
 	}
 }
 
-func (p *properties) index(ctx echo.Context) error {
+func (c *changes) index(ctx echo.Context) error {
 	q := ctx.Request().URL.Query()
 	s := createSort(q)
 	f := createFilter(q, []string{"entityId", "name"})
 	pg := createPagination(q, 50)
 
-	props, meta, err := p.repo.Select(f, s, pg)
+	changes, meta, err := c.repo.Select(f, s, pg)
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(200, newPropertiesResponse(props, meta))
+	return ctx.JSON(200, newChangesResponse(changes, meta))
 }
 
-func (c *properties) show(ctx echo.Context) error {
+func (c *changes) show(ctx echo.Context) error {
 	ID := ctx.Param("id")
 	if ! validator.IsUUID4(ID) {
 		return ctx.JSON(validationFailed(ErrInvalidUUID4))
 	}
 
-	property, err := c.repo.FirstByID(ID)
+	change, err := c.repo.FirstByID(ID)
 	if err != nil {
 		if err == model.ErrChangeNotFound {
 			return ctx.JSON(
-				notFound(errors.Wrapf(err, "could not get property with ID %s from storage", ID)))
+				notFound(errors.Wrapf(err, "could not get change with ID %s from storage", ID)))
 		}
 
 		return ctx.JSON(badRequest(err))
 	}
 
-	return ctx.JSON(200, newPropertyResponse(property))
+	return ctx.JSON(200, newChangeResponse(change))
 }

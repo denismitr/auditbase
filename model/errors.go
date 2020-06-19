@@ -16,3 +16,4 @@ const ErrMicroserviceNameTooLong = errtype.StringError("microservice name is too
 const ErrMicroserviceDescriptionTooLong = errtype.StringError("microservice description is too long")
 const ErrMicroserviceNotFound = errtype.StringError("microservice not found")
 const ErrEntityNotFound = errtype.StringError("entity not found")
+const ErrChangeNotFound = errtype.StringError("change not found")

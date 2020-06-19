@@ -5,4 +5,5 @@ type RepositoryFactory interface {
 	Events() EventRepository
 	Entities() EntityRepository
 	Microservices() MicroserviceRepository
+	Changes() ChangeRepository
 }

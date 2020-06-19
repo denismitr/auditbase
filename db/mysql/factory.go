@@ -13,51 +13,62 @@ type RepositoryFactory struct {
 	log logger.Logger
 	uuid4 uuid.UUID4Generator
 
-	mu sync.Mutex
-	property *PropertyRepository
-	event *EventRepository
-	entity *EntityRepository
-	microservice *MicroserviceRepository
+	mu            sync.Mutex
+	changes       *ChangeRepository
+	properties    *PropertyRepository
+	events        *EventRepository
+	entities      *EntityRepository
+	microservices *MicroserviceRepository
+}
+
+func (r *RepositoryFactory) Changes() model.ChangeRepository {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.changes == nil {
+		r.changes = NewChangeRepository(r.conn, r.log, r.uuid4)
+	}
+
+	return r.changes
 }
 
 func (r *RepositoryFactory) Properties() model.PropertyRepository {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.property == nil {
-		r.property = NewPropertyRepository(r.conn, r.uuid4, r.log)
+	if r.properties == nil {
+		r.properties = NewPropertyRepository(r.conn, r.uuid4, r.log)
 	}
 
-	return r.property
+	return r.properties
 }
 
 func (r *RepositoryFactory) Events() model.EventRepository {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.event == nil {
-		r.event = NewEventRepository(r.conn, r.uuid4, r.log)
+	if r.events == nil {
+		r.events = NewEventRepository(r.conn, r.uuid4, r.log)
 	}
 
-	return r.event
+	return r.events
 }
 
 func (r *RepositoryFactory) Entities() model.EntityRepository {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.entity == nil {
-		r.entity = NewEntityRepository(r.conn, r.uuid4, r.log)
+	if r.entities == nil {
+		r.entities = NewEntityRepository(r.conn, r.uuid4, r.log)
 	}
 
-	return r.entity
+	return r.entities
 }
 
 func (r *RepositoryFactory) Microservices() model.MicroserviceRepository {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.microservice == nil {
-		r.microservice = NewMicroserviceRepository(r.conn, r.uuid4, r.log)
+	if r.microservices == nil {
+		r.microservices = NewMicroserviceRepository(r.conn, r.uuid4, r.log)
 	}
 
-	return r.microservice
+	return r.microservices
 }
 
 func NewRepositoryFactory(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Logger) *RepositoryFactory {

@@ -60,7 +60,7 @@ func (p *PropertyRepository) FirstByID(ID string) (*model.Property, error) {
 
 	var prop property
 	if err := stmt.Get(&prop, args...); err != nil {
-		return nil, errors.Wrapf(err, "could not get property with ID %s", ID)
+		return nil, errors.Wrapf(err, "could not get properties with ID %s", ID)
 	}
 
 	return prop.ToModel(), nil
@@ -106,22 +106,22 @@ func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error
 
 	createSql, createArgs, err := createInsertPropertyQuery(r.uuid4.Generate(), name, entityID)
 	if err != nil {
-		return result, errors.Wrap(err, "could not create insert property query")
+		return result, errors.Wrap(err, "could not create insert properties query")
 	}
 
 	getSql, getArgs, err := createGetPropertyIDQuery(name, entityID)
 	if err != nil {
-		return result, errors.Wrap(err, "could not create get property ID query")
+		return result, errors.Wrap(err, "could not create get properties ID query")
 	}
 
 	createStmt, err := r.conn.Preparex(createSql)
 	if err != nil {
-		return result, errors.Wrap(err, "could not prepare insert property query")
+		return result, errors.Wrap(err, "could not prepare insert properties query")
 	}
 
 	getStmt, err := r.conn.Preparex(getSql)
 	if err != nil {
-		return result, errors.Wrap(err, "could not prepare get property ID query")
+		return result, errors.Wrap(err, "could not prepare get properties ID query")
 	}
 
 	if _, err := createStmt.Exec(createArgs...); err != nil {
@@ -130,23 +130,23 @@ func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error
 
 	rows, err := getStmt.Query(getArgs...)
 	if err != nil {
-		return result, errors.Wrapf(err, "could not select id from property with name %s and entityID %s", name, entityID)
+		return result, errors.Wrapf(err, "could not select id from properties with name %s and eventID %s", name, entityID)
 	}
 
 	for rows.Next() {
 		if err := rows.Scan(&result); err != nil {
-			return result, errors.Wrapf(err, "could not parse property ID for name %s and entityID %s", name, entityID)
+			return result, errors.Wrapf(err, "could not parse properties ID for name %s and eventID %s", name, entityID)
 		}
 
 		return result, nil
 	}
 
-	return result, errors.Errorf("failed to create or retrieve property with name %s and entityId %s", name, entityID)
+	return result, errors.Errorf("failed to create or retrieve properties with name %s and entityId %s", name, entityID)
 }
 
 func createInsertPropertyQuery(ID, name, entityID string) (string, []interface{}, error) {
 	if validator.IsEmptyString(name) {
-		return "", nil, errors.New("property name is empty")
+		return "", nil, errors.New("properties name is empty")
 	}
 
 	if ! validator.IsUUID4(entityID) {
@@ -168,7 +168,7 @@ func createInsertPropertyQuery(ID, name, entityID string) (string, []interface{}
 
 func createGetPropertyIDQuery(name, entityID string) (string, []interface{}, error) {
 	if validator.IsEmptyString(name) {
-		return "", nil, errors.New("property name is empty")
+		return "", nil, errors.New("properties name is empty")
 	}
 
 	if ! validator.IsUUID4(entityID) {

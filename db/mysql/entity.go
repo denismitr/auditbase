@@ -89,7 +89,7 @@ func (r *EntityRepository) Properties(ID string) ([]*model.Property, error) {
 	var properties []property
 
 	if err := r.conn.Select(&properties, query, ID); err != nil {
-		return nil, errors.Wrapf(err, "could not get property stat from entity with ID [%s]", ID)
+		return nil, errors.Wrapf(err, "could not get properties stat from entities with ID [%s]", ID)
 	}
 
 	stats := make([]*model.Property, len(properties))
@@ -120,7 +120,7 @@ func createSelectPropertiesForEntity(_ string) (string, error) {
 	return query, err
 }
 
-// Create an entity
+// Create an entities
 func (r *EntityRepository) Create(e *model.Entity) error {
 	stmt := `
 		INSERT INTO entities (id, service_id, name, description) VALUES (
@@ -136,7 +136,7 @@ func (r *EntityRepository) Create(e *model.Entity) error {
 	}
 
 	if _, err := r.conn.NamedExec(stmt, tt); err != nil {
-		return errors.Wrapf(err, "could not create new entity with name %s", e.Name)
+		return errors.Wrapf(err, "could not create new entities with name %s", e.Name)
 	}
 
 	return nil
@@ -159,7 +159,7 @@ func (r *EntityRepository) FirstByNameAndService(name string, service *model.Mic
 	ent := new(entity)
 
 	if err := r.conn.Get(ent, stmt, service.ID, name); err != nil {
-		return nil, errors.Wrapf(err, "could not find entity with name %s", name)
+		return nil, errors.Wrapf(err, "could not find entities with name %s", name)
 	}
 
 	return ent.ToModel(), nil
@@ -179,13 +179,13 @@ func (r *EntityRepository) FirstByID(ID string) (*model.Entity, error) {
 	}
 
 	if err := stmt.Get(&ent, args...); err != nil {
-		return nil, errors.Wrapf(err, "could not find entity with ID %s", ID)
+		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
 	}
 
 	return ent.ToModel(), nil
 }
 
-// FirstOrCreateByNameAndService - fetches first or creates an entity by its name and service
+// FirstOrCreateByNameAndService - fetches first or creates an entities by its name and service
 func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *model.Microservice) (*model.Entity, error) {
 	ent, err := r.FirstByNameAndService(name, service)
 	if err == nil {
@@ -202,7 +202,7 @@ func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *m
 	}
 
 	if err := r.Create(ent); err != nil {
-		return nil, errors.Wrapf(err, "entity %s with service ID %s does not exist and cannot be created", name, service)
+		return nil, errors.Wrapf(err, "entities %s with service ID %s does not exist and cannot be created", name, service)
 	}
 
 	return ent, nil

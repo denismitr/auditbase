@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCreateSelectChangesQuery(t *testing.T) {
+func TestCreateSelectChangesByIDsQuery(t *testing.T) {
 	tt := []struct{
 		ids []string
 		sql string
@@ -29,7 +29,7 @@ func TestCreateSelectChangesQuery(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(fmt.Sprintf("%#v", tc.ids), func(t *testing.T) {
-			sql, args, err := createSelectChangesQuery(tc.ids)
+			sql, args, err := createSelectChangesByIDsQuery(tc.ids)
 
 			if tc.err == nil {
 				assert.Nil(t, err)

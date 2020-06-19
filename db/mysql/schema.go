@@ -139,7 +139,7 @@ func (m *SQLMigrator) Up() error {
 	}
 
 	if _, err := m.conn.Exec(propertySchema); err != nil {
-		return errors.Wrap(err, "could not create property table")
+		return errors.Wrap(err, "could not create properties table")
 	}
 
 	if _, err := m.conn.Exec(changeSchema); err != nil {

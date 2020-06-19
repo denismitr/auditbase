@@ -49,12 +49,32 @@ type propertyStatAttribute struct {
 	EventCount int    `json:"eventCount"`
 }
 
+type changeAttributes struct {
+	ID              string  `json:"id"`
+	EventID         string  `json:"eventId"`
+	PropertyID      string  `json:"propertyId"`
+	CurrentDataType *string  `json:"currentDataType"`
+	From            *string `json:"from"`
+	To              *string `json:"to"`
+}
+
 func newMicroserviceAttributes(m *model.Microservice) *microserviceAttributes {
 	return &microserviceAttributes{
 		Name:        m.Name,
 		Description: m.Description,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
+	}
+}
+
+func newChangeAttributes(c *model.Change) *changeAttributes {
+	return &changeAttributes{
+		ID: c.ID,
+		EventID: c.EventID,
+		PropertyID: c.PropertyID,
+		CurrentDataType: c.CurrentDataType,
+		From: c.From,
+		To: c.To,
 	}
 }
 

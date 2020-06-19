@@ -110,7 +110,7 @@ func (r *EventRepository) Create(e *model.Event) error {
 
 	if _, err := tx.NamedExec(createEvent, &dbEvent); err != nil {
 		_ = tx.Rollback()
-		return errors.Wrapf(err, "could not insert new event with ID %s", e.ID)
+		return errors.Wrapf(err, "could not insert new events with ID %s", e.ID)
 	}
 
 	for i := range e.Changes {
@@ -129,7 +129,7 @@ func (r *EventRepository) Create(e *model.Event) error {
 
 		if err != nil {
 			_ = tx.Rollback()
-			return errors.Wrapf(err, "could not insert property for event with ID %s", e.ID)
+			return errors.Wrapf(err, "could not insert properties for events with ID %s", e.ID)
 		}
 	}
 
@@ -140,7 +140,7 @@ func (r *EventRepository) Delete(ID model.ID) error {
 	stmt := `DELETE FROM events WHERE id = UUID_TO_BIN(?)`
 
 	if _, err := r.conn.Exec(stmt, ID.String()); err != nil {
-		return errors.Wrapf(err, "could not delete event with ID %s", ID.String())
+		return errors.Wrapf(err, "could not delete events with ID %s", ID.String())
 	}
 
 	return nil
@@ -350,7 +350,7 @@ func (r *EventRepository) joinChangesWithEvents(events []event) (map[string][]pr
 		eventIds = append(eventIds, events[i].ID)
 	}
 
-	q, args, err := createSelectChangesQuery(eventIds)
+	q, args, err := createSelectChangesByIDsQuery(eventIds)
 	if err != nil {
 		return nil, err
 	}
@@ -492,7 +492,7 @@ func createBaseCountEventsQuery() sq.SelectBuilder {
 	return sq.Select("COUNT(*) as total FROM events e")
 }
 
-func createSelectChangesQuery(ids []string) (string, []interface{}, error) {
+func createSelectChangesByIDsQuery(ids []string) (string, []interface{}, error) {
 	if len(ids) == 0 {
 		return "", nil, ErrEmptyWhereInList
 	}

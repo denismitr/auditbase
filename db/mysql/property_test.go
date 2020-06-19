@@ -174,7 +174,7 @@ func TestCreateInsertPropertyQuery(t *testing.T) {
 			err:          errors.New("bar is not a valid uuid4"),
 		},
 		{
-			name:         "invalid-entity-id",
+			name:         "invalid-entities-id",
 			ID:           "eadd1efe-2430-4c9c-a7fc-04d1a8e82e96",
 			entityID:     "baz",
 			sql:          ``,
@@ -183,13 +183,13 @@ func TestCreateInsertPropertyQuery(t *testing.T) {
 			err:          errors.New("baz is not a valid uuid4"),
 		},
 		{
-			name:         "no-property-name",
+			name:         "no-properties-name",
 			ID:           "ccdd1efe-2430-4c9c-a7fc-04d1a8e82f11",
 			entityID:     "eadd1efe-2430-4c9c-a7fc-04d1a8e82e96",
 			sql:          ``,
 			args:         nil,
 			propertyName: "",
-			err:          errors.New("property name is empty"),
+			err:          errors.New("properties name is empty"),
 		},
 	}
 

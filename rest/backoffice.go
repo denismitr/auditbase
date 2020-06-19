@@ -22,7 +22,6 @@ func NewBackOfficeAPI(
 	e.Use(middleware.Logger())
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))
 	e.Use(middleware.Recover())
-	e.Use(hashRequestBody)
 
 	uuid4 := uuid.NewUUID4Generator()
 
@@ -30,6 +29,7 @@ func NewBackOfficeAPI(
 	eventsController := newEventsController(log, uuid4, clock.New(), factory.Events(), ef, cacher)
 	entitiesController := newEntitiesController(log, uuid4, clock.New(), factory.Entities())
 	propertiesController := newPropertiesController(uuid4, log, factory.Properties())
+	changesController := newChangesController(uuid4, log, factory.Changes())
 
 	// Microservices
 	e.GET("/api/v1/microservices", microservicesController.index)
@@ -50,6 +50,11 @@ func NewBackOfficeAPI(
 
 	// Properties
 	e.GET("/api/v1/properties", propertiesController.index)
+	e.GET("/api/v1/properties/:id", propertiesController.show)
+
+	// Changes
+	e.GET("/api/v1/changes", changesController.index)
+	e.GET("/api/v1/changes/:id", changesController.show)
 
 	return &API{
 		e:   e,

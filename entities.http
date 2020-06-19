@@ -14,3 +14,15 @@ GET {{back-office}}/api/v1/properties
 Accept: application/json
 Cache-Control: no-cache
 
+###
+
+GET {{back-office}}/api/v1/changes
+Accept: application/json
+Cache-Control: no-cache
+
+###
+
+GET {{back-office}}/api/v1/changes/dfc70b58-674b-43e3-9b2f-2eab074c4e68
+Accept: application/json
+Cache-Control: no-cache
+
