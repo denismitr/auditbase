@@ -1,15 +1,16 @@
 # Auditbase 
-### an audit log system specifically designed for microservices
+### an audit system for domain events, specifically designed for microservices
 
 ### WIP
 
-Auditbase denormalizes events to make them suitable for analytics
+Auditbase is an application that collects events from your distributed system. 
+Denormalizes events data to make them better suitable for analytics
 
 consists of **receiver** REST API, **back-office** REST API, 
-RabbitMQ events consumer, RabbitMQ errors consumer
+AMQP events consumer, AMQP errors consumer
 
-at the moment only MySQL storage is available, MongoDB is planned,
-Redis as cache for faster denormalization, RabbitMQ as message broker
+at the moment only MySQL storage is available, CockroachDB and MongoDB are planned.
+Redis is used as cache for faster denormalization, RabbitMQ as message broker
 
 ### RUN DEV MODE
 ```make up```
