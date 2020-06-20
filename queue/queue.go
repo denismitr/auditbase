@@ -226,7 +226,12 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 func (q *RabbitQueue) Connect(ctx context.Context) error {
 	q.updateStatus(Connecting)
 
-	if err := retry.Incremental(ctx, 2 * time.Second, q.maxConnRetries, func(attempt int) (err error) {
+	// max retries are not very important
+	// given that context is usually responsible for timeout
+	// just in case
+	maxConnRetries := 300
+
+	if err := retry.Incremental(ctx, 1 * time.Second, maxConnRetries, func(attempt int) (err error) {
 		q.logger.Debugf("Waiting for RabbitMQ on %s: attempt %d", q.dsn, attempt)
 
 		conn, err := amqp.Dial(q.dsn)

@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"github.com/denismitr/auditbase/cache"
-	"github.com/denismitr/auditbase/utils/retry"
 	"github.com/go-redis/redis/v7"
 	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
 	"github.com/labstack/gommon/log"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,9 +28,16 @@ func main() {
 
 	debug(env.IsTruthy("APP_TRACE"))
 
-	startCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	backOffice, err := createBackOffice(startCtx)
-	cancel()
+	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+
+	port := ":" + env.MustString("BACK_OFFICE_API_PORT")
+
+	restCfg := rest.Config{
+		Port:      port,
+		BodyLimit: "250K",
+	}
+
+	backOffice, err := create(lg, restCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -62,77 +68,105 @@ func debug(run bool) {
 	}
 }
 
-func connectRedis(log logger.Logger) *cache.RedisCache {
-	c := redis.NewClient(&redis.Options{
-		Addr:     env.MustString("REDIS_HOST") + ":" + env.MustString("REDIS_PORT"),
-		Password: env.String("REDIS_PASSWORD"),
-		DB:       env.IntOrDefault("REDIS_DB", 0),
-	})
 
-	if err := c.Ping().Err(); err != nil {
-		panic(err)
-	}
+func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
-	return cache.NewRedisCache(c, log)
-}
+	connCh := make(chan *sqlx.DB)
+	cacheCh := make(chan cache.Cacher)
+	efCh := make(chan *flow.MQEventFlow)
+	errCh := make(chan error)
 
-func createBackOffice(ctx context.Context) (*rest.API, error) {
-	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+	go func() {
+		mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 3)
 
-	var dbConn *sqlx.DB
-	if err := retry.Incremental(ctx, 2 * time.Second, 100, func(attempt int) (err error) {
-		dbConn, err = sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
+		if err := mq.Connect(ctx); err != nil {
+			errCh <- err
+			return
+		}
+
+		ef := flow.New(mq, lg, flow.NewConfigFromGlobals())
+
+		if err := ef.Scaffold(); err != nil {
+			errCh <- err
+			return
+		}
+
+		efCh <- ef
+	}()
+
+	go func() {
+		opts := &redis.Options{
+			Addr:     net.JoinHostPort(env.MustString("REDIS_HOST"), env.MustString("REDIS_PORT")),
+			Password: env.String("REDIS_PASSWORD"),
+			DB:       env.IntOrDefault("REDIS_DB", 0),
+		}
+
+		c, err := cache.ConnectRedis(ctx, lg, opts)
+
 		if err != nil {
-			lg.Debugf("could not connect to DB on attempt %d", attempt)
-			return retry.Error(err, attempt)
+			errCh <- err
+			return
 		}
 
-		if _, err = dbConn.QueryxContext(ctx, "select 1"); err != nil {
-			lg.Debugf("could not ping DB connection on attempt %d", attempt)
-			return retry.Error(err, attempt)
+		cacheCh <- c
+	}()
+
+	go func() {
+		dbConn, err := mysql.ConnectAndMigrate(ctx, lg, env.MustString("AUDITBASE_DB_DSN"), 150)
+		if err != nil {
+			errCh <- err
+			return
 		}
 
-		lg.Debugf("connection with DB established")
-		return nil
-	}); err != nil {
+		connCh <- dbConn
+	}()
+
+	var conn *sqlx.DB
+	var ef *flow.MQEventFlow
+	var cacher cache.Cacher
+	var err error
+
+	allServicesReady := func() bool {
+		return conn != nil && ef != nil && cacher != nil
+	}
+
+done:
+	for {
+		select {
+		case ef = <-efCh:
+			if allServicesReady() {
+				break done
+			}
+		case conn = <-connCh:
+			if allServicesReady() {
+				break done
+			}
+		case cacher = <-cacheCh:
+			if allServicesReady() {
+				break done
+			}
+		case err = <-errCh:
+			break done
+		}
+	}
+
+	close(efCh)
+	close(connCh)
+	close(errCh)
+	close(cacheCh)
+
+	if err != nil {
 		return nil, err
 	}
 
-
-	uuid4 := uuid.NewUUID4Generator()
-
-	migrator := mysql.Migrator(dbConn)
-
-	if err := migrator.Up(); err != nil {
-		panic(err)
-	}
-
-	factory := mysql.NewRepositoryFactory(dbConn, uuid4, lg)
-
-	mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 30)
-
-	if err := mq.Connect(ctx); err != nil {
-		return nil, err
-	}
-
-	port := ":" + env.MustString("BACK_OFFICE_API_PORT")
-
-	flowCfg := flow.NewConfigFromGlobals()
-	ef := flow.New(mq, lg, flowCfg)
-
-	if err := ef.Scaffold(); err != nil {
-		return nil, err
-	}
-
-	restCfg := rest.Config{
-		Port:      port,
-		BodyLimit: "250K",
-	}
-
-	e := echo.New()
-	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
-
-	cacher := connectRedis(lg)
-
-	return rest.NewBackOfficeAPI(e, restCfg, lg, ef, factory, cacher), nil
+	return rest.BackOfficeAPI(
+		echo.New(),
+		restCfg,
+		lg,
+		ef,
+		mysql.Factory(conn, uuid.NewUUID4Generator(), lg),
+		cacher,
+	), nil
 }

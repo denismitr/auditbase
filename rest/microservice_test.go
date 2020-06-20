@@ -17,7 +17,7 @@ package rest
 // )
 
 // func TestGetMicroservice(t *testing.T) {
-// 	e := echo.NewBackOfficeAPI()
+// 	e := echo.BackOfficeAPI()
 // 	logger := utils.NewStdoutLogger("test", "events_test")
 
 // 	t.Run("user can request a microservice by ID", func(t *testing.T) {
@@ -118,7 +118,7 @@ package rest
 // }
 
 // func TestSelectMicroservices(t *testing.T) {
-// 	e := echo.NewBackOfficeAPI()
+// 	e := echo.BackOfficeAPI()
 // 	logger := utils.NewStdoutLogger("test", "events_test")
 
 // 	t.Run("select all microservices", func(t *testing.T) {
@@ -162,7 +162,7 @@ package rest
 // }
 
 // func TestUpdateMicroservice(t *testing.T) {
-// 	e := echo.NewBackOfficeAPI()
+// 	e := echo.BackOfficeAPI()
 // 	logger := utils.NewStdoutLogger("test", "events_test")
 
 // 	t.Run("admin can update existing microservice", func(t *testing.T) {
@@ -206,7 +206,7 @@ package rest
 // }
 
 // func TestCreateMicroservice(t *testing.T) {
-// 	e := echo.NewBackOfficeAPI()
+// 	e := echo.BackOfficeAPI()
 // 	logger := utils.NewStdoutLogger("test", "events_test")
 
 // 	t.Run("admin cannot create a microservice without a name", func(t *testing.T) {

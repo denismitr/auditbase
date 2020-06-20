@@ -121,7 +121,7 @@ func TestCreateEventWith(t *testing.T) {
 	// }
 
 	// func TestGetEvent(t *testing.T) {
-	// 	e := echo.NewBackOfficeAPI()
+	// 	e := echo.BackOfficeAPI()
 	// 	logger := utils.NewStdoutLogger("test", "events_test")
 
 	// 	t.Run("admin can get an event by ID", func(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/middleware"
 )
 
-func NewBackOfficeAPI(
+func BackOfficeAPI(
 	e *echo.Echo,
 	cfg Config,
 	log logger.Logger,
@@ -22,6 +22,7 @@ func NewBackOfficeAPI(
 	e.Use(middleware.Logger())
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))
 	e.Use(middleware.Recover())
+	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 
 	uuid4 := uuid.NewUUID4Generator()
 

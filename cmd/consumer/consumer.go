@@ -151,7 +151,7 @@ done:
 	}
 
 	uuid4 := uuid.NewUUID4Generator()
-	factory := mysql.NewRepositoryFactory(conn, uuid4, lg)
+	factory := mysql.Factory(conn, uuid4, lg)
 	persister := db.NewDBPersister(factory, lg, cacher)
 
 	return consumer.New(ef, lg, persister), nil

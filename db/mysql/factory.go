@@ -71,7 +71,7 @@ func (r *RepositoryFactory) Microservices() model.MicroserviceRepository {
 	return r.microservices
 }
 
-func NewRepositoryFactory(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Logger) *RepositoryFactory {
+func Factory(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Logger) *RepositoryFactory {
 	return &RepositoryFactory{
 		conn: conn,
 		log: log,
