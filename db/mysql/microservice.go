@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
@@ -51,7 +52,7 @@ func NewMicroserviceRepository(
 	}
 }
 
-// Create microservices in MySQL DB
+// Create microservices in MySQL DB and return a newly created instance
 func (r *MicroserviceRepository) Create(m *model.Microservice) (*model.Microservice, error) {
 	createSQL, createArgs, err := createMicroserviceQuery(m)
 	if err != nil {
@@ -74,7 +75,7 @@ func (r *MicroserviceRepository) Create(m *model.Microservice) (*model.Microserv
 	createStmt, err := tx.PreparexContext(ctx, createSQL)
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, errors.Wrapf(err, "could not prepare create statement %s", createSQL)
+		return nil, errors.Wrapf(err, "could not prepare insert statement %s", createSQL)
 	}
 
 	selectStmt, err := tx.PreparexContext(ctx, selectSQL)
@@ -92,7 +93,8 @@ func (r *MicroserviceRepository) Create(m *model.Microservice) (*model.Microserv
 
 	if err := selectStmt.GetContext(ctx, &ms, selectArgs...); err != nil {
 		_ = tx.Rollback()
-		return nil, errors.Wrapf(err, "cannot select record from microservices with id %#v", selectArgs)
+		r.log.Error(err)
+		return nil, model.ErrMicroserviceNotFound
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -148,13 +150,22 @@ func (r *MicroserviceRepository) Update(ID model.ID, m *model.Microservice) erro
 	return nil
 }
 
-// FirstByID - find first microservices by ID
+// FirstByID - find one microservices by ID
 func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, error) {
-	m := new(microservice)
+	var m microservice
 
-	stmt := `SELECT BIN_TO_UUID(id) as id, name, description, created_at, updated_at FROM microservices WHERE id = UUID_TO_BIN(?)`
+	q, args, err := firstMicroserviceByIDQuery(ID.String())
+	if err != nil {
+		return nil, err
+	}
 
-	if err := r.conn.Get(m, stmt, ID.String()); err != nil {
+	stmt, err := r.conn.Preparex(q)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not prepare select statement %s", q)
+	}
+
+	if err := stmt.Get(&m, args...); err != nil {
+		r.log.Error(err)
 		return nil, model.ErrMicroserviceNotFound
 	}
 
@@ -214,6 +225,10 @@ func (r *MicroserviceRepository) FirstOrCreateByName(name string) (*model.Micros
 }
 
 func createMicroserviceQuery(m *model.Microservice) (string, []interface{}, error) {
+	if validator.IsEmptyString(m.ID) {
+		return "", nil, db.ErrEmptyUUID4
+	}
+
 	if !validator.IsUUID4(m.ID) {
 		return "", nil, errors.Errorf("%s is not a valid uuid4", m.ID)
 	}
@@ -225,6 +240,10 @@ func createMicroserviceQuery(m *model.Microservice) (string, []interface{}, erro
 }
 
 func firstMicroserviceByIDQuery(ID string) (string, []interface{}, error) {
+	if validator.IsEmptyString(ID) {
+		return "", nil, db.ErrEmptyUUID4
+	}
+
 	if !validator.IsUUID4(ID) {
 		return "", nil, errors.Errorf("%s is not a valid uuid4", ID)
 	}

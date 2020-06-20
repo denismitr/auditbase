@@ -8,6 +8,7 @@ const ErrUniqueConstrainedFailed = errtype.StringError("db unique constrained fa
 const ErrEntityDoesNotExist = errtype.StringError("requested entity does not exist in DB")
 const ErrPersisterCouldNotPrepareEvent = errtype.StringError("persister could not prepare event")
 const ErrCouldNotCreateEvent = errtype.StringError("could not create event")
+const ErrEmptyUUID4 = errtype.StringError("empty string given instead of uuid4")
 
 func covertToPersistenceResult(err error) PersistenceResult {
 	switch err {
