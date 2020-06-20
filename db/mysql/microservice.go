@@ -1,12 +1,17 @@
 package mysql
 
 import (
+	"context"
+	"database/sql"
+	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
+	"github.com/denismitr/auditbase/utils/validator"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	"time"
 )
 
 type microservice struct {
@@ -15,6 +20,16 @@ type microservice struct {
 	Description string `db:"description"`
 	CreatedAt   string `db:"created_at"`
 	UpdatedAt   string `db:"updated_at"`
+}
+
+func (m *microservice) ToModel() *model.Microservice {
+	return &model.Microservice{
+		ID: m.ID,
+		Name: m.Name,
+		Description: m.Description,
+		CreatedAt: m.CreatedAt,
+		UpdatedAt: m.UpdatedAt,
+	}
 }
 
 type MicroserviceRepository struct {
@@ -38,13 +53,53 @@ func NewMicroserviceRepository(
 
 // Create microservices in MySQL DB
 func (r *MicroserviceRepository) Create(m *model.Microservice) (*model.Microservice, error) {
-	stmt := "INSERT INTO microservices (id, name, description) VALUES (UUID_TO_BIN(?), ?, ?)"
-
-	if _, err := r.conn.Exec(stmt, m.ID, m.Name, m.Description); err != nil {
-		return nil, errors.Wrapf(err, "cannot insert into microservices table")
+	createSQL, createArgs, err := createMicroserviceQuery(m)
+	if err != nil {
+		return nil, err
 	}
 
-	return r.FirstByID(model.ID(m.ID))
+	selectSQL, selectArgs, err := firstMicroserviceByIDQuery(m.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second) // fixme - pass from outside
+	defer cancel()
+
+	tx, err := r.conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	if err != nil {
+		return nil, err
+	}
+
+	createStmt, err := tx.PreparexContext(ctx, createSQL)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrapf(err, "could not prepare create statement %s", createSQL)
+	}
+
+	selectStmt, err := tx.PreparexContext(ctx, selectSQL)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrapf(err, "could not prepare select statement %s", selectSQL)
+	}
+
+	if _, err := createStmt.ExecContext(ctx, createArgs...); err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrapf(err, "cannot insert record into microservices table")
+	}
+
+	var ms microservice
+
+	if err := selectStmt.GetContext(ctx, &ms, selectArgs...); err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrapf(err, "cannot select record from microservices with id %#v", selectArgs)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, errors.New("could not commit create microservice transaction")
+	}
+
+	return ms.ToModel(), nil
 }
 
 // SelectAll microservices
@@ -156,4 +211,30 @@ func (r *MicroserviceRepository) FirstOrCreateByName(name string) (*model.Micros
 	}
 
 	return m, nil
+}
+
+func createMicroserviceQuery(m *model.Microservice) (string, []interface{}, error) {
+	if !validator.IsUUID4(m.ID) {
+		return "", nil, errors.Errorf("%s is not a valid uuid4", m.ID)
+	}
+
+	return sq.Insert("microservices").
+		Columns("id", "name", "description").
+		Values(sq.Expr("UUID_TO_BIN(?)", m.ID), m.Name, m.Description).
+		ToSql()
+}
+
+func firstMicroserviceByIDQuery(ID string) (string, []interface{}, error) {
+	if !validator.IsUUID4(ID) {
+		return "", nil, errors.Errorf("%s is not a valid uuid4", ID)
+	}
+
+	return sq.Select(
+		"BIN_TO_UUID(id) as id",
+			"name", "description",
+			"created_at", "updated_at",
+		).
+		From("microservices").
+		Where("id = UUID_TO_BIN(?)", ID).
+		ToSql()
 }
