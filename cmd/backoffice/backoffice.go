@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/denismitr/auditbase/cache"
+	"github.com/denismitr/auditbase/utils/retry"
 	"github.com/go-redis/redis/v7"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -29,16 +29,15 @@ func main() {
 
 	debug(env.IsTruthy("APP_TRACE"))
 
-	fmt.Println("Waiting for DB connection...")
-	time.Sleep(30 * time.Second)
-
-	backOffice, err := createBackOffice()
+	startCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	backOffice, err := createBackOffice(startCtx)
+	cancel()
 	if err != nil {
 		panic(err)
 	}
 
 	terminate := make(chan os.Signal)
-	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 
 	stop := backOffice.Start()
 
@@ -77,14 +76,30 @@ func connectRedis(log logger.Logger) *cache.RedisCache {
 	return cache.NewRedisCache(c, log)
 }
 
-func createBackOffice() (*rest.API, error) {
+func createBackOffice(ctx context.Context) (*rest.API, error) {
 	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
-	uuid4 := uuid.NewUUID4Generator()
 
-	dbConn, err := sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
-	if err != nil {
+	var dbConn *sqlx.DB
+	if err := retry.Incremental(ctx, 2 * time.Second, 100, func(attempt int) (err error) {
+		dbConn, err = sqlx.Connect("mysql", os.Getenv("AUDITBASE_DB_DSN"))
+		if err != nil {
+			lg.Debugf("could not connect to DB on attempt %d", attempt)
+			return retry.Error(err, attempt)
+		}
+
+		if _, err = dbConn.QueryxContext(ctx, "select 1"); err != nil {
+			lg.Debugf("could not ping DB connection on attempt %d", attempt)
+			return retry.Error(err, attempt)
+		}
+
+		lg.Debugf("connection with DB established")
+		return nil
+	}); err != nil {
 		return nil, err
 	}
+
+
+	uuid4 := uuid.NewUUID4Generator()
 
 	migrator := mysql.Migrator(dbConn)
 
@@ -94,9 +109,9 @@ func createBackOffice() (*rest.API, error) {
 
 	factory := mysql.NewRepositoryFactory(dbConn, uuid4, lg)
 
-	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), lg, 4)
+	mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 30)
 
-	if err := mq.Connect(); err != nil {
+	if err := mq.Connect(ctx); err != nil {
 		return nil, err
 	}
 

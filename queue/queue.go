@@ -1,7 +1,9 @@
 package queue
 
 import (
+	"context"
 	"fmt"
+	"github.com/denismitr/auditbase/utils/retry"
 	"sync"
 	"time"
 
@@ -18,6 +20,7 @@ const (
 	Connecting
 	ConnectionDropped
 	ConnectionClosed
+	ConnectionFailed
 )
 
 // Scaffolder - scaffolds the Message Queue,
@@ -40,7 +43,7 @@ type MQ interface {
 	Ack(tag uint64) error
 	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
 
-	Connect() error
+	Connect(ctx context.Context) error
 	Maintain()
 	Status() ConnectionStatus
 	NotifyStatusChange(listener chan ConnectionStatus)
@@ -64,8 +67,8 @@ type RabbitQueue struct {
 	mu sync.RWMutex
 }
 
-// NewRabbitQueue - creates a new message queue with RabbitMQ implementation
-func NewRabbitQueue(dsn string, logger logger.Logger, maxConnRetries int) *RabbitQueue {
+// Rabbit - creates a new message queue with RabbitMQ implementation
+func Rabbit(dsn string, logger logger.Logger, maxConnRetries int) *RabbitQueue {
 	return &RabbitQueue{
 		dsn:             dsn,
 		conn:            nil,
@@ -220,12 +223,10 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 // and makes attempts to connect to irt
 // this function is not, and not supposed to be thread safe
 // only one goroutine should run it at a time
-func (q *RabbitQueue) Connect() error {
-	attempt := 1
-
+func (q *RabbitQueue) Connect(ctx context.Context) error {
 	q.updateStatus(Connecting)
 
-	for attempt <= q.maxConnRetries {
+	if err := retry.Incremental(ctx, 2 * time.Second, q.maxConnRetries, func(attempt int) (err error) {
 		q.logger.Debugf("Waiting for RabbitMQ on %s: attempt %d", q.dsn, attempt)
 
 		conn, err := amqp.Dial(q.dsn)
@@ -233,18 +234,12 @@ func (q *RabbitQueue) Connect() error {
 			q.logger.Error(
 				errors.Wrapf(err, "attempt %d failed", attempt),
 			)
-
-			attempt++
-			time.Sleep(5 * time.Second * time.Duration(attempt))
-			continue
+			return retry.Error(err, attempt)
 		}
 
 		ch, err := conn.Channel()
 		if err != nil {
-			msg := "could not open AMQP channel"
-			q.logger.Error(
-				errors.Wrapf(err, "attempt %d failed: could not open AMQP channel"+msg, attempt),
-			)
+			return errors.Wrap(err, "Queue connection failed: could not open AMQP channel")
 		}
 
 		q.conn = conn
@@ -253,12 +248,15 @@ func (q *RabbitQueue) Connect() error {
 		q.connErrCh = make(chan *amqp.Error)
 		q.conn.NotifyClose(q.connErrCh)
 
-		q.logger.Debugf("Established connection with %s", q.dsn)
-
 		return nil
+	}); err != nil {
+		q.updateStatus(ConnectionFailed)
+		return errors.Wrapf(err, "failed to connect to rabbitMQ on %s", q.dsn)
 	}
 
-	return errors.Errorf("failed to connect to rabbitMQ on %s - too many attempts", q.dsn)
+	q.logger.Debugf("Established connection with %s", q.dsn)
+
+	return nil
 }
 
 // Maintain connection to RabbitMQ and listen to close channel
@@ -272,9 +270,12 @@ func (q *RabbitQueue) Maintain() {
 			if connErr != nil {
 				q.updateStatus(ConnectionDropped)
 				q.logger.Error(errors.Errorf("RabbitMQ connection error: %s", connErr.Error()))
-				if err := q.Connect(); err != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 60 *time.Second)
+				if err := q.Connect(ctx); err != nil {
+					cancel()
 					panic(errors.Wrap(err, "failed to reconnect to RabbitMQ"))
 				}
+				cancel()
 				continue
 			} else {
 				// connection was deliberately closed
@@ -283,11 +284,11 @@ func (q *RabbitQueue) Maintain() {
 			}
 		case <-q.stopCh:
 			if q.channel != nil {
-				q.channel.Close()
+				_ = q.channel.Close()
 			}
 
 			if !q.conn.IsClosed() {
-				q.conn.Close()
+				_ = q.conn.Close()
 			}
 
 			q.updateStatus(ConnectionClosed)

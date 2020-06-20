@@ -65,9 +65,10 @@ API suitable for a back-office admin panel
 ## TODO
 - unit tests
 - more integration tests
-- SQL query builder
+- SQL query builder for all queries
 - refactor ID to object where suitable
 - create back-office UI dashboard
 - MongoDB as alternative storage
 - research GRPC and Protobuf as alternative to HTTP REST
+- research NATS as alternative to RabbitMQ
 

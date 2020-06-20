@@ -46,9 +46,10 @@ func main() {
 
 	factory := mysql.NewRepositoryFactory(dbConn, uuid4, log)
 
-	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 4)
+	mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), log, 4)
 
-	if err := mq.Connect(); err != nil {
+	startCtx, _ := context.WithTimeout(context.Background(), 60 * time.Second)
+	if err := mq.Connect(startCtx); err != nil {
 		panic(err)
 	}
 

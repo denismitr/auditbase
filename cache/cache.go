@@ -1,9 +1,11 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/denismitr/auditbase/utils/errtype"
 	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/utils/retry"
 	"github.com/go-redis/redis/v7"
 	"github.com/pkg/errors"
 	"time"
@@ -89,4 +91,23 @@ func (c *RedisCache) CreateKey(key string, ttl time.Duration) error {
 	return nil
 }
 
+func ConnectRedis(ctx context.Context, lg logger.Logger, opts *redis.Options) (*RedisCache, error) {
+	c := redis.NewClient(opts)
+
+	maxRetries := 200 // retries are not very important, since context is responsible for timeout
+
+	if err := retry.Incremental(ctx, 1 * time.Second, maxRetries, func(attempt int) (err error) {
+		lg.Debugf("trying to connect Redis at attempt %d", attempt)
+		if err := c.Ping().Err(); err != nil {
+			return retry.Error(err, attempt)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	lg.Debugf("established connection with Redis")
+	return NewRedisCache(c, lg), nil
+}
 

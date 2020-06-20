@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"github.com/denismitr/auditbase/cache"
 	"github.com/go-redis/redis/v7"
+	"github.com/jmoiron/sqlx"
+	"github.com/labstack/gommon/log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,8 +20,6 @@ import (
 	"github.com/denismitr/auditbase/utils/env"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
-	"github.com/jmoiron/sqlx"
-
 	"github.com/pkg/profile"
 )
 
@@ -37,11 +36,11 @@ func main() {
 	cfg := flow.NewConfigFromGlobals()
 
 	queueName, consumerName := resolveNames(*errorsConsumer, cfg, *name)
-	log := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), consumerName)
+	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), consumerName)
 
 	debug(*errorsConsumer)
 
-	run(log, cfg, consumerName, queueName)
+	run(lg, cfg, consumerName, queueName)
 }
 
 func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (string, string) {
@@ -59,41 +58,110 @@ func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (st
 	return queueName, consumerName
 }
 
-func run(log logger.Logger, cfg flow.Config, consumerName, queueName string) {
-	fmt.Println("Waiting for DB connection")
-	time.Sleep(40 * time.Second)
+func create(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, error) {
+	startCtx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
+	defer cancel()
+
+	connCh := make(chan *sqlx.DB)
+	cacheCh := make(chan cache.Cacher)
+	efCh := make(chan *flow.MQEventFlow)
+	errCh := make(chan error)
+
+	go func() {
+		dbConn, err := mysql.ConnectAndMigrate(startCtx, lg, env.MustString("AUDITBASE_DB_DSN"), 150)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		connCh <- dbConn
+	}()
+
+	go func() {
+		mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 3)
+
+		if err := mq.Connect(startCtx); err != nil {
+			errCh <- err
+			return
+		}
+
+		ef := flow.New(mq, lg, cfg)
+
+		if err := ef.Scaffold(); err != nil {
+			errCh <- err
+			return
+		}
+
+		efCh <- ef
+	}()
+
+	go func() {
+		opts := &redis.Options{
+			Addr:     env.MustString("REDIS_HOST") + ":" + env.MustString("REDIS_PORT"),
+			Password: env.String("REDIS_PASSWORD"),
+			DB:       env.IntOrDefault("REDIS_DB", 0),
+		}
+
+		c, err := cache.ConnectRedis(startCtx, lg, opts)
+
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		cacheCh <- c
+	}()
+
+	var conn *sqlx.DB
+	var ef *flow.MQEventFlow
+	var cacher cache.Cacher
+	var err error
+
+	allServicesReady := func() bool {
+		return conn != nil && ef != nil && cacher != nil
+	}
+
+done:
+	for {
+		select {
+			case ef = <-efCh:
+				if allServicesReady() {
+					break done
+				}
+			case conn = <-connCh:
+				if allServicesReady() {
+					break done
+				}
+			case cacher = <-cacheCh:
+				if allServicesReady() {
+					break done
+				}
+			case err = <-errCh:
+				break done
+		}
+	}
+
+	close(efCh)
+	close(connCh)
+	close(errCh)
+	close(cacheCh)
+
+	if err != nil {
+		return nil, err
+	}
 
 	uuid4 := uuid.NewUUID4Generator()
+	factory := mysql.NewRepositoryFactory(conn, uuid4, lg)
+	persister := db.NewDBPersister(factory, lg, cacher)
 
-	dbConn, err := sqlx.Connect("mysql", env.MustString("AUDITBASE_DB_DSN"))
+	return consumer.New(ef, lg, persister), nil
+}
+
+func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) {
+	c, err := create(lg, cfg)
 	if err != nil {
 		panic(err)
 	}
-
-	dbConn.SetMaxOpenConns(100)
-
-	if err := mysql.Migrator(dbConn).Up(); err != nil {
-		panic(err)
-	}
-
-	factory := mysql.NewRepositoryFactory(dbConn, uuid4, log)
-
-
-	cacher := connectRedis(log)
-	persister := db.NewDBPersister(factory, log, cacher)
-	mq := queue.NewRabbitQueue(env.MustString("RABBITMQ_DSN"), log, 3)
-
-	if err := mq.Connect(); err != nil {
-		panic(err)
-	}
-
-	ef := flow.New(mq, log, cfg)
-
-	if err := ef.Scaffold(); err != nil {
-		panic(err)
-	}
-
-	c := consumer.New(ef, log, persister)
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
@@ -105,20 +173,6 @@ func run(log logger.Logger, cfg flow.Config, consumerName, queueName string) {
 	if err := stop(ctx); err != nil {
 		log.Error(err)
 	}
-}
-
-func connectRedis(log logger.Logger) *cache.RedisCache {
-	c := redis.NewClient(&redis.Options{
-		Addr:     env.MustString("REDIS_HOST") + ":" + env.MustString("REDIS_PORT"),
-		Password: env.String("REDIS_PASSWORD"),
-		DB:       env.IntOrDefault("REDIS_DB", 0),
-	})
-
-	if err := c.Ping().Err(); err != nil {
-		panic(err)
-	}
-
-	return cache.NewRedisCache(c, log)
 }
 
 func debug(isErrorsConsumer bool) {
