@@ -24,14 +24,13 @@ type Request struct {
 	Controller        func(ctx echo.Context) error
 }
 
-func Invoke(e *echo.Echo, r Request) Response {
+func Invoke(e *echo.Echo, r Request, m ...echo.MiddlewareFunc) Response {
 	var bodyReader io.Reader
 	if r.Body != nil {
 		bodyReader = bytes.NewReader(r.Body)
 	}
 
 	rec := httptest.NewRecorder()
-
 	req := httptest.NewRequest(r.Method, r.Target, bodyReader)
 
 	req.Header.Set("Accept", "application/json")
@@ -48,7 +47,13 @@ func Invoke(e *echo.Echo, r Request) Response {
 		}
 	}
 
-	err := r.Controller(ctx)
+	h := r.Controller
+
+	for i := range m {
+		h = m[i](h)
+	}
+
+	err := h(ctx)
 
 	return Response{
 		StatusCode: rec.Code,

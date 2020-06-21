@@ -1,6 +1,9 @@
 package rest
 
-import "github.com/denismitr/auditbase/model"
+import (
+	"github.com/denismitr/auditbase/model"
+	"time"
+)
 
 type resourceSerializer interface {
 	ToJSON() responseItem
@@ -41,7 +44,8 @@ type propertyAttributes struct {
 	EntityID    string         `json:"entityId"`
 	Type        string         `json:"type"`
 	ChangeCount int            `json:"changeCount"`
-	Changes     []model.Change `json:"changes"`
+	Changes     []model.Change `json:"changes,omitempty"`
+	LastEventAt *time.Time     `json:"lastEventAt"`
 }
 
 type propertyStatAttribute struct {
@@ -53,7 +57,7 @@ type changeAttributes struct {
 	ID              string  `json:"id"`
 	EventID         string  `json:"eventId"`
 	PropertyID      string  `json:"propertyId"`
-	CurrentDataType *string  `json:"currentDataType"`
+	CurrentDataType *string `json:"currentDataType"`
 	From            *string `json:"from"`
 	To              *string `json:"to"`
 }
@@ -69,12 +73,12 @@ func newMicroserviceAttributes(m *model.Microservice) *microserviceAttributes {
 
 func newChangeAttributes(c *model.Change) *changeAttributes {
 	return &changeAttributes{
-		ID: c.ID,
-		EventID: c.EventID,
-		PropertyID: c.PropertyID,
+		ID:              c.ID,
+		EventID:         c.EventID,
+		PropertyID:      c.PropertyID,
 		CurrentDataType: c.CurrentDataType,
-		From: c.From,
-		To: c.To,
+		From:            c.From,
+		To:              c.To,
 	}
 }
 
@@ -93,6 +97,7 @@ func newPropertyAttributes(p *model.Property) *propertyAttributes {
 		Name:        p.Name,
 		EntityID:    p.EntityID,
 		ChangeCount: p.ChangeCount,
+		LastEventAt: p.LastEventAt,
 		Changes:     p.Changes,
 	}
 }

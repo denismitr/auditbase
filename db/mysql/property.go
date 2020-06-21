@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
@@ -8,6 +9,7 @@ import (
 	"github.com/denismitr/auditbase/utils/validator"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	"time"
 )
 
 type selectQuery struct {
@@ -36,26 +38,33 @@ type property struct {
 	Name        string `db:"name"`
 	EntityID    string `db:"entity_id"`
 	ChangeCount int    `db:"change_count"`
+	LastEventAt sql.NullTime `db:"last_event_at"`
 }
 
 func (p *property) ToModel() *model.Property {
+	var t *time.Time
+	if p.LastEventAt.Valid {
+		t = &p.LastEventAt.Time
+	}
+
 	return &model.Property{
 		ID:          p.ID,
 		EntityID:    p.EntityID,
 		Name:        p.Name,
 		ChangeCount: p.ChangeCount,
+		LastEventAt: t,
 	}
 }
 
 func (p *PropertyRepository) FirstByID(ID string) (*model.Property, error) {
-	sql, args, err := createFirstByIDQuery(ID)
+	q, args, err := createFirstByIDQuery(ID)
 	if err != nil {
 		return nil, err
 	}
 
-	stmt, err := p.conn.Preparex(sql)
+	stmt, err := p.conn.Preparex(q)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not prepare %s statement", sql)
+		return nil, errors.Wrapf(err, "could not prepare %s statement", q)
 	}
 
 	var prop property
@@ -206,7 +215,13 @@ func createSelectPropertiesQuery(
 	sQ := sq.Select(
 		"BIN_TO_UUID(p.id) as id",
 			"BIN_TO_UUID(p.entity_id) as entity_id",
-			"p.name").From("properties as p")
+			"p.name",
+			"max(e.emitted_at) as last_event_at",
+			"count(c.id) as change_count",
+		).
+		From("properties as p").
+		Join("changes c ON c.property_id = p.id").
+		Join("events e ON c.event_id = e.id")
 
 	cQ := sq.Select("COUNT(*) as total").From("properties as p")
 
@@ -228,8 +243,10 @@ func createSelectPropertiesQuery(
 		cQ = cQ.Where("p.name = name", name)
 	}
 
+	sQ = sQ.GroupBy("p.id", "p.entity_id", "p.name")
+
 	if sort.Empty() {
-		sQ = sQ.OrderBy("id ASC")
+		sQ = sQ.OrderBy("max(e.emitted_at) DESC")
 	} else {
 		for column, order := range sort.All() {
 			sQ = sQ.OrderByClause("? ?", column, order.String())

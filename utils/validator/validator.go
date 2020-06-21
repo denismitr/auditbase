@@ -2,6 +2,7 @@ package validator
 
 import (
 	"regexp"
+	"time"
 )
 
 const (
@@ -14,6 +15,10 @@ var (
 
 func IsEmptyString(s string) bool {
 	return s == ""
+}
+
+func IsEmptyTime(t time.Time) bool {
+	return t.IsZero()
 }
 
 func StringLenBetween(s string, min, max int) bool {

@@ -43,7 +43,7 @@ func TestCreateEventWith(t *testing.T) {
 			EventName:     "article_published",
 			EmittedAt:     int64(1578173213),
 			RegisteredAt:  int64(1578173214),
-			Changes:       make([]Change, 0),
+			Changes:       make([]*Change, 0),
 		}
 
 		body, _ := json.Marshal(fakeEvent)

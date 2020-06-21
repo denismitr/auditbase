@@ -1,11 +1,14 @@
 package model
 
+import "time"
+
 type Property struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	EntityID    string   `json:"entityId"`
-	ChangeCount int      `json:"changeCount"`
-	Changes     []Change `json:"changes"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	EntityID    string     `json:"entityId"`
+	ChangeCount int        `json:"changeCount"`
+	Changes     []Change   `json:"changes"`
+	LastEventAt *time.Time `json:"lastEventAt,omitempty"`
 }
 
 type PropertyStat struct {

@@ -23,7 +23,9 @@ func TestCreateSelectPropertiesQuery(t *testing.T) {
 	}{
 		{
 			name:       "default",
-			selectSQL:  `SELECT BIN_TO_UUID(p.id) as id, BIN_TO_UUID(p.entity_id) as entity_id, p.name FROM properties as p ORDER BY id ASC LIMIT 30 OFFSET 0`,
+			selectSQL:  "SELECT BIN_TO_UUID(p.id) as id, BIN_TO_UUID(p.entity_id) as entity_id, p.name, max(e.emitted_at) as last_event_at, count(c.id) as change_count " +
+						"FROM properties as p JOIN changes c ON c.property_id = p.id JOIN events e ON c.event_id = e.id GROUP BY p.id, p.entity_id, p.name " +
+						"ORDER BY max(e.emitted_at) DESC LIMIT 30 OFFSET 0",
 			countSQL:   `SELECT COUNT(*) as total FROM properties as p`,
 			countArgs:  nil,
 			selectArgs: nil,
@@ -33,7 +35,9 @@ func TestCreateSelectPropertiesQuery(t *testing.T) {
 		},
 		{
 			name:         "default",
-			selectSQL:    `SELECT BIN_TO_UUID(p.id) as id, BIN_TO_UUID(p.entity_id) as entity_id, p.name FROM properties as p WHERE p.name = name ORDER BY id ASC LIMIT 30 OFFSET 0`,
+			selectSQL:    "SELECT BIN_TO_UUID(p.id) as id, BIN_TO_UUID(p.entity_id) as entity_id, p.name, max(e.emitted_at) as last_event_at, count(c.id) as change_count " +
+						  "FROM properties as p JOIN changes c ON c.property_id = p.id JOIN events e ON c.event_id = e.id WHERE p.name = name " +
+						  "GROUP BY p.id, p.entity_id, p.name ORDER BY max(e.emitted_at) DESC LIMIT 30 OFFSET 0",
 			countSQL:     `SELECT COUNT(*) as total FROM properties as p WHERE p.name = name`,
 			countArgs:    []interface{}{"foo"},
 			selectArgs:   []interface{}{"foo"},

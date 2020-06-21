@@ -43,7 +43,7 @@ type CreateEvent struct {
 	EventName     string   `json:"eventName"`
 	EmittedAt     int64    `json:"emittedAt"`
 	RegisteredAt  int64    `json:"registeredAt"`
-	Changes       []Change `json:"changes"`
+	Changes       []*Change `json:"changes"`
 }
 
 func (ce CreateEvent) Validate() *errbag.ErrorBag {
@@ -70,6 +70,10 @@ func (ce CreateEvent) Validate() *errbag.ErrorBag {
 	}
 
 	if validator.IsEmptyString(ce.TargetService) {
+		eb.Add("targetService", ErrTargetServiceEmpty)
+	}
+
+	if ce.EmittedAt == 0 {
 		eb.Add("targetService", ErrTargetServiceEmpty)
 	}
 
@@ -107,7 +111,6 @@ func (ce CreateEvent) ToEvent() *model.Event {
 		},
 		EventName:    ce.EventName,
 		EmittedAt:    model.JSONTime{Time: clock.TimestampToTime(ce.EmittedAt)},
-		RegisteredAt: model.JSONTime{Time: clock.TimestampToTime(ce.RegisteredAt)},
 		Changes:      changes,
 	}
 }
@@ -119,7 +122,7 @@ func interfaceToString(value interface{}) *string {
 	case string:
 		out = raw
 		return &out
-	case int:
+	case int, int64:
 		out = fmt.Sprintf("%d", raw)
 		return &out
 	case float64, float32:

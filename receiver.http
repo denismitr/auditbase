@@ -3,20 +3,19 @@ Content-Type: application/json
 Accept: application/json
 
 {
-    "targetId": "9309225",
+    "targetId": "9309213",
 	"targetEntity": "article",
 	"targetService": "article-storage",
 	"actorId": "0000009",
 	"actorEntity": "promoter2",
 	"actorService": "back-office",
     "eventName": "articlePublished",
-    "emittedAt": 1578173213,
 	"changes": [
       {
         "propertyName": "status2",
         "currentPropertyType": "string",
         "from": null,
-        "to": "foo"
+        "to": "baz"
       },
       {
         "propertyName": "value",

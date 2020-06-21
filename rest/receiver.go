@@ -67,7 +67,7 @@ func (rc *receiverController) create(ctx echo.Context) error {
 	e := req.ToEvent()
 	e.Hash = ctx.Request().Header.Get("Body-Hash")
 
-	found, err := rc.cacher.Has(hashKey(e.Hash));
+	found, err := rc.cacher.Has(hashKey(e.Hash))
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}
@@ -78,10 +78,6 @@ func (rc *receiverController) create(ctx echo.Context) error {
 
 	if e.ID == "" {
 		e.ID = rc.uuid4.Generate()
-	}
-
-	if e.EmittedAt.IsZero() {
-		e.EmittedAt.Time = rc.clock.CurrentTime()
 	}
 
 	e.RegisteredAt.Time = rc.clock.CurrentTime()
