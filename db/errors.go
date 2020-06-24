@@ -9,6 +9,7 @@ const ErrEntityDoesNotExist = errtype.StringError("requested entity does not exi
 const ErrPersisterCouldNotPrepareEvent = errtype.StringError("persister could not prepare event")
 const ErrCouldNotCreateEvent = errtype.StringError("could not create event")
 const ErrEmptyUUID4 = errtype.StringError("empty string given instead of uuid4")
+const ErrCouldNotCommit = errtype.StringError("could not commit transaction")
 
 func covertToPersistenceResult(err error) PersistenceResult {
 	switch err {

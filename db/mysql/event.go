@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"database/sql"
+	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/utils/errtype"
 	"github.com/denismitr/auditbase/utils/logger"
 	"time"
@@ -143,29 +144,51 @@ func (r *EventRepository) Count() (int, error) {
 }
 
 func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
-	const selectChangeSet = `
-		SELECT
-			BIN_TO_UUID(id) as id, BIN_TO_UUID(event_id) as event_id,
-			BIN_TO_UUID(property_id) as property_id, name, from_value, to_value
-		FROM changes
-			WHERE event_id = UUID_TO_BIN(?)
-	`
-
-	selectEvents := createBaseSelectEventsQuery().Where("e.id = UUID_TO_BIN(?)")
-	stmt, _, err := selectEvents.ToSql()
+	q, args, err := selectOneEvent(ID.String())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not build query")
+		return nil, errors.Wrap(err, "could not build select one event query")
+	}
+
+	cq, cqArgs, err := selectEventChanges(ID.String())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not build select event changes query")
+	}
+
+	r.log.SQL(q, args)
+	r.log.SQL(cq, cqArgs)
+
+	tx, err := r.conn.Beginx()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not begin transaction")
+	}
+
+	stmt, err := tx.Preparex(q)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrap(err, "could not prepare  select one event query")
+	}
+
+	cqStmt, err := tx.Preparex(cq)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrap(err, "could not prepare select event changes query")
 	}
 
 	e := event{}
-	changes := make([]propertyChange, 0)
+	var changes []propertyChange
 
-	if err := r.conn.Get(&e, stmt, ID.String()); err != nil {
-		return nil, errors.Wrapf(err, "could not get a list of events from db")
+	if err := stmt.Get(&e, args...); err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrapf(err, "could not get event with ID %s from db", ID.String())
 	}
 
-	if err := r.conn.Select(&changes, selectChangeSet, ID.String()); err != nil {
-		return nil, errors.Wrapf(err, "could not get a list of properties for eve from db")
+	if err := cqStmt.Select(&changes, cqArgs...); err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrapf(err, "could not get a list of changes for event from db")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, errors.Wrapf(err, db.ErrCouldNotCommit.Error())
 	}
 
 	delta := make([]*model.PropertyChange, len(changes))
@@ -447,6 +470,30 @@ func selectEventsQuery(
 		countSQL: countSQL,
 		countArgs: countArgs,
 	}, nil
+}
+
+func selectOneEvent(ID string) (string, []interface{}, error) {
+	return createBaseSelectEventsQuery().
+		Where("e.id = UUID_TO_BIN(?)", ID).
+		Limit(1).
+		ToSql()
+}
+
+func selectEventChanges(ID string) (string, []interface{}, error) {
+	return sq.Select(
+		"BIN_TO_UUID(c.id) as id",
+			"BIN_TO_UUID(c.event_id) as event_id",
+			"BIN_TO_UUID(c.property_id) as property_id",
+			"BIN_TO_UUID(p.entity_id) as entity_id",
+			"c.current_data_type as type",
+			"p.name as property_name",
+			"from_value",
+			"to_value",
+		).
+		From("changes as c").
+		Join("properties as p ON p.id = c.event_id").
+		Where("event_id = UUID_TO_BIN(?)", ID).
+		ToSql()
 }
 
 func createBaseSelectEventsQuery() sq.SelectBuilder {

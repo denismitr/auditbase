@@ -30,6 +30,7 @@ type propertyChange struct {
 	ToValue      sql.NullString `db:"to_value"`
 	PropertyName string         `db:"property_name"`
 	EntityID     string         `db:"entity_id"`
+	Type         string         `db:"type"`
 }
 
 func (c *propertyChange) ToModel() *model.PropertyChange {
@@ -73,9 +74,9 @@ func NewChangeRepository(
 	uuid4 uuid.UUID4Generator,
 ) *ChangeRepository {
 	return &ChangeRepository{
-		conn: conn,
+		conn:   conn,
 		logger: logger,
-		uuid4: uuid4,
+		uuid4:  uuid4,
 	}
 }
 

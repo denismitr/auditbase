@@ -4,7 +4,7 @@ Accept: application/json
 
 ###
 
-GET {{back-office}}/api/v1/events/18420701-7852-4361-8e91-a660385dd0c5
+GET {{back-office}}/api/v1/events/ba9c8516-539a-45c5-82c3-8bbe9995d6cd
 Content-Type: application/json
 Accept: application/json
 
