@@ -30,21 +30,6 @@ const createEvent = `
 	)
 `
 
-const selectEventListProperties = `
-	SELECT
-		BIN_TO_UUID(id) as id, BIN_TO_UUID(event_id) as event_id,
-		BIN_TO_UUID(entity_id) as entity_id, name, changed_from, changed_to 
-	FROM properties
-		WHERE event_id IN (:eventIds)
-`
-
-const insertProperties = `
-	INSERT INTO properties 
-		(id, event_id, entity_id, name, changed_from, changed_to)
-	VALUES 
-		(UUID_TO_BIN(?), UUID_TO_BIN(?), UUID_TO_BIN(?), ?, ?, ?)
-`
-
 type event struct {
 	ID                       string         `db:"id"`
 	ParentEventID            sql.NullString `db:"parent_event_id"`
@@ -249,33 +234,33 @@ func (r *EventRepository) Select(
 	sort *model.Sort,
 	pagination *model.Pagination,
 ) ([]*model.Event, *model.Meta, error) {
-	q, err := prepareSelectEventsQueryWithArgs(filter, sort, pagination)
+	q, err := selectEventsQuery(filter, sort, pagination)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "could not create sql query")
 	}
 
-	r.log.SQL(q.query, q.queryArgs)
-	r.log.SQL(q.count, q.countArgs)
+	r.log.SQL(q.selectSQL, q.selectArgs)
+	r.log.SQL(q.countSQL, q.countArgs)
 
 	var events []event
 	var meta meta
 	result := make([]*model.Event, 0)
 
-	ss, err := r.conn.PrepareNamed(q.query)
+	selectStmt, err := r.conn.Preparex(q.selectSQL)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "could not prepare select events stmt")
 	}
 
-	cs, err := r.conn.PrepareNamed(q.count)
+	cs, err := r.conn.Preparex(q.countSQL)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "could not prepare count events stmt")
 	}
 
-	if err := ss.Select(&events, q.queryArgs); err != nil {
+	if err := selectStmt.Select(&events, q.selectArgs...); err != nil {
 		return nil, nil, errors.Wrapf(err, "could not get a list of events from db")
 	}
 
-	if err := cs.Get(&meta, q.countArgs); err != nil {
+	if err := cs.Get(&meta, q.countArgs...); err != nil {
 		return nil, nil, errors.Wrapf(err, "could not count events")
 	}
 
@@ -376,62 +361,66 @@ func (r *EventRepository) joinChangesWithEvents(events []event) (map[string][]pr
 	return changes, nil
 }
 
-func prepareSelectEventsQueryWithArgs(
+func selectEventsQuery(
 	filter *model.Filter,
 	sort *model.Sort,
 	pagination *model.Pagination,
-) (*selectWithMetaQuery, error) {
+) (*selectQuery, error) {
 	selectEvents := createBaseSelectEventsQuery()
 	countEvents := createBaseCountEventsQuery()
-	args := make(map[string]interface{})
 
 	if filter.Has("actorEntityId") {
-		w := `actor_entity_id = UUID_TO_BIN(:actor_entity_id)`
-		selectEvents = selectEvents.Where(w)
-		countEvents = countEvents.Where(w)
-		args["actor_entity_id"] = filter.MustString("actorEntityId")
+		w := `actor_entity_id = UUID_TO_BIN(?)`
+		selectEvents = selectEvents.Where(w, filter.MustString("actorEntityId"))
+		countEvents = countEvents.Where(w, filter.MustString("actorEntityId"))
 	}
 
 	if filter.Has("actorId") {
-		w := `actor_id = :actor_id`
-		selectEvents = selectEvents.Where(w)
-		countEvents = countEvents.Where(w)
-		args["actor_id"] = filter.MustString("actorId")
+		w := `actor_id = ?`
+		selectEvents = selectEvents.Where(w, filter.MustString("actorId"))
+		countEvents = countEvents.Where(w, filter.MustString("actorId"))
 	}
 
 	if filter.Has("actorServiceId") {
-		w := `actor_service_id = UUID_TO_BIN(:actor_service_id)`
-		selectEvents = selectEvents.Where(w)
-		countEvents = countEvents.Where(w)
-		args["actor_service_id"] = filter.MustString("actorServiceId")
+		w := `actor_service_id = UUID_TO_BIN(?)`
+		selectEvents = selectEvents.Where(w, filter.MustString("actorServiceId"))
+		countEvents = countEvents.Where(w, filter.MustString("actorServiceId"))
 	}
 
 	if filter.Has("targetId") {
-		w:= `actor_service_id = UUID_TO_BIN(:actor_service_id)`
-		selectEvents = selectEvents.Where(w)
-		countEvents = countEvents.Where(w)
-		args["target_id"] = filter.MustString("targetId")
+		w:= `actor_service_id = UUID_TO_BIN(?)`
+		selectEvents = selectEvents.Where(w, filter.MustString("targetId"))
+		countEvents = countEvents.Where(w, filter.MustString("targetId"))
 	}
 
 	if filter.Has("targetEntityId") {
-		w := `target_entity_id = UUID_TO_BIN(:target_entity_id)`
-		selectEvents = selectEvents.Where(w)
-		countEvents = countEvents.Where(w)
-		args["target_entity_id"] = filter.MustString("targetEntityId")
+		w := `target_entity_id = UUID_TO_BIN(?)`
+		selectEvents = selectEvents.Where(w, filter.MustString("targetEntityId"))
+		countEvents = countEvents.Where(w, filter.MustString("targetEntityId"))
 	}
 
 	if filter.Has("targetServiceId") {
-		w := `target_service_id = UUID_TO_BIN(:target_service_id)`
-		selectEvents = selectEvents.Where(w)
-		countEvents = countEvents.Where(w)
-		args["target_service_id"] = filter.MustString("targetServiceId")
+		w := `target_service_id = UUID_TO_BIN(?)`
+		selectEvents = selectEvents.Where(w, filter.MustString("targetServiceId"))
+		countEvents = countEvents.Where(w, filter.MustString("targetServiceId"))
+	}
+
+	if filter.Has("emittedAfter") {
+		w := `emitted_at > ?`
+		selectEvents = selectEvents.Where(w, filter.MustString("emittedAfter"))
+		countEvents = countEvents.Where(w, filter.MustString("emittedAfter"))
+	}
+
+	if filter.Has("emittedBefore") {
+		w := `emitted_at < ?`
+		selectEvents = selectEvents.Where(w, filter.MustString("emittedBefore"))
+		countEvents = countEvents.Where(w, filter.MustString("emittedBefore"))
 	}
 
 	if filter.Has("eventName") {
-		w := `event_name = :event_name`
-		selectEvents = selectEvents.Where(w)
-		countEvents = countEvents.Where(w)
-		args["event_name"] = filter.MustString("eventName")
+		w := `event_name = ?`
+		selectEvents = selectEvents.Where(w, filter.MustString("eventName"))
+		countEvents = countEvents.Where(w, filter.MustString("eventName"))
 	}
 
 	if sort.Empty() {
@@ -442,21 +431,21 @@ func prepareSelectEventsQueryWithArgs(
 		selectEvents = selectEvents.Limit(uint64(pagination.PerPage)).Offset(uint64(pagination.Offset()))
 	}
 
-	selectEventsQuery, _, err := selectEvents.ToSql()
+	selectSQL, selectArgs, err := selectEvents.ToSql()
 	if err != nil {
 		return nil, err
 	}
 
-	countEventsQuery, _, err := countEvents.ToSql()
+	countSQL, countArgs, err := countEvents.ToSql()
 	if err != nil {
 		return nil, err
 	}
 
-	return &selectWithMetaQuery{
-		query:     selectEventsQuery,
-		count:     countEventsQuery,
-		queryArgs: args,
-		countArgs: args,
+	return &selectQuery{
+		selectSQL: selectSQL,
+		selectArgs: selectArgs,
+		countSQL: countSQL,
+		countArgs: countArgs,
 	}, nil
 }
 

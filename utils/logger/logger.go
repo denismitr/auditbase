@@ -14,7 +14,7 @@ const Prod = "prod"
 type Logger interface {
 	Error(err error)
 	Debugf(format string, args ...interface{})
-	SQL(query string, args map[string]interface{})
+	SQL(query string, args []interface{})
 }
 
 // NewStdoutLogger creates StdLogger that uses stderr and stdout for logging
@@ -50,7 +50,7 @@ func (l *StdLogger) Debugf(format string, args ...interface{}) {
 	_ = l.debugLogger.Output(2, fmt.Sprintf("\nDEBUG in ["+l.env+"] "+format, args...))
 }
 
-func (l *StdLogger) SQL(query string, args map[string]interface{}) {
+func (l *StdLogger) SQL(query string, args []interface{}) {
 	if l.env == Prod {
 		return
 	}
@@ -59,16 +59,15 @@ func (l *StdLogger) SQL(query string, args map[string]interface{}) {
 
 	buf.WriteString("\nSQL in [")
 	buf.WriteString(l.env)
-	buf.WriteString("] query: ")
+	buf.WriteString("]: ")
 	buf.WriteString(query)
-	buf.WriteString(" \nargs: ")
+	buf.WriteString(" \nArgs: ")
 
-	i := 0
-	for k, v := range args {
+	for i := range args {
 		if i + 1 < len(args) {
-			buf.WriteString(fmt.Sprintf("{%s: %#v}, ", k, v))
+			buf.WriteString(fmt.Sprintf("{%#v}, ", args[i]))
 		} else {
-			buf.WriteString(fmt.Sprintf("{%s: %#v}", k, v))
+			buf.WriteString(fmt.Sprintf("{%#v}", args[i]))
 		}
 	}
 

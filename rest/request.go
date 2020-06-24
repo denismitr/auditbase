@@ -18,8 +18,8 @@ func extractIDParamFrom(ctx echo.Context) model.ID {
 type Change struct {
 	PropertyName        string `json:"propertyName"`
 	CurrentPropertyType string `json:"currentPropertyType"`
-	From                string `json:"from"`
-	To                  string `json:"to"`
+	From                interface{} `json:"from"`
+	To                  interface{} `json:"to"`
 }
 
 func (c *Change) ToModel(eventID string) *model.PropertyChange {
@@ -74,7 +74,7 @@ func (ce CreateEvent) Validate() *errbag.ErrorBag {
 	}
 
 	if ce.EmittedAt == 0 {
-		eb.Add("targetService", ErrTargetServiceEmpty)
+		eb.Add("emittedAt", ErrEmittedAtEmpty)
 	}
 
 	for i := range ce.Changes {

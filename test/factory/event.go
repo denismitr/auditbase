@@ -79,7 +79,7 @@ func (i incomingEventMatcher) ID() string {
 	return i.evt.ID
 }
 
-func IncomingEvent(state IncomingEventState) ([]byte, Matcher) {
+func MatchingIncomingEvent(state IncomingEventState) ([]byte, Matcher) {
 	var raw string
 	var e *model.Event
 

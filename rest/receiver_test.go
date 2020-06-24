@@ -27,7 +27,7 @@ func TestReceiverController(t *testing.T) {
 
 		now := time.Now()
 
-		bytes, evt := factory.IncomingEvent(factory.IncomingEventState{
+		bytes, evt := factory.MatchingIncomingEvent(factory.IncomingEventState{
 			State: factory.EventWithID,
 			Now: now,
 		})
@@ -67,7 +67,7 @@ func TestReceiverController(t *testing.T) {
 
 		now := time.Now()
 
-		bytes, evt := factory.IncomingEvent(factory.IncomingEventState{
+		bytes, evt := factory.MatchingIncomingEvent(factory.IncomingEventState{
 			State: factory.EventWithoutID,
 			Now: now,
 		})
