@@ -101,4 +101,38 @@ func TestReceiverController(t *testing.T) {
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 		assert.Equal(t, evt.ID(), gjson.Get(resp.Body, "data.id").String())
 	})
+
+	t.Run("event without emittedAt cannot be pushed into auditbase", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		now := time.Now()
+
+		bytes, _ := factory.MatchingIncomingEvent(factory.IncomingEventState{
+			State: factory.EventWithoutEmittedAt,
+			Now: now,
+		})
+
+		uuidMock := mock_uuid.NewMockUUID4Generator(ctrl)
+		efMock := mock_flow.NewMockEventFlow(ctrl)
+		clock := mock_clock.NewMockClock(ctrl)
+		cacher := mock_cache.NewMockCacher(ctrl)
+
+		c := &receiverController{lg: lg, uuid4: uuidMock, ef: efMock, clock: clock, cacher: cacher}
+
+		req := test.Request{
+			Method:            http.MethodPost,
+			Target:            "/api/v1/events",
+			IsContentTypeJSON: true,
+			Body: bytes,
+			Controller:        c.create,
+		}
+
+		resp := test.Invoke(e, req, hashRequestBody)
+
+		assert.NoError(t, resp.Err)
+		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+		assert.Equal(t, "Validation failed", gjson.Get(resp.Body, "errors.0.title").String())
+		assert.Equal(t, "emittedAt must not be empty", gjson.Get(resp.Body, "errors.0.details").String())
+	})
 }

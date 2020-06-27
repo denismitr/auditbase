@@ -5,6 +5,7 @@
 package mock_queue
 
 import (
+	context "context"
 	queue "github.com/denismitr/auditbase/queue"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -210,17 +211,17 @@ func (mr *MockMQMockRecorder) Subscribe(queue, consumer, receiveCh interface{}) 
 }
 
 // Connect mocks base method
-func (m *MockMQ) Connect() error {
+func (m *MockMQ) Connect(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Connect")
+	ret := m.ctrl.Call(m, "Connect", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Connect indicates an expected call of Connect
-func (mr *MockMQMockRecorder) Connect() *gomock.Call {
+func (mr *MockMQMockRecorder) Connect(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockMQ)(nil).Connect))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockMQ)(nil).Connect), ctx)
 }
 
 // Maintain mocks base method

@@ -6,6 +6,7 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/utils/errtype"
 	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/utils/validator"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -16,20 +17,6 @@ import (
 )
 
 const ErrEmptyWhereInList = errtype.StringError("WHERE IN clause cannot be empty, no values provided")
-
-const createEvent = `
-	INSERT INTO events (
-		id, parent_event_id, hash, actor_id, 
-		actor_entity_id, actor_service_id, target_id, 
-		target_entity_id, target_service_id, event_name,
-		emitted_at, registered_at
-	) VALUES (
-		UUID_TO_BIN(:id), UUID_TO_BIN(:parent_event_id), :hash, :actor_id, 
-		UUID_TO_BIN(:actor_entity_id), UUID_TO_BIN(:actor_service_id), :target_id, 
-		UUID_TO_BIN(:target_entity_id), UUID_TO_BIN(:target_service_id), :event_name, 
-		:emitted_at, :registered_at
-	)
-`
 
 type event struct {
 	ID                       string         `db:"id"`
@@ -54,6 +41,21 @@ type event struct {
 	RegisteredAt             time.Time      `db:"registered_at"`
 }
 
+type insertEvent struct {
+	ID                       string         `db:"id"`
+	ParentEventID            sql.NullString `db:"parent_event_id"`
+	Hash                     string         `db:"hash"`
+	ActorID                  string         `db:"actor_id"`
+	ActorEntityID            string         `db:"actor_entity_id"`
+	ActorServiceID           string         `db:"actor_service_id"`
+	TargetID                 string         `db:"target_id"`
+	TargetEntityID           string         `db:"target_entity_id"`
+	TargetServiceID          string         `db:"target_service_id"`
+	EventName                string         `db:"event_name"`
+	EmittedAt                time.Time      `db:"emitted_at"`
+	RegisteredAt             time.Time      `db:"registered_at"`
+}
+
 type EventRepository struct {
 	conn  *sqlx.DB
 	log logger.Logger
@@ -69,7 +71,7 @@ func NewEventRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Log
 }
 
 func (r *EventRepository) Create(e *model.Event) error {
-	dbEvent := event{
+	ie := insertEvent{
 		ID:              e.ID,
 		Hash:            e.Hash,
 		ActorID:         e.ActorID,
@@ -83,39 +85,47 @@ func (r *EventRepository) Create(e *model.Event) error {
 		RegisteredAt:    e.RegisteredAt.Time,
 	}
 
-	if e.ParentEventID == "" {
-		dbEvent.ParentEventID = sql.NullString{"", false}
-	} else {
-		dbEvent.ParentEventID = sql.NullString{e.ParentEventID, true}
+	ie.ParentEventID = db.NullStringFromStringPointer(e.ParentEventID)
+
+	createSQL, args, err := createEventQuery(&ie)
+	if err != nil {
+		return errors.Wrap(err, "could not build create event query")
 	}
 
 	tx, err := r.conn.Beginx()
 	if err != nil {
-		return errors.Wrap(err, "transaction failed")
+		return errors.Wrap(err, "could not begin transaction")
 	}
 
-	if _, err := tx.NamedExec(createEvent, &dbEvent); err != nil {
+	createStmt, err := tx.Preparex(createSQL)
+	if err != nil {
 		_ = tx.Rollback()
-		return errors.Wrapf(err, "could not insert new events with ID %s", e.ID)
+		return errors.Wrapf(err, "could not prepare create event query %s", createSQL)
+	}
+
+	if _, err := createStmt.Exec(args...); err != nil {
+		_ = tx.Rollback()
+		return errors.Wrapf(err, "could not create new event with ID %s", e.ID)
 	}
 
 	for i := range e.Changes {
-		id := r.uuid4.Generate()
+		c := change{
+			ID: r.uuid4.Generate(),
+			PropertyID: e.Changes[i].PropertyID,
+			EventID: e.ID,
+			FromValue: db.NullStringFromStringPointer(e.Changes[i].From),
+			ToValue: db.NullStringFromStringPointer(e.Changes[i].To),
+		}
 
-		_, err := sq.Insert("changes").
-			Columns("id", "property_id", "event_id", "from_value", "to_value").
-			Values(
-				sq.Expr("UUID_TO_BIN(?)", id),
-				sq.Expr("UUID_TO_BIN(?)", e.Changes[i].PropertyID),
-				sq.Expr("UUID_TO_BIN(?)", e.ID),
-				e.Changes[i].From,
-				e.Changes[i].To,
-			).
-			RunWith(tx).Query()
-
+		changeSQL, args, err := createChangeQuery(&c)
 		if err != nil {
 			_ = tx.Rollback()
-			return errors.Wrapf(err, "could not insert properties for events with ID %s", e.ID)
+			return errors.Wrapf(err, "could not create insert change query for event with ID %s", e.ID)
+		}
+
+		if _, err := tx.Exec(changeSQL, args...); err != nil {
+			_ = tx.Rollback()
+			return errors.Wrapf(err, "could not insert property change for event with ID %s", e.ID)
 		}
 	}
 
@@ -133,10 +143,20 @@ func (r *EventRepository) Delete(ID model.ID) error {
 }
 
 func (r *EventRepository) Count() (int, error) {
-	stmt := `SELECT COUNT(*) FROM events`
+	q, args, err := countEventsQuery()
+	if err != nil {
+		return 0, errors.Wrap(err, "could not build count events query")
+	}
+
+	stmt, err := r.conn.Preparex(q)
+	if err != nil {
+		return 0, errors.Wrapf(err, "could not prepare count events query %s", q)
+	}
+
+	r.log.SQL(q, args)
 	var count int
 
-	if err := r.conn.Get(&count, stmt); err != nil {
+	if err := stmt.Get(&count, args...); err != nil {
 		return 0, errors.Wrap(err, "could not count events")
 	}
 
@@ -144,12 +164,12 @@ func (r *EventRepository) Count() (int, error) {
 }
 
 func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
-	q, args, err := selectOneEvent(ID.String())
+	q, args, err := selectOneEventQuery(ID.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not build select one event query")
 	}
 
-	cq, cqArgs, err := selectEventChanges(ID.String())
+	cq, cqArgs, err := selectEventChangesByEventIDQuery(ID.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not build select event changes query")
 	}
@@ -237,7 +257,7 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 
 	return &model.Event{
 		ID:            e.ID,
-		ParentEventID: e.ParentEventID.String,
+		ParentEventID: &e.ParentEventID.String,
 		ActorID:       e.ActorID,
 		ActorEntity:   at,
 		ActorService:  as,
@@ -328,7 +348,7 @@ func (r *EventRepository) Select(
 
 		result = append(result, &model.Event{
 			ID:            events[i].ID,
-			ParentEventID: events[i].ParentEventID.String,
+			ParentEventID: &events[i].ParentEventID.String,
 			ActorID:       events[i].ActorID,
 			Hash:          events[i].Hash,
 			ActorEntity:   at,
@@ -358,12 +378,12 @@ func (r *EventRepository) joinChangesWithEvents(events []event) (map[string][]pr
 		eventIds = append(eventIds, events[i].ID)
 	}
 
-	q, args, err := createSelectChangesByIDsQuery(eventIds)
+	q, args, err := selectChangesByEventIDsQuery(eventIds)
 	if err != nil {
 		return nil, err
 	}
 
-	r.log.Debugf("%s -- %#v", q, args)
+	r.log.SQL(q, args)
 
 	rows, err := r.conn.Queryx(q, args...)
 	if err != nil {
@@ -389,7 +409,7 @@ func selectEventsQuery(
 	sort *model.Sort,
 	pagination *model.Pagination,
 ) (*selectQuery, error) {
-	selectEvents := createBaseSelectEventsQuery()
+	selectEvents := baseSelectEventsQuery()
 	countEvents := createBaseCountEventsQuery()
 
 	if filter.Has("actorEntityId") {
@@ -472,14 +492,22 @@ func selectEventsQuery(
 	}, nil
 }
 
-func selectOneEvent(ID string) (string, []interface{}, error) {
-	return createBaseSelectEventsQuery().
+func selectOneEventQuery(ID string) (string, []interface{}, error) {
+	if ! validator.IsUUID4(ID) {
+		return "", nil, db.ErrInvalidUUID4
+	}
+
+	return baseSelectEventsQuery().
 		Where("e.id = UUID_TO_BIN(?)", ID).
 		Limit(1).
 		ToSql()
 }
 
-func selectEventChanges(ID string) (string, []interface{}, error) {
+func selectEventChangesByEventIDQuery(ID string) (string, []interface{}, error) {
+	if ! validator.IsUUID4(ID) {
+		return "", nil, db.ErrInvalidUUID4
+	}
+
 	return sq.Select(
 		"BIN_TO_UUID(c.id) as id",
 			"BIN_TO_UUID(c.event_id) as event_id",
@@ -491,12 +519,12 @@ func selectEventChanges(ID string) (string, []interface{}, error) {
 			"to_value",
 		).
 		From("changes as c").
-		Join("properties as p ON p.id = c.event_id").
+		Join("properties as p ON p.id = c.property_id").
 		Where("event_id = UUID_TO_BIN(?)", ID).
 		ToSql()
 }
 
-func createBaseSelectEventsQuery() sq.SelectBuilder {
+func baseSelectEventsQuery() sq.SelectBuilder {
 	query := sq.Select(
 		"BIN_TO_UUID(e.id) as id",
 		"BIN_TO_UUID(parent_event_id) as parent_event_id",
@@ -528,9 +556,9 @@ func createBaseCountEventsQuery() sq.SelectBuilder {
 	return sq.Select("COUNT(*) as total FROM events e")
 }
 
-func createSelectChangesByIDsQuery(ids []string) (string, []interface{}, error) {
+func selectChangesByEventIDsQuery(ids []string) (string, []interface{}, error) {
 	if len(ids) == 0 {
-		return "", nil, ErrEmptyWhereInList
+		return "", nil, db.ErrEmptyWhereInList
 	}
 
 	q := sq.Select(
@@ -559,4 +587,47 @@ func createSelectChangesByIDsQuery(ids []string) (string, []interface{}, error) 
 	expr.WriteString(")")
 
 	return q.Where(expr.String(), args...).ToSql()
+}
+
+func countEventsQuery() (string, []interface{}, error) {
+	return sq.Select("COUNT(*)").From("events").ToSql()
+}
+
+func createEventQuery(e *insertEvent) (string, []interface{}, error) {
+	var pex sq.Sqlizer
+	if e.ParentEventID.Valid {
+		pex = sq.Expr("UUID_TO_BIN(?)", e.ParentEventID.String)
+	} else {
+		pex = sq.Expr("?", nil)
+	}
+
+	return sq.Insert("events").Columns(
+		"id", "hash", "actor_id",
+		"actor_entity_id", "actor_service_id", "target_id",
+		"target_entity_id", "target_service_id", "event_name",
+		"emitted_at", "registered_at", "parent_event_id",
+	).Values(
+		sq.Expr("UUID_TO_BIN(?)", e.ID),
+		e.Hash,
+		e.ActorID,
+		sq.Expr("UUID_TO_BIN(?)", e.ActorEntityID),
+		sq.Expr("UUID_TO_BIN(?)", e.ActorServiceID),
+		e.TargetID,
+		sq.Expr("UUID_TO_BIN(?)", e.TargetEntityID),
+		sq.Expr("UUID_TO_BIN(?)", e.TargetServiceID),
+		e.EventName, e.EmittedAt, e.RegisteredAt,
+		pex,
+	).ToSql()
+}
+
+func createChangeQuery(c *change) (string, []interface{}, error) {
+	return sq.Insert("changes").
+		Columns("id", "property_id", "event_id", "from_value", "to_value").
+		Values(
+			sq.Expr("UUID_TO_BIN(?)", c.ID),
+			sq.Expr("UUID_TO_BIN(?)", c.PropertyID),
+			sq.Expr("UUID_TO_BIN(?)", c.EventID),
+			c.FromValue,
+			c.ToValue,
+		).ToSql()
 }

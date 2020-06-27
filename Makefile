@@ -24,12 +24,7 @@ recompile:
 	docker-compose -f docker-compose-dev.yml up -d --build --force-recreate auditbase_receiver auditbase_backoffice auditbase_consumer auditbase_errors_consumer
 
 clean:
-	docker-compose -f docker-compose-dev.yml down --remove-orphans
-	docker-compose -f docker-compose-dev.yml rm -svf
-	docker-compose -f docker-compose-debug.yml down --remove-orphans
-	docker-compose -f docker-compose-debug.yml rm -svf
-	docker-compose -f docker-compose-test.yml down --remove-orphans
-	docker-compose -f docker-compose-test.yml rm -svf
+	docker-compose -f docker-compose-dev.yml rm --force --stop -v
 
 mock:
 	mockgen -source flow/flow.go -destination ./test/mock_flow/flow.go
@@ -48,7 +43,7 @@ mock:
 	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
 
 test/local:
-	go test ./db/mysql ./model ./rest
+	go test ./db/mysql ./model ./rest ./flow
 
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate

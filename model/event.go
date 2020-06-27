@@ -7,7 +7,7 @@ import (
 
 type Event struct {
 	ID            string            `json:"id"`
-	ParentEventID string            `json:"parentEventId"`
+	ParentEventID *string            `json:"parentEventId"`
 	Hash          string            `json:"hash"`
 	ActorID       string            `json:"actorId"`
 	ActorEntity   Entity            `json:"actorEntity"`

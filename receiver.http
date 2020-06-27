@@ -6,17 +6,19 @@ Accept: application/json
     "targetId": "9309213",
 	"targetEntity": "article",
 	"targetService": "article-storage",
-	"actorId": "0000009",
-	"actorEntity": "promoter2",
+    "parentEventId": null,
+	"actorId": "9",
+    "crud": "create",
+	"actorEntity": "promoter",
 	"actorService": "back-office",
     "eventName": "articlePublished",
     "emittedAt": 1578174512,
 	"changes": [
       {
-        "propertyName": "status2",
+        "propertyName": "status",
         "currentPropertyType": "string",
         "from": null,
-        "to": "baz"
+        "to": "published"
       },
       {
         "propertyName": "value",
@@ -38,6 +40,7 @@ Accept: application/json
     "targetId": "122242120",
 	"targetEntity": "subscription",
 	"targetService": "billing",
+    "crud": "update",
 	"actorId": "88999",
 	"actorEntity": "user",
 	"actorService": "front",
@@ -54,6 +57,84 @@ Accept: application/json
       "propertyName": "value_2",
       "currentPropertyType": "string",
       "from": "baz",
+      "to": null
+    }
+  ]
+}
+
+###
+
+POST {{receiver}}/api/v1/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "targetId": "111",
+  "targetEntity": "post",
+  "targetService": "post-service",
+  "parentEventId": null,
+  "actorId": "999",
+  "crud": "create",
+  "actorEntity": "blogger",
+  "actorService": "blogger-hub",
+  "eventName": "blogPostCreated",
+  "emittedAt": 1578174655,
+  "changes": [
+    {
+      "propertyName": "text",
+      "currentPropertyType": "string",
+      "from": null,
+      "to": "foo says bar"
+    },
+    {
+      "propertyName": "title",
+      "currentPropertyType": "string",
+      "from": null,
+      "to": "baz title"
+    },
+    {
+      "propertyName": "rating",
+      "currentPropertyType": "integer",
+      "from": null,
+      "to": 1
+    }
+  ]
+}
+
+###
+
+POST {{receiver}}/api/v1/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "targetId": "111",
+  "targetEntity": "post",
+  "targetService": "post-service",
+  "parentEventId": null,
+  "actorId": "999",
+  "crud": "delete",
+  "actorEntity": "blogger",
+  "actorService": "blogger-hub",
+  "eventName": "blogPostDeleted",
+  "emittedAt": 1578174657,
+  "changes": [
+    {
+      "propertyName": "text",
+      "currentPropertyType": "string",
+      "from": "foo says bar",
+      "to": null
+    },
+    {
+      "propertyName": "title",
+      "currentPropertyType": "string",
+      "from": "baz title",
+      "to": null
+    },
+    {
+      "propertyName": "rating",
+      "currentPropertyType": "integer",
+      "from": 1,
       "to": null
     }
   ]

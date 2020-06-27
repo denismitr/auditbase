@@ -17,6 +17,7 @@ type Matcher interface {
 const (
 	EventWithID incomingEventState = "event_with_id"
 	EventWithoutID incomingEventState = "event_without_id"
+	EventWithoutEmittedAt incomingEventState = "event_without_emitted_at"
 )
 
 type IncomingEventState struct {
@@ -30,6 +31,10 @@ type incomingEventMatcher struct {
 }
 
 func (i incomingEventMatcher) Matches(x interface{}) bool {
+	if i.evt == nil && x == nil {
+		return true
+	}
+
 	e, ok := x.(*model.Event)
 	if !ok {
 		return false
@@ -88,6 +93,8 @@ func MatchingIncomingEvent(state IncomingEventState) ([]byte, Matcher) {
 		raw, e = createIncomingEventWithId(state.Now)
 	case EventWithoutID:
 		raw, e = createIncomingEventWithoutId(state.Now)
+	case EventWithoutEmittedAt:
+		raw, e = createIncomingEventWithoutEmittedAt(state.Now)
 	default:
 		panic(fmt.Sprintf("%s state is not supported", state.State))
 	}
@@ -232,4 +239,32 @@ func createIncomingEventWithoutId(now time.Time) (string, *model.Event) {
 	}
 
 	return raw, m
+}
+
+func createIncomingEventWithoutEmittedAt(now time.Time) (string, *model.Event) {
+	raw := `{
+		"targetId": "122242120",
+		"targetEntity": "subscription",
+		"targetService": "billing",
+		"actorId": "88999",
+		"actorEntity": "user",
+		"actorService": "web",
+		"eventName": "subscriptionCanceled",
+		"changes": [
+			{
+				"propertyName": "status",
+				"currentPropertyType": "string",
+				"from": "active",
+				"to": "canceled"
+			},
+			{
+				"propertyName": "rating",
+				"currentPropertyType": "integer",
+				"from": "500",
+				"to": null
+			}
+		]
+	}`
+
+	return raw, nil
 }
