@@ -13,8 +13,10 @@ COPY rest/ ./rest
 COPY queue/ ./queue
 COPY model/ ./model
 COPY utils/ ./utils
+COPY persister/ ./persister
 COPY flow/ ./flow
 COPY db/ ./db
+COPY cache/ ./cache
 COPY .env ./
 
 EXPOSE 8888

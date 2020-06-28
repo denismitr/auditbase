@@ -35,10 +35,10 @@ func (m *MockReceivedEvent) EXPECT() *MockReceivedEventMockRecorder {
 }
 
 // Event mocks base method
-func (m *MockReceivedEvent) Event() (model.Event, error) {
+func (m *MockReceivedEvent) Event() (*model.Event, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Event")
-	ret0, _ := ret[0].(model.Event)
+	ret0, _ := ret[0].(*model.Event)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

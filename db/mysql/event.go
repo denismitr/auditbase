@@ -621,6 +621,14 @@ func createEventQuery(e *insertEvent) (string, []interface{}, error) {
 }
 
 func createChangeQuery(c *change) (string, []interface{}, error) {
+	if !validator.IsUUID4(c.PropertyID) {
+		return "", nil, errors.New("change property id is not a valid uuid4")
+	}
+
+	if !validator.IsUUID4(c.EventID) {
+		return "", nil, errors.New("change event id is not a valid uuid4")
+	}
+
 	return sq.Insert("changes").
 		Columns("id", "property_id", "event_id", "from_value", "to_value").
 		Values(

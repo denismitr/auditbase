@@ -4,16 +4,15 @@ import (
 	"context"
 	"flag"
 	"github.com/denismitr/auditbase/cache"
+	"github.com/denismitr/auditbase/persister"
 	"github.com/go-redis/redis/v7"
 	"github.com/jmoiron/sqlx"
-	"github.com/labstack/gommon/log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/denismitr/auditbase/consumer"
-	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/db/mysql"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/queue"
@@ -152,7 +151,7 @@ done:
 
 	uuid4 := uuid.NewUUID4Generator()
 	factory := mysql.Factory(conn, uuid4, lg)
-	persister := db.NewDBPersister(factory, lg, cacher)
+	persister := persister.New(factory, lg, cacher, 100)
 
 	return consumer.New(ef, lg, persister), nil
 }
@@ -164,15 +163,18 @@ func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) {
 	}
 
 	terminate := make(chan os.Signal, 1)
-	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	stop := c.Start(queueName, consumerName)
+	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		if err := c.Start(ctx, queueName, consumerName); err != nil {
+			panic(err)
+		}
+	}()
 
 	<-terminate
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	if err := stop(ctx); err != nil {
-		log.Error(err)
-	}
+	cancel()
+	<-time.After(10 * time.Second)
 }
 
 func debug(isErrorsConsumer bool) {

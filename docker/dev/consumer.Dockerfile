@@ -11,6 +11,7 @@ COPY cmd/healthcheck ./cmd/healthcheck
 COPY consumer/ ./consumer
 COPY queue/ ./queue
 COPY model/ ./model
+COPY persister/ ./persister
 COPY flow/ ./flow
 COPY utils/ ./utils
 COPY db/ ./db

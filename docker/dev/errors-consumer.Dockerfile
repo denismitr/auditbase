@@ -12,6 +12,7 @@ COPY consumer/ ./consumer
 COPY queue/ ./queue
 COPY model/ ./model
 COPY flow/ ./flow
+COPY persister/ ./persister
 COPY utils/ ./utils
 COPY db/ ./db
 COPY cache/ ./cache
