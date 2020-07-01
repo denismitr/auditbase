@@ -139,6 +139,8 @@ const addCrudToEventSchema = `
 	ALTER TABLE events ADD COLUMN crud TINYINT(1) AFTER event_name 
 `
 
+
+
 const flush = `
 	SET FOREIGN_KEY_CHECKS=0;
 
@@ -152,6 +154,11 @@ const flush = `
 `
 
 func (m *SQLMigrator) Up() error {
+	m.lg.Debugf("Acquiring exclusive lock for the whole DB...")
+	if _, err := m.conn.Exec("SELECT GET_LOCK('migrations', 10)"); err != nil {
+		return errors.Wrap(err, "could not obtain 'migrations' exclusive DB lock")
+	}
+
 	if _, err := m.conn.Exec(migrationsSchema); err != nil {
 		return err
 	}
@@ -165,9 +172,10 @@ func (m *SQLMigrator) Up() error {
 		return err
 	}
 
-	rows, err := tx.Queryx("SELECT name FROM migrations FOR UPDATE")
+	rows, err := tx.Queryx("SELECT name FROM migrations")
 	if err != nil {
 		_ = tx.Rollback()
+		m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 		return err
 	}
 
@@ -175,6 +183,7 @@ func (m *SQLMigrator) Up() error {
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			_ = tx.Rollback()
+			m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 			return err
 		}
 		m.applied[name] = true
@@ -188,12 +197,14 @@ func (m *SQLMigrator) Up() error {
 				m.lg.Debugf("Running SQL %s...", queries[i])
 				if _, err := tx.Exec(queries[i]); err != nil {
 					_ = tx.Rollback()
+					m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 					return errors.Wrapf(err, "could not apply migration %s", name)
 				}
 			}
 
 			if _, err := tx.Exec("INSERT INTO migrations (name) VALUES (?)", name); err != nil {
 				_ = tx.Rollback()
+				m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 				return err
 			}
 		} else {
@@ -202,10 +213,16 @@ func (m *SQLMigrator) Up() error {
 	}
 
 	if err := tx.Commit(); err != nil {
+		m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
+		return err
+	}
+
+	if _, err := m.conn.Exec("SELECT RELEASE_LOCK('migrations')"); err != nil {
 		return err
 	}
 
 	m.lg.Debugf("Migrations are finished...")
+	m.lg.Debugf("All locks are released...")
 
 	return nil
 }
