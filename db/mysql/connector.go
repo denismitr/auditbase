@@ -30,7 +30,7 @@ func ConnectAndMigrate(ctx context.Context, lg logger.Logger, dsn string, maxOpe
 
 	conn.SetMaxOpenConns(maxOpenConnection)
 
-	if err := Migrator(conn).Up(); err != nil {
+	if err := Migrator(conn, lg).Up(); err != nil {
 		return nil, err
 	}
 

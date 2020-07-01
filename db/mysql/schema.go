@@ -1,19 +1,41 @@
 package mysql
 
 import (
+	"context"
+	"database/sql"
+	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 type SQLMigrator struct {
 	conn *sqlx.DB
+	lg logger.Logger
+
+	up map[string][]string
+	applied map[string]bool
 }
 
-func Migrator(conn *sqlx.DB) *SQLMigrator {
-	return &SQLMigrator{
+func Migrator(conn *sqlx.DB, lg logger.Logger) *SQLMigrator {
+	m := &SQLMigrator{
 		conn: conn,
+		lg: lg,
+		up: make(map[string][]string),
+		applied: make(map[string]bool),
 	}
+
+	m.up["initial"] = []string{microserviceSchema, entitySchema, eventSchema, propertySchema, propertySchema, changeSchema}
+	m.up["add_crud_to_events"] = []string{addCrudToEventSchema}
+
+	return m
 }
+
+const migrationsSchema = `
+CREATE TABLE IF NOT EXISTS migrations (
+	name VARCHAR(36) PRIMARY KEY,
+	created_at TIMESTAMP default CURRENT_TIMESTAMP
+) ENGINE=INNODB;
+`
 
 const microserviceSchema = `
 	CREATE TABLE IF NOT EXISTS microservices (
@@ -113,6 +135,10 @@ const changeSchema = `
 	)
 `
 
+const addCrudToEventSchema = `
+	ALTER TABLE events ADD COLUMN crud TINYINT(1) AFTER event_name 
+`
+
 const flush = `
 	SET FOREIGN_KEY_CHECKS=0;
 
@@ -126,25 +152,60 @@ const flush = `
 `
 
 func (m *SQLMigrator) Up() error {
-	if _, err := m.conn.Exec(microserviceSchema); err != nil {
-		return errors.Wrap(err, "could not create microservices table")
+	if _, err := m.conn.Exec(migrationsSchema); err != nil {
+		return err
 	}
 
-	if _, err := m.conn.Exec(entitySchema); err != nil {
-		return errors.Wrap(err, "could not create entities table")
+	tx, err := m.conn.BeginTxx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+		ReadOnly: false,
+	})
+
+	if err != nil {
+		return err
 	}
 
-	if _, err := m.conn.Exec(eventSchema); err != nil {
-		return errors.Wrap(err, "could not create events table")
+	rows, err := tx.Queryx("SELECT name FROM migrations FOR UPDATE")
+	if err != nil {
+		_ = tx.Rollback()
+		return err
 	}
 
-	if _, err := m.conn.Exec(propertySchema); err != nil {
-		return errors.Wrap(err, "could not create properties table")
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+		m.applied[name] = true
 	}
 
-	if _, err := m.conn.Exec(changeSchema); err != nil {
-		return errors.Wrap(err, "could not create change table")
+	for name, queries := range m.up {
+		if _, ok := m.applied[name]; !ok {
+			m.lg.Debugf("Running migration %s...", name)
+
+			for i := range queries {
+				m.lg.Debugf("Running SQL %s...", queries[i])
+				if _, err := tx.Exec(queries[i]); err != nil {
+					_ = tx.Rollback()
+					return errors.Wrapf(err, "could not apply migration %s", name)
+				}
+			}
+
+			if _, err := tx.Exec("INSERT INTO migrations (name) VALUES (?)", name); err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+		} else {
+			m.lg.Debugf("Migration %s already applied", name)
+		}
 	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	m.lg.Debugf("Migrations are finished...")
 
 	return nil
 }

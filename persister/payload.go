@@ -1,4 +1,4 @@
-package db
+package persister
 
 import (
 	"sync"
@@ -6,37 +6,46 @@ import (
 	"github.com/denismitr/auditbase/model"
 )
 
+type payloadStatus uint8
+
+const (
+	pending = iota
+	succeeded
+	rejected
+)
+
 type updater func(*model.Event)
+type mapper func(model.Event) interface{}
 
 type payload struct {
 	mu       sync.RWMutex
 	e        *model.Event
-	errorBus []error
+	status payloadStatus
 }
 
 func wrap(e *model.Event) *payload {
 	return &payload{
 		e:        e,
-		errorBus: make([]error, 0),
+		status: pending,
 	}
 }
 
-func (p *payload) hasErrors() bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return len(p.errorBus) > 0
-}
-
-func (p *payload) errors() []error {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.errorBus
-}
-
-func (p *payload) appendError(err error) {
+func (p *payload) markAsRejected() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.errorBus = append(p.errorBus, err)
+	p.status = rejected
+}
+
+func (p *payload) isRejected() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.status == rejected
+}
+
+func (p *payload) markAsSucceeded() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.status = succeeded
 }
 
 func (p *payload) targetEntity() model.Entity {
@@ -79,8 +88,21 @@ func (p *payload) event() *model.Event {
 	return p.e
 }
 
+func (p *payload) eventID() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.e.ID
+}
+
+
 func (p *payload) update(f updater) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	f(p.e)
+}
+
+func (p *payload) mapper(f mapper) interface{} {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return f(*p.e)
 }

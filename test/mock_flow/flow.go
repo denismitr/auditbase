@@ -90,6 +90,20 @@ func (mr *MockEventFlowMockRecorder) Ack(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ack", reflect.TypeOf((*MockEventFlow)(nil).Ack), arg0)
 }
 
+// Reject mocks base method
+func (m *MockEventFlow) Reject(arg0 flow.ReceivedEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reject", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reject indicates an expected call of Reject
+func (mr *MockEventFlowMockRecorder) Reject(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reject", reflect.TypeOf((*MockEventFlow)(nil).Reject), arg0)
+}
+
 // Inspect mocks base method
 func (m *MockEventFlow) Inspect() (flow.Status, error) {
 	m.ctrl.T.Helper()

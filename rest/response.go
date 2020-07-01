@@ -46,8 +46,8 @@ func newEventCountResponse(count int) *itemResponse {
 	return newItemResponseWithMeta(nil, map[string]int{"count": count})
 }
 
-func newEventResponse(m *model.Event) *itemResponse {
-	return newItemResponse(newJsonApiResponse("events", m.ID, m))
+func newEventResponse(e *model.Event) *itemResponse {
+	return newItemResponse(newJsonApiResponse("events", e.ID, e))
 }
 
 func newEventsResponse(events []*model.Event, meta *model.Meta) *collectionResponse {

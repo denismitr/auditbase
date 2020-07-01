@@ -94,6 +94,12 @@ Accept: application/json
     },
     {
       "propertyName": "rating",
+      "currentPropertyType": "float",
+      "from": null,
+      "to": 1.1
+    },
+    {
+      "propertyName": "views",
       "currentPropertyType": "integer",
       "from": null,
       "to": 1

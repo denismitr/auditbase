@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"github.com/denismitr/auditbase/utils/errbag"
 	"github.com/denismitr/auditbase/utils/validator"
 )
@@ -63,3 +64,18 @@ type EventRepository interface {
 	FindOneByID(ID) (*Event, error)
 	Select(*Filter, *Sort, *Pagination) ([]*Event, *Meta, error)
 }
+
+// EventPersister persists event to DB
+type EventPersister interface {
+	Persist(*Event)
+	Run(ctx context.Context) error
+	NotifyOnResult(chan<- EventPersistenceResult)
+}
+
+type EventPersistenceResult interface {
+	ID() string
+	Err() error
+	Ok() bool
+}
+
+

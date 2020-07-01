@@ -2,6 +2,7 @@ package rest
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/clock"
@@ -17,17 +18,18 @@ func extractIDParamFrom(ctx echo.Context) model.ID {
 
 type Change struct {
 	PropertyName        string `json:"propertyName"`
-	CurrentPropertyType string `json:"currentPropertyType"`
+	CurrentPropertyType interface{} `json:"currentPropertyType"`
 	From                interface{} `json:"from"`
 	To                  interface{} `json:"to"`
 }
 
 func (c *Change) ToModel(eventID string) *model.PropertyChange {
 	return &model.PropertyChange{
-		PropertyName: c.PropertyName,
-		EventID:      eventID,
-		From:         interfaceToString(c.From),
-		To:           interfaceToString(c.To),
+		PropertyName:    c.PropertyName,
+		EventID:         eventID,
+		From:            interfaceToStringPointer(c.From),
+		To:              interfaceToStringPointer(c.To),
+		CurrentDataType: interfaceToStringPointer(c.CurrentPropertyType),
 	}
 }
 
@@ -115,20 +117,22 @@ func (ce CreateEvent) ToEvent() *model.Event {
 	}
 }
 
-func interfaceToString(value interface{}) *string {
+func interfaceToStringPointer(value interface{}) *string {
 	var out string
 
 	switch raw := value.(type) {
 	case string:
 		out = raw
-		return &out
-	case int, int64:
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		out = fmt.Sprintf("%d", raw)
-		return &out
 	case float64, float32:
-		out = fmt.Sprintf("%0.4f", raw)
+		out = strings.Replace(fmt.Sprintf("%0.4f", raw), ".0000", "", 1)
 	default:
 		return nil
+	}
+
+	if out != "" {
+		return &out
 	}
 
 	return nil

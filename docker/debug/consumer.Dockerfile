@@ -7,14 +7,15 @@ WORKDIR /source
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY cmd/consumer ./cmd/consumer
-COPY cmd/healthcheck ./cmd/healthcheck
-COPY consumer/ ./consumer
+COPY cmd/ ./cmd
+COPY rest/ ./rest
 COPY queue/ ./queue
 COPY model/ ./model
-COPY flow/ ./flow
 COPY utils/ ./utils
+COPY persister/ ./persister
+COPY flow/ ./flow
 COPY db/ ./db
+COPY cache/ ./cache
 COPY .env ./
 
 ENTRYPOINT ["go", "run", "-race", "/source/cmd/consumer/consumer.go"]

@@ -5,6 +5,7 @@
 package mock_model
 
 import (
+	context "context"
 	model "github.com/denismitr/auditbase/model"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -105,4 +106,130 @@ func (m *MockEventRepository) Select(arg0 *model.Filter, arg1 *model.Sort, arg2 
 func (mr *MockEventRepositoryMockRecorder) Select(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Select", reflect.TypeOf((*MockEventRepository)(nil).Select), arg0, arg1, arg2)
+}
+
+// MockEventPersister is a mock of EventPersister interface
+type MockEventPersister struct {
+	ctrl     *gomock.Controller
+	recorder *MockEventPersisterMockRecorder
+}
+
+// MockEventPersisterMockRecorder is the mock recorder for MockEventPersister
+type MockEventPersisterMockRecorder struct {
+	mock *MockEventPersister
+}
+
+// NewMockEventPersister creates a new mock instance
+func NewMockEventPersister(ctrl *gomock.Controller) *MockEventPersister {
+	mock := &MockEventPersister{ctrl: ctrl}
+	mock.recorder = &MockEventPersisterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockEventPersister) EXPECT() *MockEventPersisterMockRecorder {
+	return m.recorder
+}
+
+// Persist mocks base method
+func (m *MockEventPersister) Persist(arg0 *model.Event) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Persist", arg0)
+}
+
+// Persist indicates an expected call of Persist
+func (mr *MockEventPersisterMockRecorder) Persist(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Persist", reflect.TypeOf((*MockEventPersister)(nil).Persist), arg0)
+}
+
+// Run mocks base method
+func (m *MockEventPersister) Run(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Run", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Run indicates an expected call of Run
+func (mr *MockEventPersisterMockRecorder) Run(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockEventPersister)(nil).Run), ctx)
+}
+
+// NotifyOnResult mocks base method
+func (m *MockEventPersister) NotifyOnResult(arg0 chan<- model.EventPersistenceResult) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "NotifyOnResult", arg0)
+}
+
+// NotifyOnResult indicates an expected call of NotifyOnResult
+func (mr *MockEventPersisterMockRecorder) NotifyOnResult(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotifyOnResult", reflect.TypeOf((*MockEventPersister)(nil).NotifyOnResult), arg0)
+}
+
+// MockEventPersistenceResult is a mock of EventPersistenceResult interface
+type MockEventPersistenceResult struct {
+	ctrl     *gomock.Controller
+	recorder *MockEventPersistenceResultMockRecorder
+}
+
+// MockEventPersistenceResultMockRecorder is the mock recorder for MockEventPersistenceResult
+type MockEventPersistenceResultMockRecorder struct {
+	mock *MockEventPersistenceResult
+}
+
+// NewMockEventPersistenceResult creates a new mock instance
+func NewMockEventPersistenceResult(ctrl *gomock.Controller) *MockEventPersistenceResult {
+	mock := &MockEventPersistenceResult{ctrl: ctrl}
+	mock.recorder = &MockEventPersistenceResultMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockEventPersistenceResult) EXPECT() *MockEventPersistenceResultMockRecorder {
+	return m.recorder
+}
+
+// ID mocks base method
+func (m *MockEventPersistenceResult) ID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ID indicates an expected call of ID
+func (mr *MockEventPersistenceResultMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockEventPersistenceResult)(nil).ID))
+}
+
+// Err mocks base method
+func (m *MockEventPersistenceResult) Err() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Err")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Err indicates an expected call of Err
+func (mr *MockEventPersistenceResultMockRecorder) Err() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Err", reflect.TypeOf((*MockEventPersistenceResult)(nil).Err))
+}
+
+// Ok mocks base method
+func (m *MockEventPersistenceResult) Ok() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ok")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Ok indicates an expected call of Ok
+func (mr *MockEventPersistenceResultMockRecorder) Ok() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ok", reflect.TypeOf((*MockEventPersistenceResult)(nil).Ok))
 }

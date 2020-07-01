@@ -18,3 +18,19 @@ func NullStringFromString(s string) (ns sql.NullString) {
 	ns.Valid = true
 	return
 }
+
+func PointerFromNullString(s sql.NullString) *string {
+	if s.Valid {
+		return &s.String
+	}
+
+	return nil
+}
+
+func PointerFromString(s string) *string {
+	if s == "" {
+		return nil
+	}
+
+	return &s
+}

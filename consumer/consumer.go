@@ -3,8 +3,8 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/flow"
+	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/pkg/errors"
@@ -18,17 +18,17 @@ import (
 type Consumer struct {
 	logger    logger.Logger
 	eventFlow flow.EventFlow
-	persister db.Persister
+	persister model.EventPersister
 
 	receiveCh        chan queue.ReceivedMessage
 	stopCh           chan struct{}
 	eventFlowStateCh chan flow.State
-	pResultCh        chan db.PersistenceResult
+	resultCh         chan model.EventPersistenceResult
 
 	persistedEvents int
 	failedEvents    int
 
-	tasks *tasks
+	received map[string]flow.ReceivedEvent
 
 	mu       sync.RWMutex
 	statusOK bool
@@ -38,46 +38,31 @@ type Consumer struct {
 func New(
 	ef flow.EventFlow,
 	logger logger.Logger,
-	persister db.Persister,
+	persister model.EventPersister,
 ) *Consumer {
-	pResultCh := make(chan db.PersistenceResult)
-	persister.NotifyOnResult(pResultCh)
-	tasks := newTasks(10, logger, persister, ef)
+	resultCh := make(chan model.EventPersistenceResult)
+	persister.NotifyOnResult(resultCh)
 
 	return &Consumer{
 		eventFlow:        ef,
-		tasks:            tasks,
 		persister:        persister,
 		logger:           logger,
-		pResultCh:        pResultCh,
+		resultCh:         resultCh,
 		receiveCh:        make(chan queue.ReceivedMessage),
 		stopCh:           make(chan struct{}),
 		eventFlowStateCh: make(chan flow.State),
+		received:         make(map[string]flow.ReceivedEvent),
 		mu:               sync.RWMutex{},
 		statusOK:         true,
 	}
 }
 
-type StopFunc func(ctx context.Context) error
-
 // Start consumer
-func (c *Consumer) Start(queueName, consumerName string) StopFunc {
+func (c *Consumer) Start(ctx context.Context, queueName, consumerName string) error {
 	go c.healthCheck()
-	go c.tasks.run()
 	go c.processEvents(queueName, consumerName)
 
-	return c.stop
-}
-
-func (c *Consumer) stop(ctx context.Context) error {
-	close(c.stopCh)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		}
-	}
+	return c.persister.Run(ctx)
 }
 
 func (c *Consumer) processEvents(queue, consumerName string) {
@@ -87,39 +72,62 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 
 	for {
 		select {
-		case e := <-events:
+		case re := <-events:
 			// event flow failed
-			if e == nil {
+			if re == nil {
 				c.markAsFailed()
 				continue
 			}
 
-			c.tasks.process(e)
+			e, err := re.Event()
+			if err != nil {
+				c.logger.Error(err)
+				if err := c.eventFlow.Reject(re); err != nil {
+					c.logger.Error(err)
+				}
+			}
+
+			c.received[e.ID] = re
+			c.persister.Persist(e)
 		case efState := <-c.eventFlowStateCh:
 			if efState == flow.Failed || efState == flow.Stopped {
 				c.markAsFailed()
 			}
-		case result := <-c.pResultCh:
-			c.registerResult(result)
+		case result := <-c.resultCh:
+			c.handleResult(result)
 		case <-c.stopCh:
 			c.logger.Debugf("Received on stop channel")
 			c.markAsFailed()
 			_ = c.eventFlow.Stop()
-			c.tasks.stop()
 			return
 		}
 	}
 }
 
-func (c *Consumer) registerResult(r db.PersistenceResult) {
-	switch r {
-	case db.EventFlowFailed:
-		c.incrementFailedEvents()
-		c.markAsFailed()
-	case db.Success:
-		c.incrementPersistedEvents()
-	case db.CriticalDatabaseFailure, db.LogicalError, db.EventCouldNotBeProcessed:
-		c.incrementFailedEvents()
+func (c *Consumer) handleResult(r model.EventPersistenceResult) {
+	if r.Ok() {
+		if re, ok := c.received[r.ID()]; ok {
+			if err := c.eventFlow.Ack(re); err != nil {
+				c.logger.Error(err)
+			}
+
+			delete(c.received, r.ID())
+			c.logger.Debugf("successfully processed event with ID %s", r.ID())
+		}
+
+		return
+	}
+
+	c.logger.Error(r.Err())
+
+	if re, ok := c.received[r.ID()]; ok {
+		if err := c.eventFlow.Requeue(re); err != nil {
+			c.logger.Error(err)
+		} else {
+			c.logger.Debugf("requeued event with ID %s", r.ID())
+		}
+
+		delete(c.received, r.ID())
 	}
 }
 

@@ -16,6 +16,7 @@ type EventFlow interface {
 	Receive(queue, consumer string) <-chan ReceivedEvent
 	Requeue(ReceivedEvent) error
 	Ack(ReceivedEvent) error
+	Reject(ReceivedEvent) error
 	Inspect() (Status, error)
 	Scaffold() error
 	NotifyOnStateChange(chan State)
@@ -34,6 +35,8 @@ type MQEventFlow struct {
 	stopCh         chan struct{}
 	msgCh          chan queue.ReceivedMessage
 	eventCh        chan ReceivedEvent
+
+	tags map[string]string
 }
 
 // New event flow
@@ -42,6 +45,7 @@ func New(mq queue.MQ, logger logger.Logger, cfg Config) *MQEventFlow {
 		mq:             mq,
 		cfg:            cfg,
 		state:          Idle,
+		logger: logger,
 		mu:             sync.RWMutex{},
 		stateListeners: make([]chan State, 0),
 		stopCh:         make(chan struct{}),
@@ -142,9 +146,14 @@ func (ef *MQEventFlow) Requeue(re ReceivedEvent) error {
 	return nil
 }
 
-// Ack previously received message
+// Ack received message
 func (ef *MQEventFlow) Ack(re ReceivedEvent) error {
 	return ef.mq.Ack(re.Tag())
+}
+
+// Reject received message
+func (ef *MQEventFlow) Reject(re ReceivedEvent) error {
+	return ef.mq.Reject(re.Tag())
 }
 
 // Inspect event flow

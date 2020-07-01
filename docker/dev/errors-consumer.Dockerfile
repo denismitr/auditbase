@@ -5,6 +5,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 RUN go mod download
+RUN go mod verify
 
 COPY cmd/consumer ./cmd/consumer
 COPY cmd/healthcheck ./cmd/healthcheck
@@ -12,6 +13,7 @@ COPY consumer/ ./consumer
 COPY queue/ ./queue
 COPY model/ ./model
 COPY flow/ ./flow
+COPY persister/ ./persister
 COPY utils/ ./utils
 COPY db/ ./db
 COPY cache/ ./cache
