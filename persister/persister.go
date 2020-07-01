@@ -18,14 +18,11 @@ type persister struct {
 	logger  logger.Logger
 	cacher  cache.Cacher
 
-	sem chan semaphore
 	running bool
+	sem chan semaphore
 	remember cache.RememberFunc
 
-	actorAssigns chan *payload
-	targetAssigns chan *payload
-	propertiesAssigns chan *payload
-	eventSaves chan *payload
+	persist chan *payload
 
 	omu sync.RWMutex
 	observers []chan<- model.EventPersistenceResult
@@ -60,14 +57,10 @@ func New(
 		cacher: cacher,
 
 		sem: make(chan semaphore, maxEvents),
-		running: false,
 		remember: remember,
+		running: false,
 
-		actorAssigns: make(chan *payload),
-		targetAssigns: make(chan *payload),
-		propertiesAssigns: make(chan *payload),
-		eventSaves: make(chan *payload),
-
+		persist: make(chan *payload),
 		observers: make([]chan<- model.EventPersistenceResult, 0),
 	}
 }
@@ -75,223 +68,242 @@ func New(
 func (p *persister) Run(ctx context.Context) error {
 	p.running = true
 
-	preAssignActorsNextCh := make(chan *payload)
-	preAssignTargetsNextCh := make(chan *payload)
-	preAssignPropertiesNextCh := make(chan *payload)
-	saveEventNextCh := make(chan *payload)
-
-	go p.preAssignActors(ctx, preAssignActorsNextCh)
-	go p.preAssignTargets(ctx, preAssignTargetsNextCh)
-	go p.preAssignProperties(ctx, preAssignPropertiesNextCh)
-	go p.saveEvent(ctx, saveEventNextCh)
+	actorAssigns := p.preAssignActors(ctx, p.persist)
+	targetAssigns := p.preAssignTargets(ctx, actorAssigns)
+	propertyAssigns := p.preAssignProperties(ctx, targetAssigns)
+	savedEvents := p.saveEvent(ctx, propertyAssigns)
 
 	for {
 		select {
 			case <-ctx.Done():
-				close(p.actorAssigns)
-				close(p.targetAssigns)
-				close(p.propertiesAssigns)
-				close(p.eventSaves)
+				close(p.persist)
 				p.running = false
 				return ctx.Err()
-			case pl := <-preAssignActorsNextCh:
-				p.targetAssigns <- pl
-			case pl := <-preAssignTargetsNextCh:
-				p.propertiesAssigns <- pl
-			case pl := <-preAssignPropertiesNextCh:
-				p.eventSaves <- pl
-			case pl := <-saveEventNextCh:
+			case pl := <-savedEvents:
 				p.success(pl)
 		}
 	}
 }
 
-func (p *persister) preAssignActors(ctx context.Context, next chan<- *payload) {
-	for pl := range p.actorAssigns {
-		if pl.isRejected() {
-			continue
-		}
+func (p *persister) preAssignActors(ctx context.Context, in <-chan *payload) chan *payload {
+	next := make(chan *payload)
 
-		go func(pl *payload) {
-			ae := pl.actorEntity()
-			as := pl.actorService()
-			service := new(model.Microservice)
-			serviceCacheKey := model.MicroserviceItemCacheKey(as.Name)
-
-			if err := p.remember(serviceCacheKey, 3*time.Minute, service, func() (interface{}, error) {
-				v, err := p.factory.Microservices().FirstOrCreateByName(as.Name)
-				if err != nil {
-					return nil, err
-				}
-				return v, nil
-			}); err != nil {
-				p.reject(pl, err)
-				return
+	go func() {
+		for pl := range in {
+			if pl.isRejected() {
+				continue
 			}
 
-			entity := new(model.Entity)
-			entityCacheKey := model.EntityItemCacheKey(ae.Name, service)
+			go func(pl *payload) {
+				ae := pl.actorEntity()
+				as := pl.actorService()
+				service := new(model.Microservice)
+				serviceCacheKey := model.MicroserviceItemCacheKey(as.Name)
 
-			if err := p.remember(entityCacheKey, 5*time.Minute, entity, func() (interface{}, error) {
-				v, err := p.factory.Entities().FirstOrCreateByNameAndService(ae.Name, service)
-				if err != nil {
-					return nil, err
+				if err := p.remember(serviceCacheKey, 3*time.Minute, service, func() (interface{}, error) {
+					v, err := p.factory.Microservices().FirstOrCreateByName(as.Name)
+					if err != nil {
+						return nil, err
+					}
+					return v, nil
+				}); err != nil {
+					p.reject(pl, err)
+					return
 				}
-				return v, nil
-			}); err != nil {
-				p.reject(pl, err)
-				return
-			}
 
-			pl.update(func(e *model.Event) {
-				e.ActorEntity = *entity
-				e.ActorService = *service
-			})
+				entity := new(model.Entity)
+				entityCacheKey := model.EntityItemCacheKey(ae.Name, service)
 
-			select {
+				if err := p.remember(entityCacheKey, 5*time.Minute, entity, func() (interface{}, error) {
+					v, err := p.factory.Entities().FirstOrCreateByNameAndService(ae.Name, service)
+					if err != nil {
+						return nil, err
+					}
+					return v, nil
+				}); err != nil {
+					p.reject(pl, err)
+					return
+				}
+
+				pl.update(func(e *model.Event) {
+					e.ActorEntity = *entity
+					e.ActorService = *service
+				})
+
+				select {
 				case <-ctx.Done():
 					p.logger.Debugf("preAssignActors received done and now exiting")
 					return
 				case next <- pl:
 					p.logger.Debugf("preAssignActors passed payload to next handler")
-			}
-		}(pl)
-	}
-}
-
-func (p *persister) preAssignTargets(ctx context.Context, next chan<- *payload) {
-	for pl := range p.targetAssigns {
-		if pl.isRejected() {
-			continue
+				}
+			}(pl)
 		}
 
-		go func (pl *payload) {
-			te := pl.targetEntity()
-			ts := pl.targetService()
+		close(next)
+	}()
 
-			service := new(model.Microservice)
-			serviceCacheKey := model.MicroserviceItemCacheKey(ts.Name)
+	return next
+}
 
-			err := p.remember(serviceCacheKey, 3*time.Minute, service, func() (interface{}, error) {
-				v, err := p.factory.Microservices().FirstOrCreateByName(ts.Name)
-				if err != nil {
-					return nil, err
-				}
+func (p *persister) preAssignTargets(ctx context.Context, in <-chan *payload) chan *payload {
+	next := make(chan *payload)
 
-				return v, nil
-			})
-
-			if err != nil {
-				p.reject(pl, err)
-				return
+	go func() {
+		for pl := range in {
+			if pl.isRejected() {
+				continue
 			}
 
-			targetEntity := new(model.Entity)
-			entityCacheKey := model.EntityItemCacheKey(te.Name, service)
+			go func (pl *payload) {
+				te := pl.targetEntity()
+				ts := pl.targetService()
 
-			if err := p.remember(entityCacheKey, 5*time.Minute, targetEntity, func() (interface{}, error) {
-				v, err := p.factory.Entities().FirstOrCreateByNameAndService(te.Name, service)
+				service := new(model.Microservice)
+				serviceCacheKey := model.MicroserviceItemCacheKey(ts.Name)
+
+				err := p.remember(serviceCacheKey, 3*time.Minute, service, func() (interface{}, error) {
+					v, err := p.factory.Microservices().FirstOrCreateByName(ts.Name)
+					if err != nil {
+						return nil, err
+					}
+
+					return v, nil
+				})
+
 				if err != nil {
-					return nil, err
+					p.reject(pl, err)
+					return
 				}
 
-				return v, nil
-			}); err != nil {
-				p.reject(pl, err)
-				return
-			}
+				targetEntity := new(model.Entity)
+				entityCacheKey := model.EntityItemCacheKey(te.Name, service)
 
-			pl.update(func(e *model.Event) {
-				e.TargetEntity = *targetEntity
-				e.TargetService = *service
-			})
+				if err := p.remember(entityCacheKey, 5*time.Minute, targetEntity, func() (interface{}, error) {
+					v, err := p.factory.Entities().FirstOrCreateByNameAndService(te.Name, service)
+					if err != nil {
+						return nil, err
+					}
 
-			select {
+					return v, nil
+				}); err != nil {
+					p.reject(pl, err)
+					return
+				}
+
+				pl.update(func(e *model.Event) {
+					e.TargetEntity = *targetEntity
+					e.TargetService = *service
+				})
+
+				select {
 				case <-ctx.Done():
 					p.logger.Debugf("preAssignTargets received done amd exiting...")
 					return
 				case next <- pl:
 					p.logger.Debugf("preAssignTargets passed payload to the next handler...")
-			}
-		}(pl)
-	}
-}
-
-func (p *persister) preAssignProperties(ctx context.Context, next chan<- *payload) {
-	for pl := range p.propertiesAssigns {
-		if pl.isRejected() {
-			continue
+				}
+			}(pl)
 		}
 
-		go func (pl *payload) {
-			targetEntity := pl.targetEntity()
-			propertyNames := pl.changingProperties()
+		close(next)
+	}()
 
-			var wg sync.WaitGroup
+	return next
+}
 
-			for _, name := range propertyNames {
-				wg.Add(1)
-				go func(name string) {
-					defer wg.Done()
+func (p *persister) preAssignProperties(ctx context.Context, in <-chan *payload) chan *payload {
+	next := make(chan *payload)
 
-					id, err := p.factory.Properties().GetIDOrCreate(name, targetEntity.ID)
-					if err != nil {
-						p.reject(pl, err)
-						return
-					}
+	go func() {
+		for pl := range in {
+			if pl.isRejected() {
+				continue
+			}
 
-					if !validator.IsUUID4(id) {
-						p.reject(pl, errors.Errorf("property id %s invalid", id))
-						return
-					}
+			go func (pl *payload) {
+				targetEntity := pl.targetEntity()
+				propertyNames := pl.changingProperties()
 
-					pl.update(func(e *model.Event) {
-						for i := range e.Changes {
-							if e.Changes[i].PropertyName == name {
-								p.logger.Debugf("found match for name %s", name)
-								e.Changes[i].PropertyID = id
-							}
+				var wg sync.WaitGroup
+
+				for _, name := range propertyNames {
+					wg.Add(1)
+					go func(name string) {
+						defer wg.Done()
+
+						id, err := p.factory.Properties().GetIDOrCreate(name, targetEntity.ID)
+						if err != nil {
+							p.reject(pl, err)
+							return
 						}
-					})
-				}(name)
-			}
 
-			wg.Wait()
+						if !validator.IsUUID4(id) {
+							p.reject(pl, errors.Errorf("property id %s invalid", id))
+							return
+						}
 
-			select {
-			case <-ctx.Done():
-				p.logger.Debugf("preAssignProperties received done amd exiting...")
-				return
-			case next <- pl:
-				p.logger.Debugf("preAssignProperties passed payload to the next handler...")
-			}
-		}(pl)
-	}
-}
+						pl.update(func(e *model.Event) {
+							for i := range e.Changes {
+								if e.Changes[i].PropertyName == name {
+									p.logger.Debugf("found match for name %s", name)
+									e.Changes[i].PropertyID = id
+								}
+							}
+						})
+					}(name)
+				}
 
-func (p *persister) saveEvent(ctx context.Context, next chan *payload) {
-	for pl := range p.eventSaves {
-		if pl.isRejected() {
-			continue
+				wg.Wait()
+
+				select {
+				case <-ctx.Done():
+					p.logger.Debugf("preAssignProperties received done amd exiting...")
+					return
+				case next <- pl:
+					p.logger.Debugf("preAssignProperties passed payload to the next handler...")
+				}
+			}(pl)
 		}
 
-		go func(pl *payload) {
-			e := pl.event()
+		close(next)
+	}()
 
-			if err := p.factory.Events().Create(e); err != nil {
-				p.reject(pl, err)
-				return
+
+	return next
+}
+
+func (p *persister) saveEvent(ctx context.Context, in <-chan *payload) chan *payload {
+	next := make(chan *payload)
+
+	go func() {
+		for pl := range in {
+			if pl.isRejected() {
+				continue
 			}
 
-			select {
-			case <-ctx.Done():
-				p.logger.Debugf("saveEvent received done amd exiting...")
-				return
-			case next <- pl:
-				p.logger.Debugf("saveEvent passed payload to the next handler...")
-			}
-		}(pl)
-	}
+			go func(pl *payload) {
+				e := pl.event()
+
+				if err := p.factory.Events().Create(e); err != nil {
+					p.reject(pl, err)
+					return
+				}
+
+				select {
+				case <-ctx.Done():
+					p.logger.Debugf("saveEvent received done amd exiting...")
+					return
+				case next <- pl:
+					p.logger.Debugf("saveEvent passed payload to the next handler...")
+				}
+			}(pl)
+		}
+
+		close(next)
+	}()
+
+	return next
 }
 
 func (p *persister) reject(pl *payload, err error) {
@@ -326,7 +338,7 @@ func (p *persister) Persist(e *model.Event) {
 	}
 
 	p.sem <- struct{}{}
-	p.actorAssigns <- wrap(e)
+	p.persist <- wrap(e)
 }
 
 func (p *persister) NotifyOnResult(observer chan<- model.EventPersistenceResult) {

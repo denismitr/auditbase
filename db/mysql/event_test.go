@@ -65,7 +65,7 @@ func TestSelectChangesByEventIDsQuery(t *testing.T) {
 	}{
 		{
 			ids:  []string{"34e1d82a-a065-436d-afd0-5fbcb752a4e1", "55e1d82a-a065-436d-bfd0-5fbcb752a4f2"},
-			sql:  "SELECT BIN_TO_UUID(c.id) as id, BIN_TO_UUID(c.property_id) as property_id, BIN_TO_UUID(c.event_id) as event_id, BIN_TO_UUID(p.entity_id) as entity_id, p.name as property_name, from_value, to_value FROM changes as c JOIN properties as p ON p.id = c.property_id WHERE event_id IN (UUID_TO_BIN(?),UUID_TO_BIN(?))",
+			sql:  "SELECT BIN_TO_UUID(c.id) as id, BIN_TO_UUID(c.property_id) as property_id, BIN_TO_UUID(c.event_id) as event_id, BIN_TO_UUID(p.entity_id) as entity_id, p.name as property_name, c.current_data_type, c.from_value, c.to_value FROM changes as c JOIN properties as p ON p.id = c.property_id WHERE event_id IN (UUID_TO_BIN(?),UUID_TO_BIN(?))",
 			args: []interface{}{"34e1d82a-a065-436d-afd0-5fbcb752a4e1", "55e1d82a-a065-436d-bfd0-5fbcb752a4f2"},
 			err:  nil,
 		},
@@ -108,7 +108,7 @@ func TestSelectEventChanges(t *testing.T) {
 				"BIN_TO_UUID(c.event_id) as event_id, " +
 				"BIN_TO_UUID(c.property_id) as property_id, " +
 				"BIN_TO_UUID(p.entity_id) as entity_id, " +
-				"c.current_data_type as type, p.name as property_name, from_value, to_value " +
+				"c.current_data_type, p.name as property_name, from_value, to_value " +
 				"FROM changes as c JOIN properties as p ON p.id = c.property_id " +
 				"WHERE event_id = UUID_TO_BIN(?)",
 			args: []interface{}{"34e1d82a-a065-436d-afd0-5fbcb752a4e1"},
@@ -124,7 +124,7 @@ func TestSelectEventChanges(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			sql, args, err := selectEventChangesByEventIDQuery(tc.id)
+			sql, args, err := selectChangesByEventIDQuery(tc.id)
 
 			if tc.err == nil {
 				assert.Nil(t, err)

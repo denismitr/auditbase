@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"database/sql"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/utils/errtype"
@@ -115,6 +114,7 @@ func (r *EventRepository) Create(e *model.Event) error {
 			EventID: e.ID,
 			FromValue: db.NullStringFromStringPointer(e.Changes[i].From),
 			ToValue: db.NullStringFromStringPointer(e.Changes[i].To),
+			CurrentDataType: db.NullStringFromStringPointer(e.Changes[i].CurrentDataType),
 		}
 
 		changeSQL, args, err := createChangeQuery(&c)
@@ -169,7 +169,7 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 		return nil, errors.Wrap(err, "could not build select one event query")
 	}
 
-	cq, cqArgs, err := selectEventChangesByEventIDQuery(ID.String())
+	cq, cqArgs, err := selectChangesByEventIDQuery(ID.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not build select event changes query")
 	}
@@ -214,19 +214,7 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 	delta := make([]*model.PropertyChange, len(changes))
 
 	for i := range changes {
-		delta[i] = &model.PropertyChange{
-			ID:      changes[i].ID,
-			EventID: changes[i].EventID,
-			PropertyName:    changes[i].PropertyName,
-		}
-
-		if changes[i].FromValue.Valid == true {
-			delta[i].From = &changes[i].FromValue.String
-		}
-
-		if changes[i].ToValue.Valid == true {
-			delta[i].To = &changes[i].ToValue.String
-		}
+		delta[i] = changes[i].ToModel()
 	}
 
 	// TODO: inner join name and description
@@ -503,27 +491,6 @@ func selectOneEventQuery(ID string) (string, []interface{}, error) {
 		ToSql()
 }
 
-func selectEventChangesByEventIDQuery(ID string) (string, []interface{}, error) {
-	if ! validator.IsUUID4(ID) {
-		return "", nil, db.ErrInvalidUUID4
-	}
-
-	return sq.Select(
-		"BIN_TO_UUID(c.id) as id",
-			"BIN_TO_UUID(c.event_id) as event_id",
-			"BIN_TO_UUID(c.property_id) as property_id",
-			"BIN_TO_UUID(p.entity_id) as entity_id",
-			"c.current_data_type as type",
-			"p.name as property_name",
-			"from_value",
-			"to_value",
-		).
-		From("changes as c").
-		Join("properties as p ON p.id = c.property_id").
-		Where("event_id = UUID_TO_BIN(?)", ID).
-		ToSql()
-}
-
 func baseSelectEventsQuery() sq.SelectBuilder {
 	query := sq.Select(
 		"BIN_TO_UUID(e.id) as id",
@@ -556,39 +523,6 @@ func createBaseCountEventsQuery() sq.SelectBuilder {
 	return sq.Select("COUNT(*) as total FROM events e")
 }
 
-func selectChangesByEventIDsQuery(ids []string) (string, []interface{}, error) {
-	if len(ids) == 0 {
-		return "", nil, db.ErrEmptyWhereInList
-	}
-
-	q := sq.Select(
-		"BIN_TO_UUID(c.id) as id",
-		"BIN_TO_UUID(c.property_id) as property_id",
-		"BIN_TO_UUID(c.event_id) as event_id",
-		"BIN_TO_UUID(p.entity_id) as entity_id",
-		"p.name as property_name",
-		"from_value", "to_value",
-	)
-
-	q = q.From("changes as c")
-	q = q.Join("properties as p ON p.id = c.property_id")
-
-	var expr bytes.Buffer
-	var args []interface{}
-	expr.WriteString("event_id IN (")
-	for i := range ids {
-		expr.WriteString("UUID_TO_BIN(?)")
-		if i + 1 < len(ids) {
-			expr.WriteString(",")
-		}
-
-		args = append(args, ids[i])
-	}
-	expr.WriteString(")")
-
-	return q.Where(expr.String(), args...).ToSql()
-}
-
 func countEventsQuery() (string, []interface{}, error) {
 	return sq.Select("COUNT(*)").From("events").ToSql()
 }
@@ -618,24 +552,4 @@ func createEventQuery(e *insertEvent) (string, []interface{}, error) {
 		e.EventName, e.EmittedAt, e.RegisteredAt,
 		pex,
 	).ToSql()
-}
-
-func createChangeQuery(c *change) (string, []interface{}, error) {
-	if !validator.IsUUID4(c.PropertyID) {
-		return "", nil, errors.New("change property id is not a valid uuid4")
-	}
-
-	if !validator.IsUUID4(c.EventID) {
-		return "", nil, errors.New("change event id is not a valid uuid4")
-	}
-
-	return sq.Insert("changes").
-		Columns("id", "property_id", "event_id", "from_value", "to_value").
-		Values(
-			sq.Expr("UUID_TO_BIN(?)", c.ID),
-			sq.Expr("UUID_TO_BIN(?)", c.PropertyID),
-			sq.Expr("UUID_TO_BIN(?)", c.EventID),
-			c.FromValue,
-			c.ToValue,
-		).ToSql()
 }

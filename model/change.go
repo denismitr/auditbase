@@ -14,14 +14,14 @@ type Change struct {
 }
 
 type PropertyChange struct {
-	ID           string  `json:"id"`
-	EventID      string  `json:"eventId"`
-	PropertyID   string  `json:"propertyId"`
-	Type         string  `json:"type"`
-	From         *string `json:"from"`
-	To           *string `json:"to"`
-	PropertyName string  `json:"property,omitempty"`
-	EntityID     string  `json:"entityId,omitempty"`
+	ID              string  `json:"id"`
+	EventID         string  `json:"eventId"`
+	PropertyID      string  `json:"propertyId"`
+	From            *string `json:"from"`
+	To              *string `json:"to"`
+	CurrentDataType *string `json:"currentDataType"`
+	PropertyName    string  `json:"property,omitempty"`
+	EntityID        string  `json:"entityId,omitempty"`
 }
 
 type ChangeRepository interface {

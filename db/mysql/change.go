@@ -1,8 +1,10 @@
 package mysql
 
 import (
+	"bytes"
 	"database/sql"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
@@ -23,40 +25,38 @@ type change struct {
 }
 
 type propertyChange struct {
-	ID           string         `db:"id"`
-	EventID      string         `db:"event_id"`
-	PropertyID   string         `db:"property_id"`
-	FromValue    sql.NullString `db:"from_value"`
-	ToValue      sql.NullString `db:"to_value"`
-	PropertyName string         `db:"property_name"`
-	EntityID     string         `db:"entity_id"`
-	Type         string         `db:"type"`
+	ID              string         `db:"id"`
+	EventID         string         `db:"event_id"`
+	PropertyID      string         `db:"property_id"`
+	FromValue       sql.NullString `db:"from_value"`
+	ToValue         sql.NullString `db:"to_value"`
+	CurrentDataType sql.NullString `db:"current_data_type"`
+	PropertyName    string         `db:"property_name"`
+	EntityID        string         `db:"entity_id"`
 }
 
 func (c *propertyChange) ToModel() *model.PropertyChange {
 	return &model.PropertyChange{
-		ID:           c.ID,
-		EventID:      c.EventID,
-		EntityID:     c.EntityID,
-		From:         &c.FromValue.String,
-		To:           &c.ToValue.String,
-		PropertyID:   c.PropertyID,
-		PropertyName: c.PropertyName,
+		ID:              c.ID,
+		EventID:         c.EventID,
+		EntityID:        c.EntityID,
+		From:            db.PointerFromNullString(c.FromValue),
+		To:              db.PointerFromNullString(c.ToValue),
+		CurrentDataType: db.PointerFromNullString(c.CurrentDataType),
+		PropertyID:      c.PropertyID,
+		PropertyName:    c.PropertyName,
 	}
 }
 
 func (c *change) ToModel() *model.Change {
 	m := &model.Change{
-		ID:         c.ID,
-		EventID:    c.EventID,
-		From:       &c.FromValue.String,
-		To:         &c.ToValue.String,
-		PropertyID: c.PropertyID,
-		CreatedAt:  c.CreatedAt,
-	}
-
-	if c.CurrentDataType.Valid {
-		m.CurrentDataType = &c.CurrentDataType.String
+		ID:              c.ID,
+		EventID:         c.EventID,
+		From:            db.PointerFromNullString(c.FromValue),
+		To:              db.PointerFromNullString(c.ToValue),
+		CurrentDataType: db.PointerFromNullString(c.CurrentDataType),
+		PropertyID:      c.PropertyID,
+		CreatedAt:       c.CreatedAt,
 	}
 
 	return m
@@ -85,7 +85,7 @@ func (c *ChangeRepository) Select(
 	s *model.Sort,
 	p *model.Pagination,
 ) ([]*model.Change, *model.Meta, error) {
-	q, err := createSelectChangesQuery(f, s, p)
+	q, err := selectChangesQuery(f, s, p)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -119,7 +119,7 @@ func (c *ChangeRepository) Select(
 }
 
 func (c *ChangeRepository) FirstByID(ID string) (*model.Change, error) {
-	q, args, err := createFirstChangeByIDQuery(ID)
+	q, args, err := firstChangeByIDQuery(ID)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (c *ChangeRepository) FirstByID(ID string) (*model.Change, error) {
 	return chng.ToModel(), nil
 }
 
-func createFirstChangeByIDQuery(ID string) (string, []interface{}, error) {
+func firstChangeByIDQuery(ID string) (string, []interface{}, error) {
 	if !validator.IsUUID4(ID) {
 		return "", nil, errors.Errorf("%s not a valid uuid4", ID)
 	}
@@ -147,7 +147,8 @@ func createFirstChangeByIDQuery(ID string) (string, []interface{}, error) {
 		"BIN_TO_UUID(c.property_id) as property_id",
 		"BIN_TO_UUID(c.event_id) as event_id",
 		"e.emitted_at as created_at",
-		"from_value", "to_value",
+		"c.current_data_type",
+		"c.from_value", "c.to_value",
 	).
 		From("changes as c").
 		Join("events as e on e.id = c.event_id").
@@ -156,7 +157,7 @@ func createFirstChangeByIDQuery(ID string) (string, []interface{}, error) {
 		ToSql()
 }
 
-func createSelectChangesQuery(
+func selectChangesQuery(
 	f *model.Filter,
 	s *model.Sort,
 	p *model.Pagination,
@@ -166,7 +167,8 @@ func createSelectChangesQuery(
 		"BIN_TO_UUID(c.property_id) as property_id",
 		"BIN_TO_UUID(c.event_id) as event_id",
 		"e.emitted_at as created_at",
-		"from_value", "to_value",
+		"c.current_data_type",
+		"c.from_value", "c.to_value",
 	).From("changes as c").Join("events as e on e.id = c.event_id")
 
 	countQ := sq.Select("count(*) as total").From("changes as c")
@@ -208,4 +210,80 @@ func createSelectChangesQuery(
 		countSQL:   countSQl,
 		countArgs:  countArgs,
 	}, nil
+}
+
+func selectChangesByEventIDsQuery(ids []string) (string, []interface{}, error) {
+	if len(ids) == 0 {
+		return "", nil, db.ErrEmptyWhereInList
+	}
+
+	q := sq.Select(
+		"BIN_TO_UUID(c.id) as id",
+		"BIN_TO_UUID(c.property_id) as property_id",
+		"BIN_TO_UUID(c.event_id) as event_id",
+		"BIN_TO_UUID(p.entity_id) as entity_id",
+		"p.name as property_name",
+		"c.current_data_type",
+		"c.from_value", "c.to_value",
+	)
+
+	q = q.From("changes as c")
+	q = q.Join("properties as p ON p.id = c.property_id")
+
+	var expr bytes.Buffer
+	var args []interface{}
+	expr.WriteString("event_id IN (")
+	for i := range ids {
+		expr.WriteString("UUID_TO_BIN(?)")
+		if i+1 < len(ids) {
+			expr.WriteString(",")
+		}
+
+		args = append(args, ids[i])
+	}
+	expr.WriteString(")")
+
+	return q.Where(expr.String(), args...).ToSql()
+}
+
+func createChangeQuery(c *change) (string, []interface{}, error) {
+	if !validator.IsUUID4(c.PropertyID) {
+		return "", nil, errors.New("change property id is not a valid uuid4")
+	}
+
+	if !validator.IsUUID4(c.EventID) {
+		return "", nil, errors.New("change event id is not a valid uuid4")
+	}
+
+	return sq.Insert("changes").
+		Columns("id", "property_id", "event_id", "current_data_type", "from_value", "to_value").
+		Values(
+			sq.Expr("UUID_TO_BIN(?)", c.ID),
+			sq.Expr("UUID_TO_BIN(?)", c.PropertyID),
+			sq.Expr("UUID_TO_BIN(?)", c.EventID),
+			c.CurrentDataType,
+			c.FromValue,
+			c.ToValue,
+		).ToSql()
+}
+
+func selectChangesByEventIDQuery(ID string) (string, []interface{}, error) {
+	if ! validator.IsUUID4(ID) {
+		return "", nil, db.ErrInvalidUUID4
+	}
+
+	return sq.Select(
+		"BIN_TO_UUID(c.id) as id",
+		"BIN_TO_UUID(c.event_id) as event_id",
+		"BIN_TO_UUID(c.property_id) as property_id",
+		"BIN_TO_UUID(p.entity_id) as entity_id",
+		"c.current_data_type",
+		"p.name as property_name",
+		"from_value",
+		"to_value",
+	).
+		From("changes as c").
+		Join("properties as p ON p.id = c.property_id").
+		Where("event_id = UUID_TO_BIN(?)", ID).
+		ToSql()
 }
