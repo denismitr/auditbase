@@ -16,13 +16,11 @@ Accept: application/json
 	"changes": [
       {
         "propertyName": "status",
-        "currentPropertyType": "string",
         "from": null,
         "to": "published"
       },
       {
         "propertyName": "value",
-        "currentPropertyType": "string",
         "from": "bar",
         "to": "baz"
       }
@@ -44,20 +42,28 @@ Accept: application/json
 	"actorId": "88999",
 	"actorEntity": "user",
 	"actorService": "front",
-    "eventName": "subscriptionCanceled",
+    "eventName": "subscriptionUpdated",
     "emittedAt": 1578173212,
   "changes": [
     {
-      "propertyName": "status_10",
-      "currentPropertyType": "string",
+      "propertyName": "account_status",
       "from": "foo",
       "to": "1234"
     },
     {
-      "propertyName": "value_2",
-      "currentPropertyType": "string",
+      "propertyName": "meta",
       "from": "baz",
       "to": null
+    },
+    {
+      "propertyName": "balance",
+      "from": 12345.876,
+      "to": 16345.876
+    },
+    {
+      "propertyName": "complaints",
+      "from": "5",
+      "to": "6"
     }
   ]
 }

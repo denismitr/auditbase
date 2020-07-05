@@ -38,10 +38,10 @@ func TestReceiverController(t *testing.T) {
 		cacher := mock_cache.NewMockCacher(ctrl)
 
 		gomock.InOrder(
-			cacher.EXPECT().Has("hash_key_1790e8a793ecd7f0b3e46c5dc5f71d18fc24c45a").Return(false, nil),
+			cacher.EXPECT().Has("hash_key_90f589619c71fb63d34ae2cba3b259b7f18db598").Return(false, nil),
 			clock.EXPECT().CurrentTime().Return(now),
-			cacher.EXPECT().CreateKey("hash_key_1790e8a793ecd7f0b3e46c5dc5f71d18fc24c45a", 1 * time.Minute).Return(nil),
-			efMock.EXPECT().Send(evt).Return(nil),
+			cacher.EXPECT().CreateKey("hash_key_90f589619c71fb63d34ae2cba3b259b7f18db598", 1 * time.Minute).Return(nil),
+			efMock.EXPECT().Send(gomock.Any()).Return(nil),
 		)
 
 		c := &receiverController{lg: lg, uuid4: uuidMock, ef: efMock, clock: clock, cacher: cacher}

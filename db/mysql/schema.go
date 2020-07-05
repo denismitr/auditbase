@@ -6,6 +6,7 @@ import (
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	"sort"
 )
 
 type SQLMigrator struct {
@@ -24,8 +25,8 @@ func Migrator(conn *sqlx.DB, lg logger.Logger) *SQLMigrator {
 		applied: make(map[string]bool),
 	}
 
-	m.up["initial"] = []string{microserviceSchema, entitySchema, eventSchema, propertySchema, propertySchema, changeSchema}
-	m.up["add_crud_to_events"] = []string{addCrudToEventSchema}
+	m.up["001_initial"] = []string{microserviceSchema, entitySchema, eventSchema, propertySchema, propertySchema, changeSchema}
+	m.up["002_add_crud_to_events"] = []string{addCrudToEventSchema}
 
 	return m
 }
@@ -120,7 +121,7 @@ const changeSchema = `
 		event_id binary(16) NOT NULL,
 		from_value TEXT,
 		to_value TEXT,
-		current_data_type VARCHAR(20),
+		current_data_type TINYINT(1),
 
 		INDEX event_and_property_index (event_id, property_id),
 		INDEX event_index (event_id),
@@ -189,13 +190,20 @@ func (m *SQLMigrator) Up() error {
 		m.applied[name] = true
 	}
 
-	for name, queries := range m.up {
+	migrations := make([]string, 0, len(m.up))
+	for name := range m.up {
+		migrations = append(migrations, name)
+	}
+
+	sort.Strings(migrations)
+
+	for _, name := range migrations {
 		if _, ok := m.applied[name]; !ok {
 			m.lg.Debugf("Running migration %s...", name)
 
-			for i := range queries {
-				m.lg.Debugf("Running SQL %s...", queries[i])
-				if _, err := tx.Exec(queries[i]); err != nil {
+			for _, query := range m.up[name] {
+				m.lg.Debugf("Running SQL %s...", query)
+				if _, err := tx.Exec(query); err != nil {
 					_ = tx.Rollback()
 					m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 					return errors.Wrapf(err, "could not apply migration %s", name)

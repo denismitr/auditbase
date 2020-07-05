@@ -212,13 +212,13 @@ func createDefaultEvent(now time.Time) *model.Event {
 		Changes: []*model.PropertyChange{
 			{
 				PropertyName: "status",
-				CurrentDataType: db.PointerFromString("string"),
+				CurrentDataType: model.StringDataType,
 				From: db.PointerFromString("active"),
 				To: db.PointerFromString("canceled"),
 			},
 			{
 				PropertyName: "rating",
-				CurrentDataType: db.PointerFromString("integer"),
+				CurrentDataType: model.IntegerDataType,
 				From: db.PointerFromString("500"),
 				To: nil,
 			},
@@ -240,13 +240,11 @@ func createIncomingEventWithId(now time.Time) (string, *model.Event) {
 		"changes": [
 			{
 				"propertyName": "status",
-				"currentPropertyType": "string",
 				"from": "active",
 				"to": "canceled"
 			},
 			{
 				"propertyName": "rating",
-				"currentPropertyType": "integer",
 				"from": "500",
 				"to": null
 			}
@@ -276,13 +274,13 @@ func createIncomingEventWithId(now time.Time) (string, *model.Event) {
 		Changes: []*model.PropertyChange{
 			{
 				PropertyName: "status",
-				CurrentDataType: db.PointerFromString("string"),
+				CurrentDataType: model.StringDataType,
 				From: db.PointerFromString("active"),
 				To: db.PointerFromString("canceled"),
 			},
 			{
 				PropertyName: "rating",
-				CurrentDataType: db.PointerFromString("integer"),
+				CurrentDataType: model.IntegerDataType,
 				From: db.PointerFromString("500"),
 				To: nil,
 			},
@@ -341,13 +339,13 @@ func createIncomingEventWithoutId(now time.Time) (string, *model.Event) {
 		Changes: []*model.PropertyChange{
 			{
 				PropertyName: "status",
-				CurrentDataType: db.PointerFromString("string"),
+				CurrentDataType: model.StringDataType,
 				From: db.PointerFromString("active"),
 				To: db.PointerFromString("canceled"),
 			},
 			{
 				PropertyName: "rating",
-				CurrentDataType: db.PointerFromString("integer"),
+				CurrentDataType: model.IntegerDataType,
 				From: db.PointerFromString("500"),
 				To: nil,
 			},

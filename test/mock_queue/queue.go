@@ -199,9 +199,11 @@ func (mr *MockMQMockRecorder) Ack(tag interface{}) *gomock.Call {
 }
 
 // Subscribe mocks base method
-func (m *MockMQ) Subscribe(queue, consumer string, receiveCh chan<- queue.ReceivedMessage) {
+func (m *MockMQ) Subscribe(queue, consumer string, receiveCh chan<- queue.ReceivedMessage) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", queue, consumer, receiveCh)
+	ret := m.ctrl.Call(m, "Subscribe", queue, consumer, receiveCh)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Subscribe indicates an expected call of Subscribe

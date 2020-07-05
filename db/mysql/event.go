@@ -41,30 +41,30 @@ type event struct {
 }
 
 type insertEvent struct {
-	ID                       string         `db:"id"`
-	ParentEventID            sql.NullString `db:"parent_event_id"`
-	Hash                     string         `db:"hash"`
-	ActorID                  string         `db:"actor_id"`
-	ActorEntityID            string         `db:"actor_entity_id"`
-	ActorServiceID           string         `db:"actor_service_id"`
-	TargetID                 string         `db:"target_id"`
-	TargetEntityID           string         `db:"target_entity_id"`
-	TargetServiceID          string         `db:"target_service_id"`
-	EventName                string         `db:"event_name"`
-	EmittedAt                time.Time      `db:"emitted_at"`
-	RegisteredAt             time.Time      `db:"registered_at"`
+	ID              string         `db:"id"`
+	ParentEventID   sql.NullString `db:"parent_event_id"`
+	Hash            string         `db:"hash"`
+	ActorID         string         `db:"actor_id"`
+	ActorEntityID   string         `db:"actor_entity_id"`
+	ActorServiceID  string         `db:"actor_service_id"`
+	TargetID        string         `db:"target_id"`
+	TargetEntityID  string         `db:"target_entity_id"`
+	TargetServiceID string         `db:"target_service_id"`
+	EventName       string         `db:"event_name"`
+	EmittedAt       time.Time      `db:"emitted_at"`
+	RegisteredAt    time.Time      `db:"registered_at"`
 }
 
 type EventRepository struct {
 	conn  *sqlx.DB
-	log logger.Logger
+	log   logger.Logger
 	uuid4 uuid.UUID4Generator
 }
 
 func NewEventRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Logger) *EventRepository {
 	return &EventRepository{
 		conn:  conn,
-		log: log,
+		log:   log,
 		uuid4: uuid4,
 	}
 }
@@ -109,12 +109,12 @@ func (r *EventRepository) Create(e *model.Event) error {
 
 	for i := range e.Changes {
 		c := change{
-			ID: r.uuid4.Generate(),
-			PropertyID: e.Changes[i].PropertyID,
-			EventID: e.ID,
-			FromValue: db.NullStringFromStringPointer(e.Changes[i].From),
-			ToValue: db.NullStringFromStringPointer(e.Changes[i].To),
-			CurrentDataType: db.NullStringFromStringPointer(e.Changes[i].CurrentDataType),
+			ID:              r.uuid4.Generate(),
+			PropertyID:      e.Changes[i].PropertyID,
+			EventID:         e.ID,
+			FromValue:       db.NullStringFromStringPointer(e.Changes[i].From),
+			ToValue:         db.NullStringFromStringPointer(e.Changes[i].To),
+			CurrentDataType: int(e.Changes[i].CurrentDataType),
 		}
 
 		changeSQL, args, err := createChangeQuery(&c)
@@ -255,7 +255,7 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 		EventName:     e.EventName,
 		EmittedAt:     model.JSONTime{Time: e.EmittedAt},
 		RegisteredAt:  model.JSONTime{Time: e.RegisteredAt},
-		Changes:         delta,
+		Changes:       delta,
 	}, nil
 }
 
@@ -419,7 +419,7 @@ func selectEventsQuery(
 	}
 
 	if filter.Has("targetId") {
-		w:= `actor_service_id = UUID_TO_BIN(?)`
+		w := `actor_service_id = UUID_TO_BIN(?)`
 		selectEvents = selectEvents.Where(w, filter.MustString("targetId"))
 		countEvents = countEvents.Where(w, filter.MustString("targetId"))
 	}
@@ -473,15 +473,15 @@ func selectEventsQuery(
 	}
 
 	return &selectQuery{
-		selectSQL: selectSQL,
+		selectSQL:  selectSQL,
 		selectArgs: selectArgs,
-		countSQL: countSQL,
-		countArgs: countArgs,
+		countSQL:   countSQL,
+		countArgs:  countArgs,
 	}, nil
 }
 
 func selectOneEventQuery(ID string) (string, []interface{}, error) {
-	if ! validator.IsUUID4(ID) {
+	if !validator.IsUUID4(ID) {
 		return "", nil, db.ErrInvalidUUID4
 	}
 

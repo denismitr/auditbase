@@ -75,10 +75,10 @@ func (m *RabbitMQReceivedMessage) CloneToReque() Message {
 	return NewJSONMessage(b, m.Attempt()+1)
 }
 
-func newRabbitMQReceivedMessage(queueName string, msg amqp.Delivery) *RabbitMQReceivedMessage {
+func newRabbitMQReceivedMessage(queueName string, msg amqp.Delivery) (*RabbitMQReceivedMessage, error) {
 	attempt, err := extractAttemptFromHeader(msg.Headers)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return &RabbitMQReceivedMessage{
@@ -86,7 +86,7 @@ func newRabbitMQReceivedMessage(queueName string, msg amqp.Delivery) *RabbitMQRe
 		body:      msg.Body,
 		tag:       msg.DeliveryTag,
 		attempt:   attempt,
-	}
+	}, nil
 }
 
 func extractAttemptFromHeader(h amqp.Table) (int, error) {

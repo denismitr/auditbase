@@ -27,7 +27,6 @@ func TestChangesController(t *testing.T) {
 		eventID := "22e46ed5-fe33-4445-878e-9c32ae54bfb2"
 		from := "BAR"
 		to := "FOO"
-		typ := "string"
 
 		uuidMock := mock_uuid.NewMockUUID4Generator(ctrl)
 		repoMock := mock_model.NewMockChangeRepository(ctrl)
@@ -36,7 +35,7 @@ func TestChangesController(t *testing.T) {
 			ID:          id,
 			PropertyID: propertyID,
 			EventID:        eventID,
-			CurrentDataType: &typ,
+			CurrentDataType: model.StringDataType,
 			From: &from,
 			To: &to,
 		}

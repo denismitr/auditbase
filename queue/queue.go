@@ -41,7 +41,7 @@ type MQ interface {
 	Publish(msg Message, exchange, routingKey string) error
 	Reject(tag uint64) error
 	Ack(tag uint64) error
-	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage)
+	Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage) error
 
 	Connect(ctx context.Context) error
 	Maintain()
@@ -188,7 +188,7 @@ func (q *RabbitQueue) Inspect(queueName string) (Inspection, error) {
 
 // Subscribe and consume messages sending them
 // to receiveCh
-func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage) {
+func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- ReceivedMessage) error {
 	msgs, err := q.channel.Consume(
 		queue,    // queue
 		consumer, // consumer
@@ -199,10 +199,8 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 		nil,      // args
 	)
 
-
-
 	if err != nil {
-		panic(err)
+		return errors.Wrapf(err, "could not consume from queue %s", queue)
 	}
 
 	fmt.Println("Waiting for messages...")
@@ -210,11 +208,18 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 	for {
 		select {
 		case msg := <-msgs:
-			rMsg := newRabbitMQReceivedMessage(queue, msg)
+			rMsg, err := newRabbitMQReceivedMessage(queue, msg)
+			if err != nil {
+				q.logger.Error(err)
+				continue
+			}
+
 			q.logger.Debugf("consumer %s received message from queue %s on its %d attempt", consumer, queue, rMsg.Attempt())
+
 			receiveCh <- rMsg
 		case <-q.stopCh:
 			close(receiveCh)
+			return nil
 		}
 	}
 }

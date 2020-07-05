@@ -18,7 +18,7 @@ type change struct {
 	ID              string         `db:"id"`
 	EventID         string         `db:"event_id"`
 	PropertyID      string         `db:"property_id"`
-	CurrentDataType sql.NullString `db:"current_data_type"`
+	CurrentDataType int            `db:"current_data_type"`
 	CreatedAt       time.Time      `db:"created_at"`
 	FromValue       sql.NullString `db:"from_value"`
 	ToValue         sql.NullString `db:"to_value"`
@@ -30,7 +30,7 @@ type propertyChange struct {
 	PropertyID      string         `db:"property_id"`
 	FromValue       sql.NullString `db:"from_value"`
 	ToValue         sql.NullString `db:"to_value"`
-	CurrentDataType sql.NullString `db:"current_data_type"`
+	CurrentDataType int            `db:"current_data_type"`
 	PropertyName    string         `db:"property_name"`
 	EntityID        string         `db:"entity_id"`
 }
@@ -42,7 +42,7 @@ func (c *propertyChange) ToModel() *model.PropertyChange {
 		EntityID:        c.EntityID,
 		From:            db.PointerFromNullString(c.FromValue),
 		To:              db.PointerFromNullString(c.ToValue),
-		CurrentDataType: db.PointerFromNullString(c.CurrentDataType),
+		CurrentDataType: model.DataType(c.CurrentDataType),
 		PropertyID:      c.PropertyID,
 		PropertyName:    c.PropertyName,
 	}
@@ -54,7 +54,7 @@ func (c *change) ToModel() *model.Change {
 		EventID:         c.EventID,
 		From:            db.PointerFromNullString(c.FromValue),
 		To:              db.PointerFromNullString(c.ToValue),
-		CurrentDataType: db.PointerFromNullString(c.CurrentDataType),
+		CurrentDataType: model.DataType(c.CurrentDataType),
 		PropertyID:      c.PropertyID,
 		CreatedAt:       c.CreatedAt,
 	}
@@ -268,7 +268,7 @@ func createChangeQuery(c *change) (string, []interface{}, error) {
 }
 
 func selectChangesByEventIDQuery(ID string) (string, []interface{}, error) {
-	if ! validator.IsUUID4(ID) {
+	if !validator.IsUUID4(ID) {
 		return "", nil, db.ErrInvalidUUID4
 	}
 

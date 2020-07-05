@@ -17,34 +17,35 @@ func extractIDParamFrom(ctx echo.Context) model.ID {
 }
 
 type Change struct {
-	PropertyName        string `json:"propertyName"`
-	CurrentPropertyType interface{} `json:"currentPropertyType"`
+	PropertyName        string      `json:"propertyName"`
 	From                interface{} `json:"from"`
 	To                  interface{} `json:"to"`
 }
 
 func (c *Change) ToModel(eventID string) *model.PropertyChange {
+	from := interfaceToStringPointer(c.From)
+	to := interfaceToStringPointer(c.To)
 	return &model.PropertyChange{
 		PropertyName:    c.PropertyName,
 		EventID:         eventID,
-		From:            interfaceToStringPointer(c.From),
-		To:              interfaceToStringPointer(c.To),
-		CurrentDataType: interfaceToStringPointer(c.CurrentPropertyType),
+		From:            from,
+		To:              to,
+		CurrentDataType: guessPairDataType(from, to),
 	}
 }
 
 type CreateEvent struct {
-	ID            string   `json:"id"`
-	Operation     string   `json:"operation"`
-	ActorID       string   `json:"actorId"`
-	ActorEntity   string   `json:"actorEntity"`
-	ActorService  string   `json:"actorService"`
-	TargetID      string   `json:"targetId"`
-	TargetEntity  string   `json:"targetEntity"`
-	TargetService string   `json:"targetService"`
-	EventName     string   `json:"eventName"`
-	EmittedAt     int64    `json:"emittedAt"`
-	RegisteredAt  int64    `json:"registeredAt"`
+	ID            string    `json:"id"`
+	Operation     string    `json:"operation"`
+	ActorID       string    `json:"actorId"`
+	ActorEntity   string    `json:"actorEntity"`
+	ActorService  string    `json:"actorService"`
+	TargetID      string    `json:"targetId"`
+	TargetEntity  string    `json:"targetEntity"`
+	TargetService string    `json:"targetService"`
+	EventName     string    `json:"eventName"`
+	EmittedAt     int64     `json:"emittedAt"`
+	RegisteredAt  int64     `json:"registeredAt"`
 	Changes       []*Change `json:"changes"`
 }
 
@@ -111,9 +112,9 @@ func (ce CreateEvent) ToEvent() *model.Event {
 		TargetService: model.Microservice{
 			Name: ce.TargetService,
 		},
-		EventName:    ce.EventName,
-		EmittedAt:    model.JSONTime{Time: clock.TimestampToTime(ce.EmittedAt)},
-		Changes:      changes,
+		EventName: ce.EventName,
+		EmittedAt: model.JSONTime{Time: clock.TimestampToTime(ce.EmittedAt)},
+		Changes:   changes,
 	}
 }
 
@@ -123,10 +124,17 @@ func interfaceToStringPointer(value interface{}) *string {
 	switch raw := value.(type) {
 	case string:
 		out = raw
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr:
 		out = fmt.Sprintf("%d", raw)
 	case float64, float32:
-		out = strings.Replace(fmt.Sprintf("%0.4f", raw), ".0000", "", 1)
+		out = strings.TrimRight(fmt.Sprintf("%0.4f", raw), "0")
+	case bool:
+		trueOrFalse := value.(bool)
+		if trueOrFalse == false {
+			out = "0"
+		} else {
+			out = "1"
+		}
 	default:
 		return nil
 	}
@@ -136,4 +144,50 @@ func interfaceToStringPointer(value interface{}) *string {
 	}
 
 	return nil
+}
+
+func guessPairDataType(from, to *string) model.DataType {
+	if from == nil {
+		return guessDataType(to)
+	}
+
+	if to == nil {
+		return guessDataType(from)
+	}
+
+	// if length is great lets not waist time on regex - it's most probably a string
+	if len(*from) > 150 && len(*to) > 150 {
+		return model.StringDataType
+	}
+
+	if validator.IsFloat(*from) || validator.IsFloat(*to) {
+		return model.FloatDataType
+	}
+
+	if validator.IsInteger(*from) && validator.IsInteger(*to) {
+		return model.IntegerDataType
+	}
+
+	return model.StringDataType
+}
+
+func guessDataType(s *string) model.DataType {
+	if s == nil {
+		return model.NullDataType
+	}
+
+	// if length is great lets not waist time on regex - it's most probably a string
+	if len(*s) > 150 {
+		return model.StringDataType
+	}
+
+	if validator.IsFloat(*s) {
+		return model.FloatDataType
+	}
+
+	if validator.IsInteger(*s) {
+		return model.IntegerDataType
+	}
+
+	return model.StringDataType
 }

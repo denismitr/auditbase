@@ -106,7 +106,11 @@ func (ef *MQEventFlow) Send(e *model.Event) error {
 
 // Receive events from the flow
 func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedEvent {
-	go ef.mq.Subscribe(queue, consumer, ef.msgCh)
+	go func() {
+		if err := ef.mq.Subscribe(queue, consumer, ef.msgCh); err != nil {
+			panic(err)
+		}
+	}()
 
 	go func() {
 		for {
