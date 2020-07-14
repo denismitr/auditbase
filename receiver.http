@@ -133,19 +133,16 @@ Accept: application/json
   "changes": [
     {
       "propertyName": "text",
-      "currentPropertyType": "string",
       "from": "foo says bar",
       "to": null
     },
     {
       "propertyName": "title",
-      "currentPropertyType": "string",
       "from": "baz title",
       "to": null
     },
     {
       "propertyName": "rating",
-      "currentPropertyType": "integer",
       "from": 1,
       "to": null
     }

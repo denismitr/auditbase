@@ -1,7 +1,6 @@
 <template>
-  <!-- eslint-disable -->
   <v-layout>
-    <v-app id="inspire">
+    <v-app>
     <v-container fluid>
       <v-data-iterator
         :items="events"
@@ -25,7 +24,7 @@
               solo-inverted
               hide-details
               prepend-inner-icon="search"
-              label="Search"
+              label="Search events"
             ></v-text-field>
             <template v-if="$vuetify.breakpoint.mdAndUp">
               <v-spacer></v-spacer>
@@ -78,7 +77,9 @@
                 <v-card-title class="subheading font-weight-bold">
                   {{ item.attributes.eventName }}
                 </v-card-title>
-                <v-card-subtitle>{{ item.id }}</v-card-subtitle>
+                <v-card-subtitle>
+                  <nuxt-link :to="'/events/' + item.id">{{ item.id }}</nuxt-link>
+                </v-card-subtitle>
 
                 <v-divider></v-divider>
 

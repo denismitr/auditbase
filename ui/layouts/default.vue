@@ -58,7 +58,7 @@
       </v-btn>
     </v-app-bar>
     <v-content>
-      <v-container>
+      <v-container fluid>
         <nuxt />
       </v-container>
     </v-content>
@@ -105,6 +105,11 @@ export default {
           icon: 'mdi-chart-bubble',
           title: 'Events',
           to: '/events'
+        },
+        {
+          icon: 'mdi-thumb-up',
+          title: 'Microservices',
+          to: '/microservices'
         }
       ],
       miniVariant: false,
