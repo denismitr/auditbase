@@ -98,6 +98,7 @@ func (ec *eventsController) index(ctx echo.Context) error {
 		"targetEntityId",
 		"actorEntityId",
 		"targetId",
+		"propertyId",
 		"actorId",
 	})
 	p := createPagination(q, 25)

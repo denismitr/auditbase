@@ -39,7 +39,17 @@
         </v-list-item>
         <v-list-item>
           <v-list-item-content>&emsp;ID</v-list-item-content>
-          <v-list-item-content class="align-end">{{ event.attributes.actorService.id }}</v-list-item-content>
+          <v-list-item-content class="align-end">
+            <nuxt-link :to="{name: 'microservices-id', params: {id: event.attributes.actorService.id}}">
+              <v-chip
+                      link="true"
+                      class="ma-2"
+                      color="primary"
+              >
+                {{ event.attributes.actorService.id }}
+              </v-chip>
+            </nuxt-link>
+          </v-list-item-content>
         </v-list-item>
         <v-list-item>
           <v-list-item-content>&emsp;Name</v-list-item-content>
@@ -72,7 +82,17 @@
         </v-list-item>
         <v-list-item>
           <v-list-item-content>&emsp;ID</v-list-item-content>
-          <v-list-item-content class="align-end">{{ event.attributes.targetService.id }}</v-list-item-content>
+          <v-list-item-content class="align-end">
+            <nuxt-link :to="{name: 'microservices-id', params: {id: event.attributes.targetService.id}}">
+              <v-chip
+                      link="true"
+                      class="ma-2"
+                      color="primary"
+              >
+                {{ event.attributes.targetService.id }}
+              </v-chip>
+            </nuxt-link>
+          </v-list-item-content>
         </v-list-item>
         <v-list-item>
           <v-list-item-content>&emsp;Name</v-list-item-content>

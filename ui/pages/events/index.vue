@@ -172,7 +172,15 @@ import events from '~/proxies/events'
 
 export default {
   async fetch () {
-    const { collection, meta } = await events.many()
+    let filter = {};
+
+    Object.keys(this.$route.query).forEach(k => {
+      if (this.$route.query[k]) {
+        filter[k] = this.$route.query[k]
+      }
+    })
+
+    const { collection, meta } = await events.many({filter})
     this.events = collection
     this.meta = meta
   },

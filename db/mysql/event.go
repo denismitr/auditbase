@@ -436,6 +436,12 @@ func selectEventsQuery(
 		countEvents = countEvents.Where(w, filter.MustString("targetServiceId"))
 	}
 
+	if filter.Has("propertyId") {
+		w := `tp.id = UUID_TO_BIN(?)`
+		selectEvents = selectEvents.Where(w, filter.MustString("propertyId"))
+		countEvents = countEvents.Where(w, filter.MustString("propertyId"))
+	}
+
 	if filter.Has("emittedAfter") {
 		w := `emitted_at > ?`
 		selectEvents = selectEvents.Where(w, filter.MustString("emittedAfter"))
@@ -516,11 +522,21 @@ func baseSelectEventsQuery() sq.SelectBuilder {
 	query = query.Join("microservices as tms ON tms.id = e.target_service_id")
 	query = query.Join("entities as ae ON ae.id = e.actor_entity_id")
 	query = query.Join("entities as te ON te.id = e.target_entity_id")
+	query = query.Join("properties as tp ON te.id = tp.entity_id")
 	return query
 }
 
 func createBaseCountEventsQuery() sq.SelectBuilder {
-	return sq.Select("COUNT(*) as total FROM events e")
+	query := sq.Select("COUNT(*) as total")
+
+	query = query.From("events as e")
+	query = query.Join("microservices as ams ON ams.id = e.actor_service_id")
+	query = query.Join("microservices as tms ON tms.id = e.target_service_id")
+	query = query.Join("entities as ae ON ae.id = e.actor_entity_id")
+	query = query.Join("entities as te ON te.id = e.target_entity_id")
+	query = query.Join("properties as tp ON te.id = tp.entity_id")
+
+	return query
 }
 
 func countEventsQuery() (string, []interface{}, error) {

@@ -10,7 +10,7 @@
   import EventCard from "~/components/EventCard";
 
   export default {
-    name: 'EventId',
+    name: 'EventPage',
 
     components: { EventCard },
 

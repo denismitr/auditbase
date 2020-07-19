@@ -104,6 +104,7 @@ export default {
         {
           icon: 'mdi-chart-bubble',
           title: 'Events',
+          name: 'events',
           to: '/events'
         },
         {

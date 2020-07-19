@@ -1,4 +1,4 @@
-import queryString from 'query-string'
+import queryString from 'qs'
 
 class BackOfficeClient {
   constructor (axios, headers = {}) {
@@ -28,7 +28,7 @@ class BackOfficeClient {
   }
 
   buildUri (endpoint, parameters = {}) {
-    const qs = queryString.stringify(parameters)
+    const qs = queryString.stringify(parameters, {encode: false})
 
     if (qs.length === 0) {
       return endpoint

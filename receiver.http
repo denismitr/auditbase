@@ -12,7 +12,7 @@ Accept: application/json
 	"actorEntity": "promoter",
 	"actorService": "back-office",
     "eventName": "articlePublished",
-    "emittedAt": 1578174512,
+    "emittedAt": 1778174522,
 	"changes": [
       {
         "propertyName": "status",

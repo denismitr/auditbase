@@ -1,7 +1,7 @@
 GET {{back-office}}/api/v1/events?page=1&perPage=3
 Content-Type: application/json
 Accept: application/json
-
+WQDQD3W
 ###
 
 GET {{back-office}}/api/v1/events/015dc021-e6c0-4e25-a1a1-50e6c637524c

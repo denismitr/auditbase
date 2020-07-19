@@ -58,7 +58,7 @@ wrk/local:
 	wrk -c50 -t3 -d100s -s ./test/lua/events.lua http://127.0.0.1:8888
 
 wrk/debug:
-	wrk -c20 -t2 -d20s -s ./test/lua/events.lua http://127.0.0.1:8888
+	wrk -c20 -t2 -d20s --rate=30 -s ./test/lua/events.lua http://127.0.0.1:8888
 
 docker-remove:
 	docker rm --force `docker ps -a -q` || true
