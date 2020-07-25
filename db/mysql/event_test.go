@@ -27,7 +27,9 @@ func TestSelectOneEventQuery(t *testing.T) {
 				"tms.description as target_service_description, ae.name as actor_entity_name, ae.description as actor_entity_description, " +
 				"te.name as target_entity_name, te.description as target_entity_description FROM events as e JOIN microservices as ams ON ams.id = e.actor_service_id " +
 				"JOIN microservices as tms ON tms.id = e.target_service_id JOIN entities as ae ON ae.id = e.actor_entity_id " +
-				"JOIN entities as te ON te.id = e.target_entity_id WHERE e.id = UUID_TO_BIN(?) LIMIT 1",
+				"JOIN entities as te ON te.id = e.target_entity_id " +
+				"JOIN properties as tp ON te.id = tp.entity_id " +
+				"WHERE e.id = UUID_TO_BIN(?) LIMIT 1",
 			args: []interface{}{"34e1d82a-a065-436d-afd0-5fbcb752a4e1"},
 			err:  nil,
 		},
@@ -162,8 +164,10 @@ func TestSelectEventsQuery(t *testing.T) {
 				"tms.description as target_service_description, ae.name as actor_entity_name, ae.description as actor_entity_description, " +
 				"te.name as target_entity_name, te.description as target_entity_description FROM events as e " +
 				"JOIN microservices as ams ON ams.id = e.actor_service_id JOIN microservices as tms ON tms.id = e.target_service_id " +
-				"JOIN entities as ae ON ae.id = e.actor_entity_id JOIN entities as te ON te.id = e.target_entity_id ORDER BY emitted_at DESC LIMIT 30 OFFSET 0",
-			countSQL:   `SELECT COUNT(*) as total FROM events e`,
+				"JOIN entities as ae ON ae.id = e.actor_entity_id JOIN entities as te ON te.id = e.target_entity_id " +
+				"JOIN properties as tp ON te.id = tp.entity_id " +
+				"ORDER BY emitted_at DESC LIMIT 30 OFFSET 0",
+			countSQL:   `SELECT COUNT(*) as total FROM events as e JOIN microservices as ams ON ams.id = e.actor_service_id JOIN microservices as tms ON tms.id = e.target_service_id JOIN entities as ae ON ae.id = e.actor_entity_id JOIN entities as te ON te.id = e.target_entity_id JOIN properties as tp ON te.id = tp.entity_id`,
 			countArgs:  nil,
 			selectArgs: nil,
 			page:       1,
@@ -180,8 +184,9 @@ func TestSelectEventsQuery(t *testing.T) {
 				"te.name as target_entity_name, te.description as target_entity_description FROM events as e " +
 				"JOIN microservices as ams ON ams.id = e.actor_service_id JOIN microservices as tms ON tms.id = e.target_service_id " +
 				"JOIN entities as ae ON ae.id = e.actor_entity_id JOIN entities as te ON te.id = e.target_entity_id " +
+				"JOIN properties as tp ON te.id = tp.entity_id " +
 				"WHERE emitted_at > ? AND emitted_at < ? AND event_name = ? ORDER BY emitted_at DESC LIMIT 30 OFFSET 0",
-			countSQL:      `SELECT COUNT(*) as total FROM events e WHERE emitted_at > ? AND emitted_at < ? AND event_name = ?`,
+			countSQL:      `SELECT COUNT(*) as total FROM events as e JOIN microservices as ams ON ams.id = e.actor_service_id JOIN microservices as tms ON tms.id = e.target_service_id JOIN entities as ae ON ae.id = e.actor_entity_id JOIN entities as te ON te.id = e.target_entity_id JOIN properties as tp ON te.id = tp.entity_id WHERE emitted_at > ? AND emitted_at < ? AND event_name = ?`,
 			countArgs:     []interface{}{"12345678901", "12345688901", "subscriptionCanceled"},
 			selectArgs:    []interface{}{"12345678901", "12345688901", "subscriptionCanceled"},
 			eventName:     "subscriptionCanceled",
