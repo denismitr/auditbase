@@ -12,6 +12,10 @@ type JSONTime struct {
 }
 
 func (t JSONTime) MarshalJSON() ([]byte, error) {
+	if t.IsZero() {
+		return []byte("null"), nil
+	}
+
 	stamp := fmt.Sprintf("\"%s\"", t.Format(DefaultTimeFormat))
 	return []byte(stamp), nil
 }

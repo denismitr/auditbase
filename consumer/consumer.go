@@ -2,15 +2,12 @@ package consumer
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/pkg/errors"
-	"net/http"
-	"os"
 	"sync"
+	"time"
 )
 
 // Consumer - consumers from the event flow and
@@ -25,13 +22,14 @@ type Consumer struct {
 	eventFlowStateCh chan flow.State
 	resultCh         chan model.EventPersistenceResult
 
-	persistedEvents int
-	failedEvents    int
-
 	received map[string]flow.ReceivedEvent
 
-	mu       sync.RWMutex
-	statusOK bool
+	mu              sync.RWMutex
+	persistedEvents int
+	failedEvents    int
+	statusOK        bool
+	startedAt       time.Time
+	failedAt        time.Time
 }
 
 // New consumer
@@ -59,6 +57,11 @@ func New(
 
 // Start consumer
 func (c *Consumer) Start(ctx context.Context, queueName, consumerName string) error {
+	c.mu.Lock()
+	c.statusOK = true
+	c.startedAt = time.Now()
+	c.mu.Unlock()
+
 	go c.healthCheck()
 	go c.processEvents(queueName, consumerName)
 
@@ -66,7 +69,9 @@ func (c *Consumer) Start(ctx context.Context, queueName, consumerName string) er
 }
 
 func (c *Consumer) processEvents(queue, consumerName string) {
+	c.mu.Lock()
 	c.eventFlow.NotifyOnStateChange(c.eventFlowStateCh)
+	c.mu.Unlock()
 
 	events := c.eventFlow.Receive(queue, consumerName)
 
@@ -75,7 +80,7 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 		case re := <-events:
 			// event flow failed
 			if re == nil {
-				c.markAsFailed()
+				c.logger.Debugf("EMPTY EVENT RECEIVED")
 				continue
 			}
 
@@ -83,11 +88,16 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 			if err != nil {
 				c.logger.Error(err)
 				if err := c.eventFlow.Reject(re); err != nil {
+					c.mu.Lock()
+					c.failedEvents++
+					c.mu.Unlock()
 					c.logger.Error(err)
 				}
 			}
 
+			c.mu.Lock()
 			c.received[e.ID] = re
+			c.mu.Unlock()
 			c.persister.Persist(e)
 		case efState := <-c.eventFlowStateCh:
 			if efState == flow.Failed || efState == flow.Stopped {
@@ -105,6 +115,9 @@ func (c *Consumer) processEvents(queue, consumerName string) {
 }
 
 func (c *Consumer) handleResult(r model.EventPersistenceResult) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if r.Ok() {
 		if re, ok := c.received[r.ID()]; ok {
 			if err := c.eventFlow.Ack(re); err != nil {
@@ -112,6 +125,7 @@ func (c *Consumer) handleResult(r model.EventPersistenceResult) {
 			}
 
 			delete(c.received, r.ID())
+			c.persistedEvents++
 			c.logger.Debugf("successfully processed event with ID %s", r.ID())
 		}
 
@@ -119,6 +133,7 @@ func (c *Consumer) handleResult(r model.EventPersistenceResult) {
 	}
 
 	c.logger.Error(r.Err())
+	c.failedEvents++
 
 	if re, ok := c.received[r.ID()]; ok {
 		if err := c.eventFlow.Requeue(re); err != nil {
@@ -137,31 +152,11 @@ func (c *Consumer) statusIsOK() bool {
 	return c.statusOK
 }
 
-func (c *Consumer) healthCheck() {
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		if c.statusIsOK() {
-			w.WriteHeader(200)
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-		} else {
-			c.logger.Debugf("Health check failed")
-			w.WriteHeader(500)
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error"})
-		}
-	})
-
-	c.logger.Debugf("\nStarting healthcheck on port %s", os.Getenv("HEALTH_PORT"))
-	err := http.ListenAndServe(":"+os.Getenv("HEALTH_PORT"), nil)
-	if err != nil {
-		c.logger.Error(errors.Wrap(err, "helthcheck endpoint failed"))
-	}
-}
-
 func (c *Consumer) markAsFailed() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.statusOK = false
+	c.failedAt = time.Now()
 }
 
 func (c *Consumer) incrementFailedEvents() {

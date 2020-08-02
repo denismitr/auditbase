@@ -48,11 +48,14 @@ test/local:
 test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
 
+seed:
+	go run ./cmd/seed
+
 integration_test:
 	go test ./test/integration/...
 
 debug: vars
-	docker-compose -f docker-compose-debug.yml up --build --force-recreate
+	docker-compose -f docker-compose-debug.yml up -d --build --force-recreate
 
 wrk/local:
 	wrk -c50 -t3 -d100s -s ./test/lua/events.lua http://127.0.0.1:8888

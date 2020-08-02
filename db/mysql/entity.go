@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
@@ -8,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	sq "github.com/Masterminds/squirrel"
+	"time"
 )
 
 type entity struct {
@@ -122,6 +124,9 @@ func createSelectPropertiesForEntity(_ string) (string, error) {
 
 // Create an entities
 func (r *EntityRepository) Create(e *model.Entity) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
 	stmt := `
 		INSERT INTO entities (id, service_id, name, description) VALUES (
 			UUID_TO_BIN(:id), UUID_TO_BIN(:service_id), :name, :description
@@ -135,7 +140,7 @@ func (r *EntityRepository) Create(e *model.Entity) error {
 		Description: e.Description,
 	}
 
-	if _, err := r.conn.NamedExec(stmt, tt); err != nil {
+	if _, err := r.conn.NamedExecContext(ctx, stmt, tt); err != nil {
 		return errors.Wrapf(err, "could not create new entities with name %s", e.Name)
 	}
 
@@ -143,6 +148,9 @@ func (r *EntityRepository) Create(e *model.Entity) error {
 }
 
 func (r *EntityRepository) FirstByNameAndService(name string, service *model.Microservice) (*model.Entity, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
 	stmt := `
 		SELECT 
 			BIN_TO_UUID(id) as id, 
@@ -158,7 +166,7 @@ func (r *EntityRepository) FirstByNameAndService(name string, service *model.Mic
 
 	ent := new(entity)
 
-	if err := r.conn.Get(ent, stmt, service.ID, name); err != nil {
+	if err := r.conn.GetContext(ctx, ent, stmt, service.ID, name); err != nil {
 		return nil, errors.Wrapf(err, "could not find entities with name %s", name)
 	}
 

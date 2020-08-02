@@ -1,40 +1,22 @@
-FROM golang:latest as builder
+FROM golang:latest
 
-WORKDIR /app
-
-COPY go.mod go.sum ./
-
-RUN go mod download
-
-COPY cmd/consumer ./cmd/consumer
-COPY cmd/healthcheck ./cmd/healthcheck
-COPY consumer/ ./consumer
-COPY queue/ ./queue
-COPY model/ ./model
-COPY flow/ ./flow
-COPY utils/ ./utils
-COPY db/ ./db
-COPY .env ./
-
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o consumer ./cmd/consumer
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o healthcheck ./cmd/healthcheck
-
-FROM alpine:latest
-
-RUN apk --no-cache add ca-certificates
+RUN mkdir -p /tmp/debug/consumer
 
 WORKDIR /source
 
-COPY --from=builder /app/consumer .
-COPY --from=builder /app/healthcheck .
-COPY --from=builder /app/.env .
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN chmod +x ./consumer
-RUN chmod +x ./healthcheck
+COPY cmd/ ./cmd
+COPY rest/ ./rest
+COPY queue/ ./queue
+COPY model/ ./model
+COPY utils/ ./utils
+COPY consumer/ ./consumer
+COPY persister/ ./persister
+COPY flow/ ./flow
+COPY db/ ./db
+COPY cache/ ./cache
+COPY .env ./
 
-ENV HEALTH_PORT=3000
-EXPOSE ${HEALTH_PORT}
-
-HEALTHCHECK --interval=5s --timeout=1s --start-period=120s --retries=3 CMD [ "./healthcheck" ] || exit 1
-
-ENTRYPOINT ["./consumer", "-requeued"]
+ENTRYPOINT ["go", "run", "-race", "/source/cmd/consumer/consumer.go", "-errors"]

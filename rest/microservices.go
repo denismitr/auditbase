@@ -1,11 +1,13 @@
 package rest
 
 import (
+	"context"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
+	"time"
 )
 
 type microservicesController struct {
@@ -37,12 +39,15 @@ func (mc *microservicesController) create(ctx echo.Context) error {
 		m.ID = mc.uuid4.Generate()
 	}
 
-	errors := m.Validate()
-	if errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors.All()...))
+	errs := m.Validate()
+	if errs.NotEmpty() {
+		return ctx.JSON(validationFailed(errs.All()...))
 	}
 
-	savedMicroservice, err := mc.microservices.Create(m)
+	runtimeCtx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	defer cancel()
+
+	savedMicroservice, err := mc.microservices.Create(runtimeCtx, m)
 	if err != nil {
 		return ctx.JSON(internalError(err))
 	}

@@ -14,7 +14,7 @@ const (
 	rejected
 )
 
-type updater func(*model.Event)
+type updater func(*model.Event) error
 type mapper func(model.Event) interface{}
 
 type payload struct {
@@ -95,10 +95,10 @@ func (p *payload) eventID() string {
 }
 
 
-func (p *payload) update(f updater) {
+func (p *payload) update(f updater) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	f(p.e)
+	return f(p.e)
 }
 
 func (p *payload) mapper(f mapper) interface{} {

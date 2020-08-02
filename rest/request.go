@@ -17,9 +17,9 @@ func extractIDParamFrom(ctx echo.Context) model.ID {
 }
 
 type Change struct {
-	PropertyName        string      `json:"propertyName"`
-	From                interface{} `json:"from"`
-	To                  interface{} `json:"to"`
+	PropertyName string      `json:"propertyName"`
+	From         interface{} `json:"from"`
+	To           interface{} `json:"to"`
 }
 
 func (c *Change) ToModel(eventID string) *model.PropertyChange {
@@ -36,7 +36,7 @@ func (c *Change) ToModel(eventID string) *model.PropertyChange {
 
 type CreateEvent struct {
 	ID            string    `json:"id"`
-	Operation     string    `json:"operation"`
+	Crud          int       `json:"operation"`
 	ActorID       string    `json:"actorId"`
 	ActorEntity   string    `json:"actorEntity"`
 	ActorService  string    `json:"actorService"`

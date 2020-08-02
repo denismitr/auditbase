@@ -218,6 +218,7 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 
 			receiveCh <- rMsg
 		case <-q.stopCh:
+			panic("STOPPED")
 			close(receiveCh)
 			return nil
 		}
@@ -311,7 +312,7 @@ func (q *RabbitQueue) updateStatus(s ConnectionStatus) {
 	q.mu.Lock()
 	q.status = s
 	defer q.mu.Unlock()
-
+	q.logger.Debugf("QUEUE STATUS CHANGED To %#v", s)
 	for _, l := range q.statusListeners {
 		l <- s
 	}

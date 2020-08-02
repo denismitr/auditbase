@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"flag"
 	"github.com/denismitr/auditbase/cache"
 	"github.com/denismitr/auditbase/persister"
@@ -57,7 +58,7 @@ func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (st
 	return queueName, consumerName
 }
 
-func create(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, error) {
+func createConsumer(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, error) {
 	startCtx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
 	defer cancel()
 
@@ -67,7 +68,7 @@ func create(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, error) {
 	errCh := make(chan error)
 
 	go func() {
-		dbConn, err := mysql.ConnectAndMigrate(startCtx, lg, env.MustString("AUDITBASE_DB_DSN"), 150)
+		dbConn, err := mysql.ConnectAndMigrate(startCtx, lg, env.MustString("AUDITBASE_DB_DSN"), 200, 20)
 		if err != nil {
 			errCh <- err
 			return
@@ -151,13 +152,13 @@ done:
 
 	uuid4 := uuid.NewUUID4Generator()
 	factory := mysql.Factory(conn, uuid4, lg)
-	persister := persister.New(factory, lg, cacher, 100)
+	persister := persister.New(factory, lg, cacher, 7)
 
 	return consumer.New(ef, lg, persister), nil
 }
 
 func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) {
-	c, err := create(lg, cfg)
+	c, err := createConsumer(lg, cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -173,8 +174,10 @@ func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) {
 	}()
 
 	<-terminate
+	lg.Error(errors.New("TERMINATE SIGNAL"))
 	cancel()
 	<-time.After(10 * time.Second)
+	lg.Error(errors.Errorf("CONSUMER %s TERMINATED", consumerName))
 }
 
 func debug(isErrorsConsumer bool) {

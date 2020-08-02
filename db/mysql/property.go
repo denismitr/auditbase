@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/model"
@@ -57,18 +58,21 @@ func (p *property) ToModel() *model.Property {
 }
 
 func (p *PropertyRepository) FirstByID(ID string) (*model.Property, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	defer cancel()
+
 	q, args, err := createFirstByIDQuery(ID)
 	if err != nil {
 		return nil, err
 	}
 
-	stmt, err := p.conn.Preparex(q)
+	stmt, err := p.conn.PreparexContext(ctx, q)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare %s statement", q)
 	}
 
 	var prop property
-	if err := stmt.Get(&prop, args...); err != nil {
+	if err := stmt.GetContext(ctx, &prop, args...); err != nil {
 		return nil, errors.Wrapf(err, "could not get properties with ID %s", ID)
 	}
 
@@ -111,6 +115,9 @@ func (p *PropertyRepository) Select(filter *model.Filter, sort *model.Sort, pagi
 }
 
 func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	defer cancel()
+
 	var result string
 
 	createSql, createArgs, err := createInsertPropertyQuery(r.uuid4.Generate(), name, entityID)
@@ -123,17 +130,17 @@ func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error
 		return result, errors.Wrap(err, "could not create get properties ID query")
 	}
 
-	createStmt, err := r.conn.Preparex(createSql)
+	createStmt, err := r.conn.PreparexContext(ctx, createSql)
 	if err != nil {
 		return result, errors.Wrap(err, "could not prepare insert properties query")
 	}
 
-	getStmt, err := r.conn.Preparex(getSql)
+	getStmt, err := r.conn.PreparexContext(ctx, getSql)
 	if err != nil {
 		return result, errors.Wrap(err, "could not prepare get properties ID query")
 	}
 
-	if _, err := createStmt.Exec(createArgs...); err != nil {
+	if _, err := createStmt.ExecContext(ctx, createArgs...); err != nil {
 		r.log.Error(err)
 	}
 
@@ -141,6 +148,8 @@ func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error
 	if err != nil {
 		return result, errors.Wrapf(err, "could not select id from properties with name %s and eventID %s", name, entityID)
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		if err := rows.Scan(&result); err != nil {

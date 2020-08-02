@@ -1,8 +1,8 @@
 version: "3.4"
 
 services:
-    auditbase_rest:
-        container_name: auditbase_rest
+    auditbase_receiver:
+        container_name: auditbase_receiver
         build:
             context: .
             dockerfile: docker/debug/receiver.Dockerfile
@@ -10,9 +10,22 @@ services:
             - auditbase_db
             - auditbase_rabbit
         ports:
-            - "8888:3000"
+            - "8888:3001"
         volumes:
             - ./debug/receiver:/tmp/debug/receiver
+
+    auditbase_backoffice:
+        container_name: auditbase_backoffice
+        build:
+            context: .
+            dockerfile: docker/dev/backoffice.Dockerfile
+        depends_on:
+            - auditbase_db
+            - auditbase_rabbit
+        ports:
+            - "8889:3000"
+        volumes:
+            - ./debug/backoffice:/tmp/debug/backoffice
 
     auditbase_consumer:
         container_name: auditbase_consumer
@@ -22,6 +35,8 @@ services:
         depends_on: 
             - auditbase_db
             - auditbase_rabbit
+        ports:
+            - "8890:3002"
         volumes:
             - ./debug/consumer:/tmp/debug/consumer
 
@@ -40,28 +55,33 @@ services:
         container_name: auditbase_rabbit
         volumes:
             - auditbase_rabbit_volume:/var/lib/rabbitmq
-        ports: 
+        ports:
             - 15672:15672
         env_file:
             - ./.env
 
-    auditbase_db:
-        image: mysql:8.0.18
-        container_name: auditbase_db
+    auditbase_redis:
+        container_name: auditbase_redis
+        image: redis:5-alpine
         env_file:
             - ./.env
-        cap_add:
-            - SYS_NICE
-        command: ['--max_allowed_packet=9999G',
-                    '--character-set-server=utf8mb4',
-                    '--collation-server=utf8mb4_unicode_ci',
-                    '--wait_timeout=999999']
         ports:
-            - "3306:3306"
+            - 63799:6379
         restart: always
         tty: true
-                         
-    
+
+    auditbase_db:
+        image: mysql:8.0
+        container_name: auditbase_db
+        command: --default-authentication-plugin=mysql_native_password
+        environment:
+            MYSQL_ROOT_PASSWORD: secret
+            MYSQL_DATABASE: auditbase
+            MYSQL_USER: auditbase
+            MYSQL_PASSWORD: secret
+        ports:
+            - "3306:3306"
+
 volumes:
     auditbase_db_volume:
     auditbase_rabbit_volume:

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/utils/errtype"
@@ -91,23 +92,30 @@ func (r *EventRepository) Create(e *model.Event) error {
 		return errors.Wrap(err, "could not build create event query")
 	}
 
-	tx, err := r.conn.Beginx()
+	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second) // fixme - pass from outside
+	defer cancel()
+
+	tx, err := r.conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return errors.Wrap(err, "could not begin transaction")
 	}
 
-	createStmt, err := tx.Preparex(createSQL)
+	createStmt, err := tx.PreparexContext(ctx, createSQL)
 	if err != nil {
 		_ = tx.Rollback()
 		return errors.Wrapf(err, "could not prepare create event query %s", createSQL)
 	}
 
-	if _, err := createStmt.Exec(args...); err != nil {
+	if _, err := createStmt.ExecContext(ctx, args...); err != nil {
 		_ = tx.Rollback()
 		return errors.Wrapf(err, "could not create new event with ID %s", e.ID)
 	}
 
 	for i := range e.Changes {
+		if e.Changes[i].PropertyID == "" {
+			continue //fixme
+		}
+
 		c := change{
 			ID:              r.uuid4.Generate(),
 			PropertyID:      e.Changes[i].PropertyID,
@@ -123,7 +131,7 @@ func (r *EventRepository) Create(e *model.Event) error {
 			return errors.Wrapf(err, "could not create insert change query for event with ID %s", e.ID)
 		}
 
-		if _, err := tx.Exec(changeSQL, args...); err != nil {
+		if _, err := tx.ExecContext(ctx, changeSQL, args...); err != nil {
 			_ = tx.Rollback()
 			return errors.Wrapf(err, "could not insert property change for event with ID %s", e.ID)
 		}
@@ -377,6 +385,8 @@ func (r *EventRepository) joinChangesWithEvents(events []event) (map[string][]pr
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get a list of properties for events with stmt %s", q)
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		var p propertyChange

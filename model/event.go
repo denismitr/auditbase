@@ -6,6 +6,15 @@ import (
 	"github.com/denismitr/auditbase/utils/validator"
 )
 
+type Crud int
+
+const (
+	Unknown Crud = iota
+	Create
+	Update
+	Delete
+)
+
 type Event struct {
 	ID            string            `json:"id"`
 	ParentEventID *string            `json:"parentEventId"`

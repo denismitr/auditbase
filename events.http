@@ -25,3 +25,8 @@ Accept: application/json
 GET {{back-office}}/api/v1/events/queue
 Content-Type: application/json
 Accept: application/json
+
+###
+GET {{consumer}}/health
+Content-Type: application/json
+Accept: application/json

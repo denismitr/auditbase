@@ -114,7 +114,7 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 	}()
 
 	go func() {
-		dbConn, err := mysql.ConnectAndMigrate(ctx, lg, env.MustString("AUDITBASE_DB_DSN"), 150)
+		dbConn, err := mysql.ConnectAndMigrate(ctx, lg, env.MustString("AUDITBASE_DB_DSN"), 50, 10)
 		if err != nil {
 			errCh <- err
 			return

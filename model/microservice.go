@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"github.com/denismitr/auditbase/utils/errbag"
 	"github.com/denismitr/auditbase/utils/validator"
@@ -15,12 +16,12 @@ type Microservice struct {
 }
 
 type MicroserviceRepository interface {
-	Create(*Microservice) (*Microservice, error)
+	Create(context.Context, *Microservice) (*Microservice, error)
 	Delete(ID) error
 	Update(ID, *Microservice) error
 	FirstByID(ID ID) (*Microservice, error)
-	FirstByName(name string) (*Microservice, error)
-	FirstOrCreateByName(name string) (*Microservice, error)
+	FirstByName(ctx context.Context, name string) (*Microservice, error)
+	FirstOrCreateByName(ctx context.Context, name string) (*Microservice, error)
 	SelectAll() ([]*Microservice, error)
 }
 

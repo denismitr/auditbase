@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func ConnectAndMigrate(ctx context.Context, lg logger.Logger, dsn string, maxOpenConnection int) (*sqlx.DB, error) {
+func ConnectAndMigrate(ctx context.Context, lg logger.Logger, dsn string, maxOpenConnection, maxIdleConnections int) (*sqlx.DB, error) {
 	var conn *sqlx.DB
 	if err := retry.Incremental(ctx, 2 * time.Second, 100, func(attempt int) (err error) {
 		conn, err = sqlx.Connect("mysql", dsn)
@@ -29,6 +29,7 @@ func ConnectAndMigrate(ctx context.Context, lg logger.Logger, dsn string, maxOpe
 	}
 
 	conn.SetMaxOpenConns(maxOpenConnection)
+	conn.SetMaxIdleConns(maxIdleConnections)
 
 	if err := Migrator(conn, lg).Up(); err != nil {
 		return nil, err

@@ -1,6 +1,8 @@
 -- init random
 math.randomseed(os.time())
 
+enumProperties = {"updated", "banned", "moved", "reassigned" }
+
 stringChanges = {'null', '"boo"', '"foo"', '"baz"', '"abc"', '"123abc"'}
 numericChanges = {'null', '123', '987542', '1235.973', '999', '0'}
 dateChanges = {'null', '"1999-10-12"', '"2000-10-01"', '"1890-10-10"'}
@@ -92,27 +94,32 @@ request = function()
     return wrk.format('POST', url, {['Content-Type'] = 'application/json', ['Accept'] = 'application/json'}, body) 
 end
 
-createDelta = function(targetEntity)
-    enumProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
-    stringProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
-    numericProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
-    dateProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
+local function createChange(type, targetEntity)
+    local propName = ""
+    if type == "enum" then
+       propName = math.random( #enumProperties )
+    end
 
-    enumChangedFrom = enumChanges[ math.random( #enumChanges ) ]
-    enumChangedTo = enumChanges[ math.random( #enumChanges ) ]
+    local enumProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
+    local stringProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
+    local numericProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
+    local dateProp = targetEntity.properties[ math.random( #targetEntity.properties ) ]
 
-    stringChangedFrom = stringChanges[ math.random( #stringChanges ) ]
-    stringChangedTo = stringChanges[ math.random( #stringChanges ) ]
+    local enumChangedFrom = enumChanges[ math.random( #enumChanges ) ]
+    local enumChangedTo = enumChanges[ math.random( #enumChanges ) ]
 
-    numericChangedFrom = numericChanges[ math.random( #numericChanges ) ]
-    numericChangedTo = numericChanges[ math.random( #numericChanges ) ]
+    local stringChangedFrom = stringChanges[ math.random( #stringChanges ) ]
+    local stringChangedTo = stringChanges[ math.random( #stringChanges ) ]
 
-    dateChangedFrom = dateChanges[ math.random( #dateChanges ) ]
-    dateChangedTo = dateChanges[ math.random( #dateChanges ) ]
+    local numericChangedFrom = numericChanges[ math.random( #numericChanges ) ]
+    local numericChangedTo = numericChanges[ math.random( #numericChanges ) ]
 
-    delta = string.format(
-        '{"%s":[%s,%s],"%s":[%s,%s],"%s":[%s,%s],"%s":[%s,%s]}',
-        enumProp, enumChangedFrom, enumChangedTo,
+    local dateChangedFrom = dateChanges[ math.random( #dateChanges ) ]
+    local dateChangedTo = dateChanges[ math.random( #dateChanges ) ]
+
+    local delta = string.format(
+        '{"propertyName":"%s","from":"%s","to":"%s"}',
+        propName, enumChangedFrom, enumChangedTo,
         stringProp, stringChangedFrom, stringChangedTo,
         numericProp, numericChangedFrom, numericChangedTo,
         dateProp, dateChangedFrom, dateChangedTo)

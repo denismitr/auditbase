@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
@@ -12,7 +11,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type microservice struct {
@@ -53,7 +51,7 @@ func NewMicroserviceRepository(
 }
 
 // Create microservices in MySQL DB and return a newly created instance
-func (r *MicroserviceRepository) Create(m *model.Microservice) (*model.Microservice, error) {
+func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservice) (*model.Microservice, error) {
 	createSQL, createArgs, err := createMicroserviceQuery(m)
 	if err != nil {
 		return nil, err
@@ -64,41 +62,25 @@ func (r *MicroserviceRepository) Create(m *model.Microservice) (*model.Microserv
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second) // fixme - pass from outside
-	defer cancel()
-
-	tx, err := r.conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	createStmt, err := r.conn.PreparexContext(ctx, createSQL)
 	if err != nil {
-		return nil, err
-	}
-
-	createStmt, err := tx.PreparexContext(ctx, createSQL)
-	if err != nil {
-		_ = tx.Rollback()
 		return nil, errors.Wrapf(err, "could not prepare insert statement %s", createSQL)
 	}
 
-	selectStmt, err := tx.PreparexContext(ctx, selectSQL)
+	selectStmt, err := r.conn.PreparexContext(ctx, selectSQL)
 	if err != nil {
-		_ = tx.Rollback()
 		return nil, errors.Wrapf(err, "could not prepare select statement %s", selectSQL)
 	}
 
 	if _, err := createStmt.ExecContext(ctx, createArgs...); err != nil {
-		_ = tx.Rollback()
 		return nil, errors.Wrapf(err, "cannot insert record into microservices table")
 	}
 
 	var ms microservice
 
 	if err := selectStmt.GetContext(ctx, &ms, selectArgs...); err != nil {
-		_ = tx.Rollback()
 		r.log.Error(err)
 		return nil, model.ErrMicroserviceNotFound
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, errors.New("could not commit create microservice transaction")
 	}
 
 	return ms.ToModel(), nil
@@ -179,17 +161,21 @@ func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, er
 }
 
 // FirstByName - gets first microservices by its name
-func (r *MicroserviceRepository) FirstByName(name string) (*model.Microservice, error) {
+func (r *MicroserviceRepository) FirstByName(ctx context.Context, name string) (*model.Microservice, error) {
 	m := new(microservice)
 
-	stmt := `
+	query := `
 		SELECT 
 			BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
 		FROM microservices 
 			WHERE name = ?
 	`
+	stmt, err := r.conn.PreparexContext(ctx, query)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not prepare %s", query)
+	}
 
-	if err := r.conn.Get(m, stmt, name); err != nil {
+	if err := stmt.GetContext(ctx, m, name); err != nil {
 		return nil, errors.Wrapf(err, "could not get microservices with name %s from database", name)
 	}
 
@@ -205,10 +191,12 @@ func (r *MicroserviceRepository) FirstByName(name string) (*model.Microservice, 
 // FirstOrCreateByName - gets first microservices with given name or tries to create
 // a new one, assigning new UUID4
 // fixme: refactor to transaction
-func (r *MicroserviceRepository) FirstOrCreateByName(name string) (*model.Microservice, error) {
-	m, err := r.FirstByName(name)
+func (r *MicroserviceRepository) FirstOrCreateByName(ctx context.Context, name string) (*model.Microservice, error) {
+	m, err := r.FirstByName(ctx, name)
 	if err == nil {
 		return m, nil
+	} else {
+		r.log.Error(err)
 	}
 
 	m = &model.Microservice{
@@ -217,7 +205,7 @@ func (r *MicroserviceRepository) FirstOrCreateByName(name string) (*model.Micros
 		Description: "",
 	}
 
-	if _, err := r.Create(m); err != nil {
+	if _, err := r.Create(ctx, m); err != nil {
 		return nil, errors.Wrapf(err, "microservices with name %s does not exist and cannot be created", name)
 	}
 
