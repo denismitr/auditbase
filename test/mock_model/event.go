@@ -35,17 +35,17 @@ func (m *MockEventRepository) EXPECT() *MockEventRepositoryMockRecorder {
 }
 
 // Create mocks base method
-func (m *MockEventRepository) Create(arg0 *model.Event) error {
+func (m *MockEventRepository) Create(arg0 context.Context, arg1 *model.Event) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", arg0)
+	ret := m.ctrl.Call(m, "Create", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Create indicates an expected call of Create
-func (mr *MockEventRepositoryMockRecorder) Create(arg0 interface{}) *gomock.Call {
+func (mr *MockEventRepositoryMockRecorder) Create(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockEventRepository)(nil).Create), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockEventRepository)(nil).Create), arg0, arg1)
 }
 
 // Delete mocks base method

@@ -5,10 +5,6 @@ import (
 	"time"
 )
 
-type resourceSerializer interface {
-	ToJSON() responseItem
-}
-
 type responseItem struct {
 	Data interface{} `json:"data"`
 }

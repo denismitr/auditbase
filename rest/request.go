@@ -130,7 +130,7 @@ func interfaceToStringPointer(value interface{}) *string {
 		out = strings.TrimRight(fmt.Sprintf("%0.4f", raw), "0")
 	case bool:
 		trueOrFalse := value.(bool)
-		if trueOrFalse == false {
+		if !trueOrFalse {
 			out = "0"
 		} else {
 			out = "1"

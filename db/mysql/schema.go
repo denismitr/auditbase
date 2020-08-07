@@ -176,7 +176,7 @@ func (m *SQLMigrator) Up() error {
 	rows, err := tx.Queryx("SELECT name FROM migrations")
 	if err != nil {
 		_ = tx.Rollback()
-		m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
+		_, _ = m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 		return err
 	}
 
@@ -184,7 +184,7 @@ func (m *SQLMigrator) Up() error {
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			_ = tx.Rollback()
-			m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
+			_, _ = m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 			return err
 		}
 		m.applied[name] = true
@@ -205,14 +205,14 @@ func (m *SQLMigrator) Up() error {
 				m.lg.Debugf("Running SQL %s...", query)
 				if _, err := tx.Exec(query); err != nil {
 					_ = tx.Rollback()
-					m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
+					_, _ = m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 					return errors.Wrapf(err, "could not apply migration %s", name)
 				}
 			}
 
 			if _, err := tx.Exec("INSERT INTO migrations (name) VALUES (?)", name); err != nil {
 				_ = tx.Rollback()
-				m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
+				_, _ = m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 				return err
 			}
 		} else {
@@ -221,7 +221,7 @@ func (m *SQLMigrator) Up() error {
 	}
 
 	if err := tx.Commit(); err != nil {
-		m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
+		_, _ = m.conn.Exec("SELECT RELEASE_LOCK('migrations')")
 		return err
 	}
 

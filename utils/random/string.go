@@ -14,8 +14,6 @@ var seededString = rand.New(rand.NewSource(time.Now().UnixNano()))
 const alphaNumericCharset = "abcdefghijklmnopqrstuvwxyz" +
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-const numericCharset = "0123456789"
-
 func String(length int) string {
 	strMu.Lock()
 	defer strMu.Unlock()

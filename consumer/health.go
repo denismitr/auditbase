@@ -25,7 +25,7 @@ func (c *Consumer) healthCheck() {
 		h.StatusOK = c.statusOK
 		h.PersistedEvents = c.persistedEvents
 		h.FailedEvents = c.failedEvents
-		h.StartedAt = model.JSONTime{c.startedAt}
+		h.StartedAt = model.JSONTime{Time: c.startedAt}
 		h.FailedAt = model.JSONTime{Time: c.failedAt}
 
 		if c.statusOK {

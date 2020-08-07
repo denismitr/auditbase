@@ -38,7 +38,7 @@ mock:
 	mockgen -source model/change.go -destination ./test/mock_model/change.go
 	mockgen -source model/property.go -destination ./test/mock_model/property.go
 	mockgen -source model/factory.go -destination ./test/mock_model/factory.go
-	mockgen -source db/persister.go -destination ./test/mock_db/persister.go
+	mockgen -source persister/persister.go -destination ./test/mock_persister/persister.go
 	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
 	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
 

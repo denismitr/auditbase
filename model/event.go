@@ -67,7 +67,7 @@ func (e *Event) Validate() *errbag.ErrorBag {
 
 // EventRepository - provides an abstraction over persistent storage
 type EventRepository interface {
-	Create(*Event) error
+	Create(context.Context, *Event) error
 	Delete(ID) error
 	Count() (int, error)
 	FindOneByID(ID) (*Event, error)

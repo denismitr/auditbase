@@ -46,12 +46,6 @@ func NewEntityRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, logger logger
 	}
 }
 
-const selectEntities = `
-	SELECT 
-		BIN_TO_UUID(id) as id, BIN_TO_UUID(service_id) as service_id, name, description, created_at, updated_at 
-	FROM entities
-`
-
 // Select all entities
 func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagination) ([]*model.Entity, error) {
 	var entities []entity
@@ -65,6 +59,8 @@ func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagin
 	if err != nil {
 		return nil, errors.Wrap(err, "could not prepare sql to select entities")
 	}
+
+	defer func() { _ = stmt.Close() }()
 
 	if err := stmt.Select(&entities, args...); err != nil {
 		return nil, errors.Wrap(err, "could not execute sql to select entities")
@@ -185,6 +181,8 @@ func (r *EntityRepository) FirstByID(ID string) (*model.Entity, error) {
 	if err != nil {
 		return nil, errors.Errorf("could not prepare sql statement %s", sql)
 	}
+
+	defer func() { _ = stmt.Close() }()
 
 	if err := stmt.Get(&ent, args...); err != nil {
 		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)

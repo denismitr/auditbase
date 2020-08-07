@@ -27,11 +27,6 @@ type persister struct {
 	omu       sync.RWMutex
 	running   bool
 	observers []chan<- model.EventPersistenceResult
-
-	actors int64
-	targets int64
-	properties int64
-	events int64
 }
 
 func New(
@@ -109,16 +104,16 @@ func (p *persister) preAssignActors(ctx context.Context, in <-chan *payload) cha
 				ae := pl.actorEntity()
 				as := pl.actorService()
 
-				ctx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+				timeoutCtx, cancel := context.WithTimeout(ctx, 5 * time.Second)
 				defer cancel()
 
-				service, err := prepareService(ctx, as, p.remember, p.factory)
+				service, err := prepareService(timeoutCtx, as, p.remember, p.factory)
 				if err != nil {
 					p.reject(pl, err)
 					return
 				}
 
-				entity, err := prepareEntity(ctx, service, ae, p.remember, p.factory)
+				entity, err := prepareEntity(timeoutCtx, service, ae, p.remember, p.factory)
 				if err != nil {
 					p.reject(pl, err)
 					return
@@ -155,16 +150,16 @@ func (p *persister) preAssignTargets(ctx context.Context, in <-chan *payload) ch
 				te := pl.targetEntity()
 				ts := pl.targetService()
 
-				ctx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+				timeoutCtx, cancel := context.WithTimeout(ctx, 5 * time.Second)
 				defer cancel()
 
-				service, err := prepareService(ctx, ts, p.remember, p.factory)
+				service, err := prepareService(timeoutCtx, ts, p.remember, p.factory)
 				if err != nil {
 					p.reject(pl, err)
 					return
 				}
 
-				targetEntity, err := prepareEntity(ctx, service, te, p.remember, p.factory)
+				targetEntity, err := prepareEntity(timeoutCtx, service, te, p.remember, p.factory)
 				if err != nil {
 					p.reject(pl, err)
 					return
@@ -199,10 +194,10 @@ func (p *persister) preAssignProperties(ctx context.Context, in <-chan *payload)
 				targetEntity := pl.targetEntity()
 				propertyNames := pl.changingProperties()
 
-				ctx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+				timeoutCtx, cancel := context.WithTimeout(ctx, 5 * time.Second)
 				defer cancel()
 
-				props, err := prepareEntityProperties(ctx, propertyNames, p.factory, targetEntity)
+				props, err := prepareEntityProperties(timeoutCtx, propertyNames, p.factory, targetEntity)
 				if err != nil {
 					p.reject(pl, err)
 					return
@@ -221,7 +216,7 @@ func (p *persister) preAssignProperties(ctx context.Context, in <-chan *payload)
 						}
 
 						if !match {
-							return errors.Errorf("no match found between event [%s] changes and property name [%s]", name)
+							return errors.Errorf("no match found between event [%s] changes and property name [%s]", e.ID, name)
 						}
 					}
 
@@ -253,7 +248,10 @@ func (p *persister) saveEvent(ctx context.Context, in <-chan *payload) chan *pay
 			go func(pl *payload) {
 				e := pl.event()
 
-				if err := p.factory.Events().Create(e); err != nil {
+				timeoutCtx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+				defer cancel()
+
+				if err := p.factory.Events().Create(timeoutCtx, e); err != nil {
 					p.reject(pl, err)
 					return
 				}

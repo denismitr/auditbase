@@ -9,8 +9,6 @@ import (
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
-	"github.com/pkg/errors"
-	"time"
 )
 
 type eventsController struct {
@@ -38,53 +36,6 @@ func newEventsController(
 		ef:     ef,
 		cacher: cacher,
 	}
-}
-
-func (ec *eventsController) create(ctx echo.Context) error {
-	req := new(CreateEvent)
-
-	if err := ctx.Bind(req); err != nil {
-		err = errors.Wrap(err, "unparsable event payload")
-		ec.logger.Error(err)
-		return ctx.JSON(badRequest(err))
-	}
-
-	errorBag := req.Validate()
-	if errorBag.NotEmpty() {
-		return ctx.JSON(validationFailed(errorBag.All()...))
-	}
-
-	e := req.ToEvent()
-	e.Hash = ctx.Request().Header.Get("Body-Hash")
-
-	found, err := ec.cacher.Has(hashKey(e.Hash));
-	if err != nil {
-		return ctx.JSON(internalError(err))
-	}
-
-	if found {
-		return ctx.JSON(conflict(ErrEventAlreadyReceived, "event already processed"))
-	}
-
-	if e.ID == "" {
-		e.ID = ec.uuid4.Generate()
-	}
-
-	if e.EmittedAt.IsZero() {
-		e.EmittedAt.Time = ec.clock.CurrentTime()
-	}
-
-	e.RegisteredAt.Time = ec.clock.CurrentTime()
-
-	if err := ec.cacher.CreateKey(hashKey(e.Hash), 1 * time.Minute); err != nil {
-		return ctx.JSON(internalError(err))
-	}
-
-	if err := ec.ef.Send(e); err != nil {
-		return ctx.JSON(internalError(err))
-	}
-
-	return ctx.JSON(respondAccepted("events", e.ID))
 }
 
 func (ec *eventsController) index(ctx echo.Context) error {

@@ -57,7 +57,6 @@ type RabbitQueue struct {
 	channel         *amqp.Channel
 	logger          logger.Logger
 	stopCh          chan struct{}
-	errorCh         chan error
 	connErrCh       chan *amqp.Error
 	statusListeners []chan ConnectionStatus
 	status          ConnectionStatus
@@ -207,7 +206,13 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 
 	for {
 		select {
-		case msg := <-msgs:
+		case msg, ok := <-msgs:
+			if !ok {
+				// probably must reconnect
+				close(receiveCh)
+				return nil
+			}
+
 			rMsg, err := newRabbitMQReceivedMessage(queue, msg)
 			if err != nil {
 				q.logger.Error(err)
@@ -218,7 +223,6 @@ func (q *RabbitQueue) Subscribe(queue, consumer string, receiveCh chan<- Receive
 
 			receiveCh <- rMsg
 		case <-q.stopCh:
-			panic("STOPPED")
 			close(receiveCh)
 			return nil
 		}

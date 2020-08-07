@@ -94,10 +94,15 @@ func (c *ChangeRepository) Select(
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "could not prepare %s statement", q.selectSQL)
 	}
+
+	defer func() { _ = selectStmt.Close() }()
+
 	countStmt, err := c.conn.Preparex(q.countSQL)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "could not prepare %s statement", q.countSQL)
 	}
+
+	defer func() { _ = countStmt.Close() }()
 
 	var cc []change
 	var m meta
@@ -128,6 +133,8 @@ func (c *ChangeRepository) FirstByID(ID string) (*model.Change, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare %s statement", q)
 	}
+
+	defer func() { _ = stmt.Close() }()
 
 	var chng change
 	if err := stmt.Get(&chng, args...); err != nil {

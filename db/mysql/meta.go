@@ -2,13 +2,6 @@ package mysql
 
 import "github.com/denismitr/auditbase/model"
 
-type selectWithMetaQuery struct {
-	query string
-	count string
-	queryArgs map[string]interface{}
-	countArgs map[string]interface{}
-}
-
 type meta struct {
 	Total int `db:"total"`
 }

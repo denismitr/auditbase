@@ -15,7 +15,6 @@ const (
 )
 
 type updater func(*model.Event) error
-type mapper func(model.Event) interface{}
 
 type payload struct {
 	mu       sync.RWMutex
@@ -99,10 +98,4 @@ func (p *payload) update(f updater) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return f(p.e)
-}
-
-func (p *payload) mapper(f mapper) interface{} {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return f(*p.e)
 }

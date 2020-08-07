@@ -70,7 +70,7 @@ func NewEventRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Log
 	}
 }
 
-func (r *EventRepository) Create(e *model.Event) error {
+func (r *EventRepository) Create(ctx context.Context, e *model.Event) error {
 	ie := insertEvent{
 		ID:              e.ID,
 		Hash:            e.Hash,
@@ -92,9 +92,6 @@ func (r *EventRepository) Create(e *model.Event) error {
 		return errors.Wrap(err, "could not build create event query")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second) // fixme - pass from outside
-	defer cancel()
-
 	tx, err := r.conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return errors.Wrap(err, "could not begin transaction")
@@ -105,6 +102,8 @@ func (r *EventRepository) Create(e *model.Event) error {
 		_ = tx.Rollback()
 		return errors.Wrapf(err, "could not prepare create event query %s", createSQL)
 	}
+
+	defer func() { _ = createStmt.Close() }()
 
 	if _, err := createStmt.ExecContext(ctx, args...); err != nil {
 		_ = tx.Rollback()
@@ -161,6 +160,8 @@ func (r *EventRepository) Count() (int, error) {
 		return 0, errors.Wrapf(err, "could not prepare count events query %s", q)
 	}
 
+	defer func() { _ = stmt.Close() }()
+
 	r.log.SQL(q, args)
 	var count int
 
@@ -196,11 +197,15 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 		return nil, errors.Wrap(err, "could not prepare  select one event query")
 	}
 
+	defer func() { _ = stmt.Close() }()
+
 	cqStmt, err := tx.Preparex(cq)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, errors.Wrap(err, "could not prepare select event changes query")
 	}
+
+	defer func() { _ = cqStmt.Close() }()
 
 	e := event{}
 	var changes []propertyChange
@@ -290,10 +295,14 @@ func (r *EventRepository) Select(
 		return nil, nil, errors.Wrapf(err, "could not prepare select events stmt")
 	}
 
+	defer func() { _ = selectStmt.Close() }()
+
 	cs, err := r.conn.Preparex(q.countSQL)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "could not prepare count events stmt")
 	}
+
+	defer func() { _ = cs.Close() }()
 
 	if err := selectStmt.Select(&events, q.selectArgs...); err != nil {
 		return nil, nil, errors.Wrapf(err, "could not get a list of events from db")
@@ -386,7 +395,7 @@ func (r *EventRepository) joinChangesWithEvents(events []event) (map[string][]pr
 		return nil, errors.Wrapf(err, "could not get a list of properties for events with stmt %s", q)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var p propertyChange

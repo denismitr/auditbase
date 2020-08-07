@@ -46,7 +46,7 @@ func main() {
 func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (string, string) {
 	var queueName string
 
-	if errorsConsumer == true {
+	if errorsConsumer {
 		queueName = cfg.ErrorQueueName
 		if consumerName == defaultConsumerName {
 			consumerName = defaultErrorsConsumerName
@@ -181,7 +181,7 @@ func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) {
 }
 
 func debug(isErrorsConsumer bool) {
-	if env.IsTruthy("APP_TRACE") && isErrorsConsumer == false {
+	if env.IsTruthy("APP_TRACE") && !isErrorsConsumer {
 		stopper := profile.Start(profile.CPUProfile, profile.MemProfile, profile.ProfilePath("/tmp/debug/consumer"))
 
 		go func() {

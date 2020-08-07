@@ -35,8 +35,6 @@ type MQEventFlow struct {
 	stopCh         chan struct{}
 	msgCh          chan queue.ReceivedMessage
 	eventCh        chan ReceivedEvent
-
-	tags map[string]string
 }
 
 // New event flow

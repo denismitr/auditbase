@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/test"
 	"github.com/denismitr/auditbase/test/factory"
@@ -21,57 +20,6 @@ import (
 )
 
 func TestCreateEventWith(t *testing.T) {
-	e := echo.New()
-	log := logger.NewStdoutLogger("test", "events_test")
-
-	t.Run("create event with ID", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		eventsMock := mock_model.NewMockEventRepository(ctrl)
-		flowMock := mock_flow.NewMockEventFlow(ctrl)
-		clockMock := mock_clock.NewMockClock(ctrl)
-		uuidMock := mock_uuid.NewMockUUID4Generator(ctrl)
-		cacheMock := mock_cache.NewMockCacher(ctrl)
-
-		// Todo: create event factory
-		fakeEvent := CreateEvent{
-			ID:            "897fe984-4445-43b0-9c71-797da1da242b",
-			TargetID:      "1234",
-			TargetEntity:  "article",
-			TargetService: "article-storage",
-			ActorID:       "4321",
-			ActorEntity:   "editor",
-			ActorService:  "back-office",
-			EventName:     "article_published",
-			EmittedAt:     int64(1578173213),
-			RegisteredAt:  int64(1578173214),
-			Changes:       make([]*Change, 0),
-		}
-
-		body, _ := json.Marshal(fakeEvent)
-
-		clockMock.EXPECT().CurrentTime().Return(time.Unix(1578173214, 0))
-		flowMock.EXPECT().Send(gomock.Any()).Return(nil)
-		cacheMock.EXPECT().Has(gomock.Any()).Return(false, nil) // fixme
-		cacheMock.EXPECT().CreateKey(gomock.Any(), 1 * time.Minute).Return(nil)
-
-		controller := newEventsController(log, uuidMock, clockMock, eventsMock, flowMock, cacheMock)
-
-		req := test.Request{
-			Method:            http.MethodPost,
-			Target:            "/api/v1/events",
-			IsContentTypeJSON: true,
-			Body:              body,
-			Controller:        controller.create,
-		}
-
-		resp := test.Invoke(e, req)
-
-		assert.NoError(t, resp.Err)
-		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
-	})
-
 	t.Run("admin can get an event by ID", func(t *testing.T) {
 		e := echo.New()
 		lg := logger.NewStdoutLogger("test", "events_test")

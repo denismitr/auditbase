@@ -32,7 +32,7 @@ func main() {
 		panic(err)
 	}
 
-	terminate := make(chan os.Signal)
+	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 
 	lg.Debugf("All services are ready. Starting receiver...")

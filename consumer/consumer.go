@@ -158,15 +158,3 @@ func (c *Consumer) markAsFailed() {
 	c.statusOK = false
 	c.failedAt = time.Now()
 }
-
-func (c *Consumer) incrementFailedEvents() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.failedEvents++
-}
-
-func (c *Consumer) incrementPersistedEvents() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.persistedEvents++
-}

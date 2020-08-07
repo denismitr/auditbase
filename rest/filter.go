@@ -2,37 +2,10 @@ package rest
 
 import (
 	"github.com/denismitr/auditbase/model"
-	"github.com/labstack/echo"
 	"net/url"
 	"strconv"
 	"strings"
 )
-
-func createEventFilterFromContext(ctx echo.Context) model.EventFilter {
-	var emittedAtGt int
-	var emittedAtLt int
-
-	if ctx.QueryParam("filter[emittedAt][gt]") != "" {
-		emittedAtGt, _ = strconv.Atoi(ctx.QueryParam("filter[emittedAt][gt]"))
-	}
-
-	if ctx.QueryParam("filter[emittedAt][lt]") != "" {
-		emittedAtLt, _ = strconv.Atoi(ctx.QueryParam("filter[emittedAt][lt]"))
-	}
-
-	return model.EventFilter{
-		ActorEntityID:    ctx.QueryParam("filter[actorEntityId]"),
-		ActorEntityName:  ctx.QueryParam("filter[actorEntityName]"),
-		ActorID:          ctx.QueryParam("filter[actorId]"),
-		ActorServiceID:   ctx.QueryParam("filter[actorServiceId]"),
-		TargetID:         ctx.QueryParam("filter[targetId]"),
-		TargetEntityID:   ctx.QueryParam("filter[targetEntityId]"),
-		TargetEntityName: ctx.QueryParam("filter[targetEntityName]"),
-		TargetServiceID:  ctx.QueryParam("filter[targetServiceId]"),
-		EmittedAtGt:      int64(emittedAtGt),
-		EmittedAtLt:      int64(emittedAtLt),
-	}
-}
 
 func createFilter(q url.Values, allowedKeys []string) *model.Filter {
 	f := model.NewFilter(allowedKeys)

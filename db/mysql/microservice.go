@@ -67,10 +67,14 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 		return nil, errors.Wrapf(err, "could not prepare insert statement %s", createSQL)
 	}
 
+	defer func() { _ = createStmt.Close() }()
+
 	selectStmt, err := r.conn.PreparexContext(ctx, selectSQL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare select statement %s", selectSQL)
 	}
+
+	defer func() { _ = selectStmt.Close() }()
 
 	if _, err := createStmt.ExecContext(ctx, createArgs...); err != nil {
 		return nil, errors.Wrapf(err, "cannot insert record into microservices table")
@@ -146,6 +150,8 @@ func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, er
 		return nil, errors.Wrapf(err, "could not prepare select statement %s", q)
 	}
 
+	defer func() { _ = stmt.Close() }()
+
 	if err := stmt.Get(&m, args...); err != nil {
 		r.log.Error(err)
 		return nil, model.ErrMicroserviceNotFound
@@ -174,6 +180,8 @@ func (r *MicroserviceRepository) FirstByName(ctx context.Context, name string) (
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare %s", query)
 	}
+
+	defer func() { _ = stmt.Close() }()
 
 	if err := stmt.GetContext(ctx, m, name); err != nil {
 		return nil, errors.Wrapf(err, "could not get microservices with name %s from database", name)

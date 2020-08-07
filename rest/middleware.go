@@ -21,7 +21,7 @@ func hashRequestBody(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 
 			rc := ioutil.NopCloser(bytes.NewBuffer(body))
-			defer rc.Close()
+			defer func() { _ = rc.Close() }()
 
 			hash, err := hashBody(rc)
 			if err != nil {

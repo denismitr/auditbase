@@ -5,6 +5,7 @@
 package mock_model
 
 import (
+	context "context"
 	model "github.com/denismitr/auditbase/model"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -34,18 +35,18 @@ func (m *MockMicroserviceRepository) EXPECT() *MockMicroserviceRepositoryMockRec
 }
 
 // Create mocks base method
-func (m *MockMicroserviceRepository) Create(arg0 *model.Microservice) (*model.Microservice, error) {
+func (m *MockMicroserviceRepository) Create(arg0 context.Context, arg1 *model.Microservice) (*model.Microservice, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", arg0)
+	ret := m.ctrl.Call(m, "Create", arg0, arg1)
 	ret0, _ := ret[0].(*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create
-func (mr *MockMicroserviceRepositoryMockRecorder) Create(arg0 interface{}) *gomock.Call {
+func (mr *MockMicroserviceRepositoryMockRecorder) Create(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockMicroserviceRepository)(nil).Create), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockMicroserviceRepository)(nil).Create), arg0, arg1)
 }
 
 // Delete mocks base method
@@ -92,33 +93,33 @@ func (mr *MockMicroserviceRepositoryMockRecorder) FirstByID(ID interface{}) *gom
 }
 
 // FirstByName mocks base method
-func (m *MockMicroserviceRepository) FirstByName(name string) (*model.Microservice, error) {
+func (m *MockMicroserviceRepository) FirstByName(ctx context.Context, name string) (*model.Microservice, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FirstByName", name)
+	ret := m.ctrl.Call(m, "FirstByName", ctx, name)
 	ret0, _ := ret[0].(*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FirstByName indicates an expected call of FirstByName
-func (mr *MockMicroserviceRepositoryMockRecorder) FirstByName(name interface{}) *gomock.Call {
+func (mr *MockMicroserviceRepositoryMockRecorder) FirstByName(ctx, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FirstByName", reflect.TypeOf((*MockMicroserviceRepository)(nil).FirstByName), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FirstByName", reflect.TypeOf((*MockMicroserviceRepository)(nil).FirstByName), ctx, name)
 }
 
 // FirstOrCreateByName mocks base method
-func (m *MockMicroserviceRepository) FirstOrCreateByName(name string) (*model.Microservice, error) {
+func (m *MockMicroserviceRepository) FirstOrCreateByName(ctx context.Context, name string) (*model.Microservice, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FirstOrCreateByName", name)
+	ret := m.ctrl.Call(m, "FirstOrCreateByName", ctx, name)
 	ret0, _ := ret[0].(*model.Microservice)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FirstOrCreateByName indicates an expected call of FirstOrCreateByName
-func (mr *MockMicroserviceRepositoryMockRecorder) FirstOrCreateByName(name interface{}) *gomock.Call {
+func (mr *MockMicroserviceRepositoryMockRecorder) FirstOrCreateByName(ctx, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FirstOrCreateByName", reflect.TypeOf((*MockMicroserviceRepository)(nil).FirstOrCreateByName), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FirstOrCreateByName", reflect.TypeOf((*MockMicroserviceRepository)(nil).FirstOrCreateByName), ctx, name)
 }
 
 // SelectAll mocks base method

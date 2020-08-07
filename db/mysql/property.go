@@ -71,6 +71,8 @@ func (p *PropertyRepository) FirstByID(ID string) (*model.Property, error) {
 		return nil, errors.Wrapf(err, "could not prepare %s statement", q)
 	}
 
+	defer func() { _ = stmt.Close() }()
+
 	var prop property
 	if err := stmt.GetContext(ctx, &prop, args...); err != nil {
 		return nil, errors.Wrapf(err, "could not get properties with ID %s", ID)
@@ -90,10 +92,14 @@ func (p *PropertyRepository) Select(filter *model.Filter, sort *model.Sort, pagi
 		return nil, nil, errors.Wrapf(err, "could not prepare %s statement", q.selectSQL)
 	}
 
+	defer func() { _ = selectStmt.Close() }()
+
 	countStmt, err :=  p.conn.Preparex(q.countSQL)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "could not prepare %s statement", q.countSQL)
 	}
+
+	defer func() { _ = countStmt.Close() }()
 
 	var props []property
 	var m meta
@@ -135,10 +141,14 @@ func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error
 		return result, errors.Wrap(err, "could not prepare insert properties query")
 	}
 
+	defer func() { _ = createStmt.Close() }()
+
 	getStmt, err := r.conn.PreparexContext(ctx, getSql)
 	if err != nil {
 		return result, errors.Wrap(err, "could not prepare get properties ID query")
 	}
+
+	defer func() { _ = getStmt.Close() }()
 
 	if _, err := createStmt.ExecContext(ctx, createArgs...); err != nil {
 		r.log.Error(err)
@@ -149,7 +159,7 @@ func (r *PropertyRepository) GetIDOrCreate(name, entityID string) (string, error
 		return result, errors.Wrapf(err, "could not select id from properties with name %s and eventID %s", name, entityID)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		if err := rows.Scan(&result); err != nil {

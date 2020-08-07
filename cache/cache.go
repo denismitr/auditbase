@@ -39,7 +39,7 @@ func NewRedisCache(store  *redis.Client, log logger.Logger) *RedisCache {
 
 func (c *RedisCache) Remember(parser TargetParser) RememberFunc {
 	return func(key string, ttl time.Duration, target interface{}, f ResultFunc) error {
-		str, err := c.store.Get(key).Result()
+		str, _ := c.store.Get(key).Result()
 		if str != "" {
 			if err := json.Unmarshal([]byte(str), &target); err != nil {
 				c.log.Error(errors.Wrapf(err, "could parse payload from cache with key [%s]", key))
