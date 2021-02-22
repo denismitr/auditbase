@@ -37,13 +37,13 @@ type EventState struct {
 }
 
 type incomingEventMatcher struct {
-	evt *model.Event
+	evt *model.Action
 	state incomingEventState
 }
 
 
 type EventMatcher struct {
-	Evt *model.Event
+	Evt *model.Action
 	state eventState
 }
 
@@ -52,7 +52,7 @@ func (i incomingEventMatcher) Matches(x interface{}) bool {
 		return true
 	}
 
-	e, ok := x.(*model.Event)
+	e, ok := x.(*model.Action)
 	if !ok {
 		return false
 	}
@@ -106,7 +106,7 @@ func (evt EventMatcher) Matches(x interface{}) bool {
 		return true
 	}
 
-	e, ok := x.(*model.Event)
+	e, ok := x.(*model.Action)
 	if !ok {
 		return false
 	}
@@ -157,7 +157,7 @@ func (evt EventMatcher) ID() string {
 
 func MatchingIncomingEvent(state IncomingEventState) ([]byte, Matcher) {
 	var raw string
-	var e *model.Event
+	var e *model.Action
 
 	switch state.State {
 	case EventWithID:
@@ -174,7 +174,7 @@ func MatchingIncomingEvent(state IncomingEventState) ([]byte, Matcher) {
 }
 
 func MatchingEvent(state EventState) (*EventMatcher) {
-	var e *model.Event
+	var e *model.Action
 
 	switch state.State {
 	case DefaultEvent:
@@ -186,8 +186,8 @@ func MatchingEvent(state EventState) (*EventMatcher) {
 	return &EventMatcher{Evt: e, state: state.State}
 }
 
-func createDefaultEvent(now time.Time) *model.Event {
-	return &model.Event{
+func createDefaultEvent(now time.Time) *model.Action {
+	return &model.Action{
 		ID: "34e1d82a-a065-436d-afd0-5fbcb752a4e1",
 		Hash: "1790e8a793ecd7f0b3e46c5dc5f71d18fc24c45a",
 		TargetService: model.Microservice{
@@ -226,7 +226,7 @@ func createDefaultEvent(now time.Time) *model.Event {
 	}
 }
 
-func createIncomingEventWithId(now time.Time) (string, *model.Event) {
+func createIncomingEventWithId(now time.Time) (string, *model.Action) {
 	raw := `{
 		"id": "34e1d82a-a065-436d-afd0-5fbcb752a4e1",
 		"targetId": "122242120",
@@ -251,7 +251,7 @@ func createIncomingEventWithId(now time.Time) (string, *model.Event) {
 		]
 	}`
 
-	m := &model.Event{
+	m := &model.Action{
 		ID: "34e1d82a-a065-436d-afd0-5fbcb752a4e1",
 		Hash: "1790e8a793ecd7f0b3e46c5dc5f71d18fc24c45a",
 		TargetService: model.Microservice{
@@ -290,7 +290,7 @@ func createIncomingEventWithId(now time.Time) (string, *model.Event) {
 	return raw, m
 }
 
-func createIncomingEventWithoutId(now time.Time) (string, *model.Event) {
+func createIncomingEventWithoutId(now time.Time) (string, *model.Action) {
 	raw := `{
 		"targetId": "122242120",
 		"targetEntity": "subscription",
@@ -316,7 +316,7 @@ func createIncomingEventWithoutId(now time.Time) (string, *model.Event) {
 		]
 	}`
 
-	m := &model.Event{
+	m := &model.Action{
 		ID: "22e1d82a-a065-436d-afd0-5fbcb752a4f3",
 		Hash: "fb01901eb94091e8dd6c38c81f7d2576ff4ec735",
 		TargetService: model.Microservice{
@@ -355,7 +355,7 @@ func createIncomingEventWithoutId(now time.Time) (string, *model.Event) {
 	return raw, m
 }
 
-func createIncomingEventWithoutEmittedAt(now time.Time) (string, *model.Event) {
+func createIncomingEventWithoutEmittedAt(now time.Time) (string, *model.Action) {
 	raw := `{
 		"targetId": "122242120",
 		"targetEntity": "subscription",

@@ -89,14 +89,14 @@ func (ce CreateEvent) Validate() *errbag.ErrorBag {
 	return eb
 }
 
-func (ce CreateEvent) ToEvent() *model.Event {
+func (ce CreateEvent) ToEvent() *model.Action {
 	changes := make([]*model.PropertyChange, len(ce.Changes))
 
 	for i := range ce.Changes {
 		changes[i] = ce.Changes[i].ToModel(ce.ID)
 	}
 
-	return &model.Event{
+	return &model.Action{
 		ID:      ce.ID,
 		ActorID: ce.ActorID,
 		ActorEntity: model.Entity{

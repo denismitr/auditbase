@@ -73,7 +73,7 @@ func TestCreateSelectEntitiesQuery(t *testing.T) {
 
 			p := &model.Pagination{Page: tc.page, PerPage: tc.perPage}
 
-			sql, args, err := createSelectEntitiesQuery(f, s, p)
+			sql, args, err := selectEntitiesQuery(f, s, p)
 
 			if tc.err == nil {
 				assert.NoError(t, err)
@@ -113,7 +113,7 @@ func TestCreateFirstEntityByIDQuery(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			sql, args, err := createFirstEntityByIDQuery(tc.ID)
+			sql, args, err := firstEntityByIDQuery(tc.ID)
 
 			if tc.err == nil {
 				assert.Nil(t, err)

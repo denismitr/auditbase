@@ -35,7 +35,7 @@ func (m *MockEventFlow) EXPECT() *MockEventFlowMockRecorder {
 }
 
 // Send mocks base method
-func (m *MockEventFlow) Send(e *model.Event) error {
+func (m *MockEventFlow) Send(e *model.Action) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", e)
 	ret0, _ := ret[0].(error)

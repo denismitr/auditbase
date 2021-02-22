@@ -14,15 +14,15 @@ const (
 	rejected
 )
 
-type updater func(*model.Event) error
+type updater func(*model.Action) error
 
 type payload struct {
 	mu       sync.RWMutex
-	e        *model.Event
+	e        *model.Action
 	status payloadStatus
 }
 
-func wrap(e *model.Event) *payload {
+func wrap(e *model.Action) *payload {
 	return &payload{
 		e:        e,
 		status: pending,
@@ -81,7 +81,7 @@ func (p *payload) actorService() model.Microservice {
 	return p.e.ActorService
 }
 
-func (p *payload) event() *model.Event {
+func (p *payload) event() *model.Action {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.e

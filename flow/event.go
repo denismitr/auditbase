@@ -9,7 +9,7 @@ import (
 )
 
 type ReceivedEvent interface {
-	Event() (*model.Event, error)
+	Event() (*model.Action, error)
 	CloneMsgToRequeue() queue.Message
 	Tag() uint64
 }
@@ -18,8 +18,8 @@ type QueueReceivedEvent struct {
 	msg queue.ReceivedMessage
 }
 
-func (re *QueueReceivedEvent) Event() (*model.Event, error) {
-	e := model.Event{}
+func (re *QueueReceivedEvent) Event() (*model.Action, error) {
+	e := model.Action{}
 
 	if err := json.Unmarshal(re.msg.Body(), &e); err != nil {
 		return nil, errors.Wrap(err, "could not get event from received queue message bytes")

@@ -70,7 +70,7 @@ func NewEventRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, log logger.Log
 	}
 }
 
-func (r *EventRepository) Create(ctx context.Context, e *model.Event) error {
+func (r *EventRepository) Create(ctx context.Context, e *model.Action) error {
 	ie := insertEvent{
 		ID:              e.ID,
 		Hash:            e.Hash,
@@ -85,7 +85,7 @@ func (r *EventRepository) Create(ctx context.Context, e *model.Event) error {
 		RegisteredAt:    e.RegisteredAt.Time,
 	}
 
-	ie.ParentEventID = db.NullStringFromStringPointer(e.ParentEventID)
+	ie.ParentEventID = db.NullStringFromStringPointer(e.ParentID)
 
 	createSQL, args, err := createEventQuery(&ie)
 	if err != nil {
@@ -172,7 +172,7 @@ func (r *EventRepository) Count() (int, error) {
 	return count, nil
 }
 
-func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
+func (r *EventRepository) FindOneByID(ID model.ID) (*model.Action, error) {
 	q, args, err := selectOneEventQuery(ID.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not build select one event query")
@@ -256,9 +256,9 @@ func (r *EventRepository) FindOneByID(ID model.ID) (*model.Event, error) {
 		Description: e.TargetServiceDescription,
 	}
 
-	return &model.Event{
+	return &model.Action{
 		ID:            e.ID,
-		ParentEventID: &e.ParentEventID.String,
+		ParentID:      &e.ParentEventID.String,
 		ActorID:       e.ActorID,
 		ActorEntity:   at,
 		ActorService:  as,
@@ -277,7 +277,7 @@ func (r *EventRepository) Select(
 	filter *model.Filter,
 	sort *model.Sort,
 	pagination *model.Pagination,
-) ([]*model.Event, *model.Meta, error) {
+) ([]*model.Action, *model.Meta, error) {
 	q, err := selectEventsQuery(filter, sort, pagination)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "could not create sql query")
@@ -288,7 +288,7 @@ func (r *EventRepository) Select(
 
 	var events []event
 	var meta meta
-	result := make([]*model.Event, 0)
+	result := make([]*model.Action, 0)
 
 	selectStmt, err := r.conn.Preparex(q.selectSQL)
 	if err != nil {
@@ -351,9 +351,9 @@ func (r *EventRepository) Select(
 			}
 		}
 
-		result = append(result, &model.Event{
+		result = append(result, &model.Action{
 			ID:            events[i].ID,
-			ParentEventID: &events[i].ParentEventID.String,
+			ParentID:      &events[i].ParentEventID.String,
 			ActorID:       events[i].ActorID,
 			Hash:          events[i].Hash,
 			ActorEntity:   at,

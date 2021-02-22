@@ -5,11 +5,8 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/denismitr/auditbase/utils/validator"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -32,22 +29,7 @@ func (m *microservice) ToModel() *model.Microservice {
 }
 
 type MicroserviceRepository struct {
-	conn  *sqlx.DB
-	uuid4 uuid.UUID4Generator
-	log logger.Logger
-}
-
-// NewMicroserviceRepository - constructor function
-func NewMicroserviceRepository(
-	conn *sqlx.DB,
-	uuid4 uuid.UUID4Generator,
-	log logger.Logger,
-) *MicroserviceRepository {
-	return &MicroserviceRepository{
-		conn:  conn,
-		uuid4: uuid4,
-		log: log,
-	}
+	*Tx
 }
 
 // Create microservices in MySQL DB and return a newly created instance
@@ -62,14 +44,14 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 		return nil, err
 	}
 
-	createStmt, err := r.conn.PreparexContext(ctx, createSQL)
+	createStmt, err := r.mysqlTx.PreparexContext(ctx, createSQL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare insert statement %s", createSQL)
 	}
 
 	defer func() { _ = createStmt.Close() }()
 
-	selectStmt, err := r.conn.PreparexContext(ctx, selectSQL)
+	selectStmt, err := r.mysqlTx.PreparexContext(ctx, selectSQL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare select statement %s", selectSQL)
 	}
@@ -83,7 +65,7 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 	var ms microservice
 
 	if err := selectStmt.GetContext(ctx, &ms, selectArgs...); err != nil {
-		r.log.Error(err)
+		r.lg.Error(err)
 		return nil, model.ErrMicroserviceNotFound
 	}
 
@@ -95,7 +77,7 @@ func (r *MicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
 	stmt := `SELECT BIN_TO_UUID(id) as id, name, description, created_at, updated_at FROM microservices`
 	ms := []microservice{}
 
-	if err := r.conn.Select(&ms, stmt); err != nil {
+	if err := r.mysqlTx.Select(&ms, stmt); err != nil {
 		return nil, errors.Wrap(err, "could not select all microservices")
 	}
 
@@ -118,7 +100,7 @@ func (r *MicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
 func (r *MicroserviceRepository) Delete(ID model.ID) error {
 	stmt := `DELETE FROM microservices WHERE id = UUID_TO_BIN(?)`
 
-	if _, err := r.conn.Exec(stmt, ID.String()); err != nil {
+	if _, err := r.mysqlTx.Exec(stmt, ID.String()); err != nil {
 		return errors.Wrapf(err, "could not delete microservices with ID %s", ID.String())
 	}
 
@@ -129,7 +111,7 @@ func (r *MicroserviceRepository) Delete(ID model.ID) error {
 func (r *MicroserviceRepository) Update(ID model.ID, m *model.Microservice) error {
 	stmt := `UPDATE microservices SET name = ?, description = ? WHERE id = UUID_TO_BIN(?)`
 
-	if _, err := r.conn.Exec(stmt, m.Name, m.Description, ID.String()); err != nil {
+	if _, err := r.mysqlTx.Exec(stmt, m.Name, m.Description, ID.String()); err != nil {
 		return errors.Wrapf(err, "could not update microservices with ID %s", m.ID)
 	}
 
@@ -145,7 +127,7 @@ func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, er
 		return nil, err
 	}
 
-	stmt, err := r.conn.Preparex(q)
+	stmt, err := r.mysqlTx.Preparex(q)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare select statement %s", q)
 	}
@@ -153,7 +135,7 @@ func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, er
 	defer func() { _ = stmt.Close() }()
 
 	if err := stmt.Get(&m, args...); err != nil {
-		r.log.Error(err)
+		r.lg.Error(err)
 		return nil, model.ErrMicroserviceNotFound
 	}
 
@@ -176,7 +158,7 @@ func (r *MicroserviceRepository) FirstByName(ctx context.Context, name string) (
 		FROM microservices 
 			WHERE name = ?
 	`
-	stmt, err := r.conn.PreparexContext(ctx, query)
+	stmt, err := r.mysqlTx.PreparexContext(ctx, query)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare %s", query)
 	}
@@ -204,7 +186,7 @@ func (r *MicroserviceRepository) FirstOrCreateByName(ctx context.Context, name s
 	if err == nil {
 		return m, nil
 	} else {
-		r.log.Error(err)
+		r.lg.Error(err)
 	}
 
 	m = &model.Microservice{

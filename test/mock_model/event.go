@@ -35,7 +35,7 @@ func (m *MockEventRepository) EXPECT() *MockEventRepositoryMockRecorder {
 }
 
 // Create mocks base method
-func (m *MockEventRepository) Create(arg0 context.Context, arg1 *model.Event) error {
+func (m *MockEventRepository) Create(arg0 context.Context, arg1 *model.Action) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -78,10 +78,10 @@ func (mr *MockEventRepositoryMockRecorder) Count() *gomock.Call {
 }
 
 // FindOneByID mocks base method
-func (m *MockEventRepository) FindOneByID(arg0 model.ID) (*model.Event, error) {
+func (m *MockEventRepository) FindOneByID(arg0 model.ID) (*model.Action, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindOneByID", arg0)
-	ret0, _ := ret[0].(*model.Event)
+	ret0, _ := ret[0].(*model.Action)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -93,10 +93,10 @@ func (mr *MockEventRepositoryMockRecorder) FindOneByID(arg0 interface{}) *gomock
 }
 
 // Select mocks base method
-func (m *MockEventRepository) Select(arg0 *model.Filter, arg1 *model.Sort, arg2 *model.Pagination) ([]*model.Event, *model.Meta, error) {
+func (m *MockEventRepository) Select(arg0 *model.Filter, arg1 *model.Sort, arg2 *model.Pagination) ([]*model.Action, *model.Meta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Select", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]*model.Event)
+	ret0, _ := ret[0].([]*model.Action)
 	ret1, _ := ret[1].(*model.Meta)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -132,7 +132,7 @@ func (m *MockEventPersister) EXPECT() *MockEventPersisterMockRecorder {
 }
 
 // Persist mocks base method
-func (m *MockEventPersister) Persist(arg0 *model.Event) {
+func (m *MockEventPersister) Persist(arg0 *model.Action) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Persist", arg0)
 }

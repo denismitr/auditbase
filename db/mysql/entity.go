@@ -2,254 +2,277 @@ package mysql
 
 import (
 	"context"
-	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
-	"github.com/denismitr/auditbase/utils/validator"
-	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
+	"fmt"
 	sq "github.com/Masterminds/squirrel"
-	"time"
+	"github.com/denismitr/auditbase/db"
+	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/utils/validator"
+	"github.com/pkg/errors"
 )
 
-type entity struct {
-	ID          string `db:"id"`
-	Name        string `db:"name"`
-	ServiceID   string `db:"service_id"`
-	Description string `db:"description"`
-	CreatedAt   string `db:"created_at"`
-	UpdatedAt   string `db:"updated_at"`
-}
-
-func (e entity) ToModel() *model.Entity {
-	return &model.Entity{
-		ID:          e.ID,
-		Name:        e.Name,
-		ServiceID:   e.ServiceID,
-		Description: e.Description,
-		CreatedAt:   e.CreatedAt,
-		UpdatedAt:   e.UpdatedAt,
-	}
+type entityRecord struct {
+	ID               string `db:"id"`
+	ExternalID       string `db:"external_id"`
+	EntityTypeID     string `db:"entity_type_id"`
+	IsActor          bool   `db:"is_actor"`
+	TargetActionsCnt int    `db:"target_actions_cnt"`
+	CreatedAt        string `db:"created_at"`
+	UpdatedAt        string `db:"updated_at"`
 }
 
 type EntityRepository struct {
-	conn   *sqlx.DB
-	logger logger.Logger
-	uuid4  uuid.UUID4Generator
+	*Tx
 }
 
-func NewEntityRepository(conn *sqlx.DB, uuid4 uuid.UUID4Generator, logger logger.Logger) *EntityRepository {
-	return &EntityRepository{
-		conn:   conn,
-		uuid4:  uuid4,
-		logger: logger,
-	}
-}
+// static check of correct interface implementation
+var _ db.EntityRepository = (*EntityRepository)(nil)
 
 // Select all entities
-func (r *EntityRepository) Select(f *model.Filter, s *model.Sort, p *model.Pagination) ([]*model.Entity, error) {
-	var entities []entity
+func (r *EntityRepository) Select(
+	ctx context.Context,
+	cursor *db.Cursor,
+	filter *db.Filter,
+) (*model.EntityCollection, error) {
+	var entities []entityRecord
 
-	sql, args, err := createSelectEntitiesQuery(f, s, p)
+	sQ, err := selectEntitiesQuery(cursor, filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create sql to select entities")
+		return nil, err
 	}
 
-	stmt, err := r.conn.Preparex(sql)
+	stmt, err := r.mysqlTx.Preparex(sQ.selectSQL)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not prepare sql to select entities")
 	}
 
-	defer func() { _ = stmt.Close() }()
+	cntStmt, err := r.mysqlTx.Preparex(sQ.countSQL)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not prepare sql to count entities")
+	}
 
-	if err := stmt.Select(&entities, args...); err != nil {
+	defer func() { _ = stmt.Close() }()
+	defer func() { _ = cntStmt.Close() }()
+
+	if err := stmt.SelectContext(ctx, &entities, sQ.selectArgs...); err != nil {
 		return nil, errors.Wrap(err, "could not execute sql to select entities")
 	}
 
-	result := make([]*model.Entity, len(entities))
-
-	for i := range entities {
-		result[i] = entities[i].ToModel()
+	var cnt int
+	if err := cntStmt.Get(ctx, &cnt); err != nil {
+		return nil, errors.Wrap(err, "could not execute sql to count entities")
 	}
 
-	return result, nil
-}
-
-func (r *EntityRepository) Properties(ID string) ([]*model.Property, error) {
-	query, err := createSelectPropertiesForEntity(ID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	r.logger.Debugf(query)
-
-	var properties []property
-
-	if err := r.conn.Select(&properties, query, ID); err != nil {
-		return nil, errors.Wrapf(err, "could not get properties stat from entities with ID [%s]", ID)
-	}
-
-	stats := make([]*model.Property, len(properties))
-
-	for i := range properties {
-		stats[i] = properties[i].ToModel()
-	}
-
-	return stats, nil
-}
-
-func createSelectPropertiesForEntity(_ string) (string, error) {
-	query, _, err := sq.Select(
-		"BIN_TO_UUID(p.id) as id",
-		"BIN_TO_UUID(p.entity_id) as entity_id",
-		"COUNT(c.id) as change_count",
-		"p.name", "p.type",
-	).From(
-		"properties as p",
-	).Join(
-		"changes as c ON c.property_id = p.id",
-	).Where(
-		"p.entity_id = UUID_TO_BIN(?)",
-	).GroupBy(
-		"p.id", "p.entity_id", "p.name", "p.type",
-	).ToSql()
-
-	return query, err
+	return mapEntitiesToCollection(entities, cnt, cursor.Page, cursor.PerPage), nil
 }
 
 // Create an entities
-func (r *EntityRepository) Create(e *model.Entity) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
-	defer cancel()
+func (r *EntityRepository) Create(ctx context.Context, e *model.Entity) (*model.Entity, error) {
+	q, args, err := createEntityQuery(e.ID, e.EntityTypeID, e.ExternalID, e.IsActor)
+	if err != nil {
+		panic(errors.Wrap(err, "how could query builder fail?"))
+	}
 
-	stmt := `
-		INSERT INTO entities (id, service_id, name, description) VALUES (
-			UUID_TO_BIN(:id), UUID_TO_BIN(:service_id), :name, :description
+	stmt, err := r.mysqlTx.Preparex(q)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not prepare tx to create entityRecord")
+	}
+
+	if _, err := stmt.ExecContext(ctx, args...); err != nil {
+		return nil, errors.Wrapf(err, "could not create new entities with externalID %s", e.ExternalID)
+	}
+
+	return r.FirstByID(ctx, e.ID)
+}
+
+func (r *EntityRepository) FirstByExternalIDAndTypeID(
+	ctx context.Context,
+	externalID string,
+	entityTypeID model.ID,
+) (*model.Entity, error) {
+	q, args, err := firstByExternalIDAndTypeIDQuery(externalID, entityTypeID)
+	if err != nil {
+		panic(fmt.Sprintf("could not build firstByExternalIDAndTypeIDQuery query for %s - %s", externalID, entityTypeID.String()))
+	}
+
+	stmt, err := r.mysqlTx.Preparex(q)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not prepare query %s", q)
+	}
+
+	ent := entityRecord{}
+
+	if err := stmt.GetContext(ctx, &ent, args...); err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"could not find entities with externalID %s and entityTypeID",
+			externalID,
+			entityTypeID.String(),
 		)
-	`
-
-	tt := entity{
-		ID:          e.ID,
-		Name:        e.Name,
-		ServiceID:   e.Service.ID,
-		Description: e.Description,
 	}
 
-	if _, err := r.conn.NamedExecContext(ctx, stmt, tt); err != nil {
-		return errors.Wrapf(err, "could not create new entities with name %s", e.Name)
-	}
-
-	return nil
+	return mapEntityRecordToModel(ent), nil
 }
 
-func (r *EntityRepository) FirstByNameAndService(name string, service *model.Microservice) (*model.Entity, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
-	defer cancel()
-
-	stmt := `
-		SELECT 
-			BIN_TO_UUID(id) as id, 
-			BIN_TO_UUID(service_id) as service_id, 
-			name, 
-			description, 
-			created_at, 
-			updated_at 
-		FROM entities
-			WHERE service_id = UUID_TO_BIN(?) AND name = ?
-		LIMIT 1
-	`
-
-	ent := new(entity)
-
-	if err := r.conn.GetContext(ctx, ent, stmt, service.ID, name); err != nil {
-		return nil, errors.Wrapf(err, "could not find entities with name %s", name)
-	}
-
-	return ent.ToModel(), nil
-}
-
-func (r *EntityRepository) FirstByID(ID string) (*model.Entity, error) {
-	sql, args, err := createFirstEntityByIDQuery(ID)
+func (r *EntityRepository) FirstByID(ctx context.Context, ID model.ID) (*model.Entity, error) {
+	sql, args, err := firstEntityByIDQuery(ID)
 	if err != nil {
 		return nil, err
 	}
 
-	ent := entity{}
+	ent := entityRecord{}
 
-	stmt, err := r.conn.Preparex(sql)
+	stmt, err := r.mysqlTx.Preparex(sql)
 	if err != nil {
-		return nil, errors.Errorf("could not prepare sql statement %s", sql)
+		return nil, errors.Errorf("could not prepare sql statement %s to get entityRecord by id", sql)
 	}
 
 	defer func() { _ = stmt.Close() }()
 
-	if err := stmt.Get(&ent, args...); err != nil {
+	if err := stmt.GetContext(ctx, &ent, args...); err != nil {
 		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
 	}
 
-	return ent.ToModel(), nil
+	return mapEntityRecordToModel(ent), nil
 }
 
-// FirstOrCreateByNameAndService - fetches first or creates an entities by its name and service
-func (r *EntityRepository) FirstOrCreateByNameAndService(name string, service *model.Microservice) (*model.Entity, error) {
-	ent, err := r.FirstByNameAndService(name, service)
-	if err == nil {
+// FirstOrCreateByNameAndService ...
+func (r *EntityRepository) FirstOrCreateByExternalIDAndEntityTypeID(
+	ctx context.Context,
+	externalID string,
+	entityTypeID model.ID,
+	isActor bool,
+) (*model.Entity, error) {
+	if ent, err := r.FirstByExternalIDAndTypeID(ctx, externalID, entityTypeID); err == nil {
 		return ent, nil
-	}
-
-	//r.logger.Debugf(err.Error())
-
-	ent = &model.Entity{
-		ID:          r.uuid4.Generate(),
-		Service:     service,
-		Name:        name,
-		Description: "",
-	}
-
-	if err := r.Create(ent); err != nil {
-		return nil, errors.Wrapf(err, "entities %s with service ID %s does not exist and cannot be created", name, service)
-	}
-
-	return ent, nil
-}
-
-func createSelectEntitiesQuery(f *model.Filter, s *model.Sort, p *model.Pagination) (string, []interface{}, error) {
-	q := sq.Select(
-		"BIN_TO_UUID(id) as id",
-		"BIN_TO_UUID(service_id) as service_id",
-		"name", "description", "created_at", "updated_at",
-	).From("entities")
-
-	if f.Has("serviceId") {
-		q = q.Where(`service_id = uuid_to_bin(?)`, f.StringOrDefault("serviceId", ""))
-	}
-
-	if s.Has("name") {
-		q = q.OrderByClause("name ?", s.GetOrDefault("name", model.ASCOrder).String())
-	} else if !f.Has("serviceId") {
-		q = q.OrderBy("created_at DESC")
 	} else {
-		q = q.OrderBy("service_id DESC")
+		r.lg.Debugf(err.Error())
 	}
 
-	q = q.Limit(uint64(p.PerPage))
-	q = q.Offset(uint64(p.Offset()))
+	ent := &model.Entity{
+		ID:           model.ID(r.uuid4.Generate()),
+		EntityTypeID: entityTypeID,
+		ExternalID:   externalID,
+		IsActor:      isActor,
+	}
 
-	return q.ToSql()
+	created, err := r.Create(ctx, ent);
+	if err != nil {
+		return nil, errors.Wrapf(
+			err,
+			"entity with external ID [%s] and entity type ID [%s] does not exist and could not be created",
+			externalID,
+			entityTypeID,
+		)
+	}
+
+	return created, nil
 }
 
-func createFirstEntityByIDQuery(ID string) (string, []interface{}, error) {
-	if ! validator.IsUUID4(ID) {
-		return "", nil, errors.Errorf("%s is not a valid UUID4", ID)
+func selectEntitiesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
+	countQ := sq.Select("count(*) as cnt").From("entities")
+
+	q := sq.Select(
+		"bin_to_uuid(id) as id",
+		"bin_to_uuid(entity_type_id) as entity_type_id",
+		"external_id",
+		"is_actor",
+		"created_at",
+		"updated_at",
+		"count(distinct actions.id) as target_actions_cnt",
+	).From("entities").LeftJoin("actions on actions.target_entity_id = entities.id")
+
+	if f.Has("entityTypeId") {
+		countQ = countQ.Where(`entity_type_id = uuid_to_bin(?)`, f.StringOrDefault("entityTypeId", ""))
+		q = q.Where(`entity_type_id = uuid_to_bin(?)`, f.StringOrDefault("entityTypeId", ""))
+	}
+
+	if c.Sort.Has("externalId") {
+		q = q.OrderByClause("external_id ?", c.Sort.GetOrDefault("externalId", db.ASCOrder).String())
+	} else {
+		q = q.OrderBy("updated_at ?", c.Sort.GetOrDefault("updatedAt", db.DESCOrder).String())
+	}
+
+	q = q.GroupBy("id", "entity_type_id", "external_id", "is_actor", "created_at", "updated_at")
+	q = q.Limit(uint64(c.PerPage))
+	q = q.Offset(uint64(c.Offset()))
+
+	sQ := selectQuery{}
+	if sql, args, err := q.ToSql(); err != nil {
+		return nil, errors.Wrap(err, "invalid select SQL for entities")
+	} else {
+		sQ.selectSQL = sql
+		sQ.selectArgs = args
+	}
+
+	if sql, args, err := countQ.ToSql(); err != nil {
+		return nil, errors.Wrap(err, "invalid count SQL for entities")
+	} else {
+		sQ.countSQL = sql
+		sQ.countArgs = args
+	}
+
+	return &sQ, nil
+}
+
+func firstEntityByIDQuery(ID model.ID) (string, []interface{}, error) {
+	if !validator.IsUUID4(ID.String()) {
+		panic(fmt.Sprintf("%s is not a valid entityRecord id (UUID4)", ID))
 	}
 
 	return sq.Select(
-		"BIN_TO_UUID(id) as id",
-		"BIN_TO_UUID(service_id) as service_id",
-		"name", "description", "created_at", "updated_at").
-	From("entities").
-	Where("id = UUID_TO_BIN(?)", ID).
-	Limit(1).
-	ToSql()
+		"bin_to_uuid(id) as id",
+		"count(distinct actions.id) as target_actions_cnt",
+		"bin_to_uuid(entity_type_id) as entity_type_id",
+		"external_id", "is_active", "created_at", "updated_at").
+		From("entities").
+		LeftJoin("actions on actions.target_entity_id = entities.id").
+		Where("id = uuid_to_bin(?)", ID.String()).
+		GroupBy("id", "entity_type_id", "external_id", "is_active", "created_at", "updated_at").
+		Limit(1).
+		ToSql()
 }
+
+func firstByExternalIDAndTypeIDQuery(externalID string, entityTypeID model.ID) (string, []interface{}, error) {
+	if !validator.IsUUID4(entityTypeID.String()) {
+		panic(fmt.Sprintf("entity type ID [%s] is not a valid UUID4", entityTypeID))
+	}
+
+	if externalID == "" {
+		panic("how can external id be empty?")
+	}
+
+	return sq.Select(
+		"bin_to_uuid(id) as id",
+		"count(distinct actions.id) as target_actions_cnt",
+		"bin_to_uuid(entity_type_id) as entity_type_id",
+		"external_id", "is_active", "created_at", "updated_at",
+	).
+		From("entities").
+		LeftJoin("actions on actions.target_entity_id = entities.id").
+		Where("entity_type_id = uuid_to_bin(?)", entityTypeID.String()).
+		Where("external_id = ?", externalID).
+		GroupBy("id", "entity_type_id", "external_id", "is_active", "created_at", "updated_at").
+		Limit(1).
+		ToSql()
+}
+
+func createEntityQuery(id, entityTypeID model.ID, externalID string, isActor bool) (string, []interface{}, error) {
+	if !validator.IsUUID4(id.String()) {
+		panic(fmt.Sprintf("entity ID [%s] is not a valid UUID4", entityTypeID))
+	}
+
+	if !validator.IsUUID4(entityTypeID.String()) {
+		panic(fmt.Sprintf("entity type ID [%s] is not a valid UUID4", entityTypeID))
+	}
+
+	if externalID == "" {
+		panic("how can external id be empty?")
+	}
+
+	return sq.Insert("entities").
+		Columns("id", "external_id", "entity_type_id", "is_actor").
+		Values(sq.Expr("uuid_to_bin(?)", id), externalID).
+		Values(sq.Expr("uuid_to_bin(?)", entityTypeID), isActor).
+		ToSql()
+}
+

@@ -1,27 +1,41 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// Entities - represents something that can act on data
-// or something that can be a subject to change or both
-type Entity struct {
-	ID          string        `json:"id"`
-	ServiceID   string        `json:"serviceId"`
+type EntityType struct {
+	ID          ID            `json:"id"`
+	ServiceID   ID            `json:"serviceId"`
 	Service     *Microservice `json:"service,omitempty"`
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
-	CreatedAt   string        `json:"createdAt,omitempty"`
-	UpdatedAt   string        `json:"updatedAt,omitempty"`
+	EntitiesCnt int           `json:"entitiesCount"`
+	CreatedAt   time.Time     `json:"createdAt,omitempty"`
+	UpdatedAt   time.Time     `json:"updatedAt,omitempty"`
 }
 
-// EntityRepository governs entities data interactions
-type EntityRepository interface {
-	Select(*Filter, *Sort, *Pagination) ([]*Entity, error)
-	Create(*Entity) error
-	FirstByNameAndService(string, *Microservice) (*Entity, error)
-	FirstByID(string) (*Entity, error)
-	Properties(ID string) ([]*Property, error)
-	FirstOrCreateByNameAndService(string, *Microservice) (*Entity, error)
+// Entities - represents something that can act on data
+// or be acted on, or both
+type Entity struct {
+	ID           ID        `json:"id"`
+	ExternalID   string    `json:"externalId"`
+	EntityTypeID ID        `json:"entityTypeId"`
+	Entity       *Entity   `json:"service,omitempty"`
+	IsActor      bool      `json:"isActor"`
+	CreatedAt    time.Time `json:"createdAt,omitempty"`
+	UpdatedAt    time.Time `json:"updatedAt,omitempty"`
+}
+
+type EntityCollection struct {
+	Items []Entity `json:"data"`
+	Meta  Meta     `json:"meta"`
+}
+
+type EntityTypeCollection struct {
+	Items []EntityType `json:"data"`
+	Meta  Meta         `json:"meta"`
 }
 
 func EntityItemCacheKey(name string, microservice *Microservice) string {

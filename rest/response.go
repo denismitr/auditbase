@@ -46,11 +46,11 @@ func newEventCountResponse(count int) *itemResponse {
 	return newItemResponseWithMeta(nil, map[string]int{"count": count})
 }
 
-func newEventResponse(e *model.Event) *itemResponse {
+func newEventResponse(e *model.Action) *itemResponse {
 	return newItemResponse(newJsonApiResponse("events", e.ID, e))
 }
 
-func newEventsResponse(events []*model.Event, meta *model.Meta) *collectionResponse {
+func newEventsResponse(events []*model.Action, meta *model.Meta) *collectionResponse {
 	items := make([]*jsonApiResponse, len(events))
 	for i := range events {
 		items[i] = newJsonApiResponse("events", events[i].ID, events[i])

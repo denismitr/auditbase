@@ -12,7 +12,7 @@ import (
 
 // EventFlow interface
 type EventFlow interface {
-	Send(e *model.Event) error
+	Send(e *model.Action) error
 	Receive(queue, consumer string) <-chan ReceivedEvent
 	Requeue(ReceivedEvent) error
 	Ack(ReceivedEvent) error
@@ -91,7 +91,7 @@ func (ef *MQEventFlow) NotifyOnStateChange(l chan State) {
 }
 
 // Send event to the event flow
-func (ef *MQEventFlow) Send(e *model.Event) error {
+func (ef *MQEventFlow) Send(e *model.Action) error {
 	b, err := json.Marshal(e)
 	if err != nil {
 		return errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID)

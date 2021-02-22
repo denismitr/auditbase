@@ -119,7 +119,7 @@ func (p *persister) preAssignActors(ctx context.Context, in <-chan *payload) cha
 					return
 				}
 
-				_ = pl.update(func(e *model.Event) error {
+				_ = pl.update(func(e *model.Action) error {
 					e.ActorEntity = *entity
 					e.ActorService = *service
 					return nil
@@ -165,7 +165,7 @@ func (p *persister) preAssignTargets(ctx context.Context, in <-chan *payload) ch
 					return
 				}
 
-				_ = pl.update(func(e *model.Event) error {
+				_ = pl.update(func(e *model.Action) error {
 					e.TargetEntity = *targetEntity
 					e.TargetService = *service
 					return nil
@@ -203,7 +203,7 @@ func (p *persister) preAssignProperties(ctx context.Context, in <-chan *payload)
 					return
 				}
 
-				if err := pl.update(func(e *model.Event) error {
+				if err := pl.update(func(e *model.Action) error {
 					for id, name := range props {
 						var match bool
 
@@ -305,7 +305,7 @@ func (p *persister) success(pl *payload) {
 	}()
 }
 
-func (p *persister) Persist(e *model.Event) {
+func (p *persister) Persist(e *model.Action) {
 	//p.omu.Lock()
 	//if p.running == false {
 	//	p.omu.Unlock()
