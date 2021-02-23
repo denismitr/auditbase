@@ -49,10 +49,10 @@ func (mr *MockEventFlowMockRecorder) Send(e interface{}) *gomock.Call {
 }
 
 // Receive mocks base method
-func (m *MockEventFlow) Receive(queue, consumer string) <-chan flow.ReceivedEvent {
+func (m *MockEventFlow) Receive(queue, consumer string) <-chan flow.ReceivedAction {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Receive", queue, consumer)
-	ret0, _ := ret[0].(<-chan flow.ReceivedEvent)
+	ret0, _ := ret[0].(<-chan flow.ReceivedAction)
 	return ret0
 }
 
@@ -63,7 +63,7 @@ func (mr *MockEventFlowMockRecorder) Receive(queue, consumer interface{}) *gomoc
 }
 
 // Requeue mocks base method
-func (m *MockEventFlow) Requeue(arg0 flow.ReceivedEvent) error {
+func (m *MockEventFlow) Requeue(arg0 flow.ReceivedAction) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Requeue", arg0)
 	ret0, _ := ret[0].(error)
@@ -77,7 +77,7 @@ func (mr *MockEventFlowMockRecorder) Requeue(arg0 interface{}) *gomock.Call {
 }
 
 // Ack mocks base method
-func (m *MockEventFlow) Ack(arg0 flow.ReceivedEvent) error {
+func (m *MockEventFlow) Ack(arg0 flow.ReceivedAction) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Ack", arg0)
 	ret0, _ := ret[0].(error)
@@ -91,7 +91,7 @@ func (mr *MockEventFlowMockRecorder) Ack(arg0 interface{}) *gomock.Call {
 }
 
 // Reject mocks base method
-func (m *MockEventFlow) Reject(arg0 flow.ReceivedEvent) error {
+func (m *MockEventFlow) Reject(arg0 flow.ReceivedAction) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Reject", arg0)
 	ret0, _ := ret[0].(error)

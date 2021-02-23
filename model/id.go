@@ -30,3 +30,7 @@ func IDPointer(id string) *ID {
 
 	return &v
 }
+
+func IDToPointer(id ID) *ID {
+	return &id
+}

@@ -8,34 +8,34 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ReceivedEvent interface {
-	Event() (*model.Action, error)
+type ReceivedAction interface {
+	NewAction() (*model.NewAction, error)
 	CloneMsgToRequeue() queue.Message
 	Tag() uint64
 }
 
-type QueueReceivedEvent struct {
+type QueueReceivedAction struct {
 	msg queue.ReceivedMessage
 }
 
-func (re *QueueReceivedEvent) Event() (*model.Action, error) {
-	e := model.Action{}
+func (re *QueueReceivedAction) NewAction() (*model.NewAction, error) {
+	a := model.NewAction{}
 
-	if err := json.Unmarshal(re.msg.Body(), &e); err != nil {
+	if err := json.Unmarshal(re.msg.Body(), &a); err != nil {
 		return nil, errors.Wrap(err, "could not get event from received queue message bytes")
 	}
 
-	return &e, nil
+	return &a, nil
 }
 
-func (re *QueueReceivedEvent) CloneMsgToRequeue() queue.Message {
+func (re *QueueReceivedAction) CloneMsgToRequeue() queue.Message {
 	return re.msg.CloneToReque()
 }
 
-func (re *QueueReceivedEvent) Tag() uint64 {
+func (re *QueueReceivedAction) Tag() uint64 {
 	return re.msg.Tag()
 }
 
-func (re *QueueReceivedEvent) Attempt() int {
+func (re *QueueReceivedAction) Attempt() int {
 	return re.msg.Attempt()
 }

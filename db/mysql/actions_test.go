@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -26,7 +25,7 @@ func Test_createActionQuery(t *testing.T) {
 		{
 			action: &model.Action{
 				ID: model.ID("7c94b604-560b-4f3d-8cf0-c341faca3139"),
-				ParentID: types.IDToPointer("937468fd-d35b-4504-bb18-bf1903113727"),
+				ParentID: model.IDToPointer("937468fd-d35b-4504-bb18-bf1903113727"),
 				Name: "foo-bar",
 				Hash: "foo-hash",
 				IsAsync: false,
@@ -39,8 +38,8 @@ func Test_createActionQuery(t *testing.T) {
 		{
 			action: &model.Action{
 				ID: model.ID("6c94b604-560b-4f3d-8cf0-c341faca3139"),
-				ParentID: types.IDToPointer("837468fd-d35b-4504-bb18-bf1903113727"),
-				ActorEntityID: types.IDToPointer("537468fd-d35b-4504-bb18-bf1903113725"),
+				ParentID: model.IDToPointer("837468fd-d35b-4504-bb18-bf1903113727"),
+				ActorEntityID: model.IDToPointer("537468fd-d35b-4504-bb18-bf1903113725"),
 				Name: "foo-bar-2",
 				Hash: "foo-hash-2",
 				IsAsync: false,
@@ -53,8 +52,8 @@ func Test_createActionQuery(t *testing.T) {
 		{
 			action: &model.Action{
 				ID: model.ID("6d94b604-560b-4f3d-8cf0-c341faca3139"),
-				ActorEntityID: types.IDToPointer("537468fd-d35b-4504-bb18-bf1903113725"),
-				TargetEntityID: types.IDToPointer("355568fd-d35b-4504-bb18-bf1903113701"),
+				ActorEntityID: model.IDToPointer("537468fd-d35b-4504-bb18-bf1903113725"),
+				TargetEntityID: model.IDToPointer("355568fd-d35b-4504-bb18-bf1903113701"),
 				Name: "foo-bar-2",
 				Hash: "foo-hash-2",
 				IsAsync: true,

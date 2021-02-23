@@ -11,12 +11,12 @@ import (
 type health struct {
 	StatusOK        bool           `json:"statusOk"`
 	PersistedEvents int            `json:"persistedEvents"`
-	FailedEvents    int            `json:"failedEvents"`
+	FailedEvents    int            `json:"failedActionCreations"`
 	StartedAt       model.JSONTime `json:"startedAt"`
 	FailedAt        model.JSONTime `json:"failedAt"`
 }
 
-func (c *Consumer) healthCheck() {
+func (c *Consumer) healthCheck(stopCh <-chan os.Signal) {
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -24,7 +24,7 @@ func (c *Consumer) healthCheck() {
 		var h health
 		h.StatusOK = c.statusOK
 		h.PersistedEvents = c.persistedEvents
-		h.FailedEvents = c.failedEvents
+		h.FailedEvents = c.failedActionCreations
 		h.StartedAt = model.JSONTime{Time: c.startedAt}
 		h.FailedAt = model.JSONTime{Time: c.failedAt}
 
@@ -36,13 +36,13 @@ func (c *Consumer) healthCheck() {
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(h); err != nil {
-			c.logger.Error(errors.Wrap(err, "health endpoint failed"))
+			c.lg.Error(errors.Wrap(err, "health endpoint failed"))
 		}
 	})
 
-	c.logger.Debugf("\nStarting healthcheck on port %s", os.Getenv("HEALTH_PORT"))
+	c.lg.Debugf("\nStarting healthcheck on port %s", os.Getenv("HEALTH_PORT"))
 	err := http.ListenAndServe(":"+os.Getenv("HEALTH_PORT"), nil)
 	if err != nil {
-		c.logger.Error(errors.Wrap(err, "helthcheck endpoint failed"))
+		c.lg.Error(errors.Wrap(err, "helthcheck endpoint failed"))
 	}
 }

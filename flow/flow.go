@@ -13,10 +13,10 @@ import (
 // EventFlow interface
 type EventFlow interface {
 	Send(e *model.Action) error
-	Receive(queue, consumer string) <-chan ReceivedEvent
-	Requeue(ReceivedEvent) error
-	Ack(ReceivedEvent) error
-	Reject(ReceivedEvent) error
+	Receive(queue, consumer string) <-chan ReceivedAction
+	Requeue(ReceivedAction) error
+	Ack(ReceivedAction) error
+	Reject(ReceivedAction) error
 	Inspect() (Status, error)
 	Scaffold() error
 	NotifyOnStateChange(chan State)
@@ -34,7 +34,7 @@ type MQEventFlow struct {
 	stateListeners []chan State
 	stopCh         chan struct{}
 	msgCh          chan queue.ReceivedMessage
-	eventCh        chan ReceivedEvent
+	eventCh        chan ReceivedAction
 }
 
 // New event flow
@@ -48,7 +48,7 @@ func New(mq queue.MQ, logger logger.Logger, cfg Config) *MQEventFlow {
 		stateListeners: make([]chan State, 0),
 		stopCh:         make(chan struct{}),
 		msgCh:          make(chan queue.ReceivedMessage),
-		eventCh:        make(chan ReceivedEvent),
+		eventCh:        make(chan ReceivedAction),
 	}
 }
 
@@ -103,7 +103,7 @@ func (ef *MQEventFlow) Send(e *model.Action) error {
 }
 
 // Receive events from the flow
-func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedEvent {
+func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedAction {
 	go func() {
 		if err := ef.mq.Subscribe(queue, consumer, ef.msgCh); err != nil {
 			panic(err)
@@ -119,7 +119,7 @@ func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedEvent {
 					continue
 				}
 
-				ef.eventCh <- &QueueReceivedEvent{msg: msg}
+				ef.eventCh <- &QueueReceivedAction{msg: msg}
 			case <-ef.stopCh:
 				//close(ef.eventCh)
 			}
@@ -130,7 +130,7 @@ func (ef *MQEventFlow) Receive(queue, consumer string) <-chan ReceivedEvent {
 }
 
 // Requeue previously received message
-func (ef *MQEventFlow) Requeue(re ReceivedEvent) error {
+func (ef *MQEventFlow) Requeue(re ReceivedAction) error {
 	if err := ef.mq.Reject(re.Tag()); err != nil {
 		ef.logger.Error(err)
 		return ErrCannotRequeueEvent
@@ -149,12 +149,12 @@ func (ef *MQEventFlow) Requeue(re ReceivedEvent) error {
 }
 
 // Ack received message
-func (ef *MQEventFlow) Ack(re ReceivedEvent) error {
+func (ef *MQEventFlow) Ack(re ReceivedAction) error {
 	return ef.mq.Ack(re.Tag())
 }
 
 // Reject received message
-func (ef *MQEventFlow) Reject(re ReceivedEvent) error {
+func (ef *MQEventFlow) Reject(re ReceivedAction) error {
 	return ef.mq.Reject(re.Tag())
 }
 
