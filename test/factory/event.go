@@ -83,8 +83,8 @@ func (i incomingEventMatcher) Matches(x interface{}) bool {
 
 	return i.evt.ID == e.ID &&
 		i.evt.Hash == e.Hash &&
-		i.evt.ActorID == e.ActorID &&
-		i.evt.TargetID == e.TargetID &&
+		i.evt.ActorEntityID == e.ActorEntityID &&
+		i.evt.TargetEntityID == e.TargetEntityID &&
 		i.evt.TargetService.Name == e.TargetService.Name &&
 		i.evt.ActorService.Name == e.ActorService.Name &&
 		i.evt.ActorEntity.Name == e.ActorEntity.Name &&
@@ -137,8 +137,8 @@ func (evt EventMatcher) Matches(x interface{}) bool {
 
 	return evt.Evt.ID == e.ID &&
 		evt.Evt.Hash == e.Hash &&
-		evt.Evt.ActorID == e.ActorID &&
-		evt.Evt.TargetID == e.TargetID &&
+		evt.Evt.ActorEntityID == e.ActorEntityID &&
+		evt.Evt.TargetEntityID == e.TargetEntityID &&
 		evt.Evt.TargetService.Name == e.TargetService.Name &&
 		evt.Evt.ActorService.Name == e.ActorService.Name &&
 		evt.Evt.ActorEntity.Name == e.ActorEntity.Name &&
@@ -198,8 +198,8 @@ func createDefaultEvent(now time.Time) *model.Action {
 			ID: "444e1d82a-a065-436d-afd0-5fbcb752ae5",
 			Name: "subscription",
 		},
-		TargetID: "122242120",
-		ActorID: "88999",
+		TargetEntityID: "122242120",
+		ActorEntityID:  "88999",
 		ActorService: model.Microservice{
 			Name: "web",
 		},
@@ -260,8 +260,8 @@ func createIncomingEventWithId(now time.Time) (string, *model.Action) {
 		TargetEntity: model.Entity{
 			Name: "subscription",
 		},
-		TargetID: "122242120",
-		ActorID: "88999",
+		TargetEntityID: "122242120",
+		ActorEntityID:  "88999",
 		ActorService: model.Microservice{
 			Name: "web",
 		},
@@ -325,8 +325,8 @@ func createIncomingEventWithoutId(now time.Time) (string, *model.Action) {
 		TargetEntity: model.Entity{
 			Name: "subscription",
 		},
-		TargetID: "122242120",
-		ActorID: "88999",
+		TargetEntityID: "122242120",
+		ActorEntityID:  "88999",
 		ActorService: model.Microservice{
 			Name: "web",
 		},

@@ -22,10 +22,10 @@ package integration
 //var tt = []rest.CreateEvent{
 //	rest.CreateEvent{
 //		EventName:     "foo",
-//		TargetID:      "1234",
+//		TargetEntityID:      "1234",
 //		TargetEntity:  "article",
 //		TargetService: "article-storage",
-//		ActorID:       "4321",
+//		ActorEntityID:       "4321",
 //		ActorEntity:   "editor",
 //		ActorService:  "back-office",
 //		EmittedAt:     int64(1578173213),
@@ -35,10 +35,10 @@ package integration
 //
 //	rest.CreateEvent{
 //		EventName:     "bar",
-//		TargetID:      "938-UE",
+//		TargetEntityID:      "938-UE",
 //		TargetEntity:  "post",
 //		TargetService: "blog",
-//		ActorID:       "999",
+//		ActorEntityID:       "999",
 //		ActorEntity:   "writer",
 //		ActorService:  "user-service",
 //		EmittedAt:     int64(1578178213),
@@ -75,8 +75,8 @@ package integration
 //					assert.Equal(t, tc.ID, gjson.Get(js, "data.id").String())
 //					assert.Equal(t, tc.EventName, gjson.Get(js, "data.attributes.eventName").String())
 //					assert.Equal(t, time.Unix(tc.EmittedAt, 0).UTC().Format(model.DefaultTimeFormat), gjson.Get(js, "data.attributes.emittedAt").String())
-//					assert.Equal(t, tc.TargetID, gjson.Get(js, "data.attributes.targetId").String())
-//					assert.Equal(t, tc.ActorID, gjson.Get(js, "data.attributes.actorId").String())
+//					assert.Equal(t, tc.TargetEntityID, gjson.Get(js, "data.attributes.targetId").String())
+//					assert.Equal(t, tc.ActorEntityID, gjson.Get(js, "data.attributes.actorId").String())
 //					assert.Equal(t, tc.TargetEntity, gjson.Get(js, "data.attributes.targetEntity.name").String())
 //					assert.Equal(t, tc.TargetService, gjson.Get(js, "data.attributes.targetService.name").String())
 //					assert.Equal(t, tc.ActorEntity, gjson.Get(js, "data.attributes.actorEntity.name").String())

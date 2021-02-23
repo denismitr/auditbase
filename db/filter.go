@@ -1,21 +1,21 @@
 package db
 
 import (
-	"strconv"
 	"fmt"
+	"github.com/denismitr/auditbase/model"
+	"strconv"
 )
 
 type Filter struct {
 	allowed []string
-	items map[string]string
-	includeCount []string
+	ids     []model.ID
+	items   map[string]string
 }
 
 func NewFilter(allowed []string) *Filter {
 	return &Filter{
-		items: make(map[string]string),
+		items:   make(map[string]string),
 		allowed: allowed,
-		includeCount: make([]string, 0),
 	}
 }
 
@@ -33,13 +33,13 @@ func (f *Filter) Allows(k string) bool {
 	return false
 }
 
-func (f *Filter) IncludeCount(includes ...string) *Filter {
-	f.includeCount = append(f.includeCount, includes...)
+func (f *Filter) Add(k, v string) *Filter {
+	f.items[k] = v
 	return f
 }
 
-func (f *Filter) Add(k, v string) *Filter {
-	f.items[k] = v
+func (f *Filter) ByIDs(ids []model.ID) *Filter {
+	f.ids = ids
 	return f
 }
 
@@ -51,6 +51,14 @@ func (f *Filter) Has(k string) bool {
 	return false
 }
 
+func (f *Filter) HasIDs() bool {
+	return len(f.ids) > 0
+}
+
+func (f *Filter) IDs() []model.ID {
+	return f.ids
+}
+
 func (f *Filter) StringOrDefault(k, d string) string {
 	if f.Has(k) {
 		return f.items[k]
@@ -60,7 +68,7 @@ func (f *Filter) StringOrDefault(k, d string) string {
 }
 
 func (f *Filter) MustString(k string) string {
-	if ! f.Has(k) {
+	if !f.Has(k) {
 		panic(fmt.Sprintf("no suchkey in filter %s", k))
 	}
 

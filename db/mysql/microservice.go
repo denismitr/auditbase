@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type microservice struct {
+type microserviceRecord struct {
 	ID          string `db:"id"`
 	Name        string `db:"name"`
 	Description string `db:"description"`
@@ -18,9 +18,9 @@ type microservice struct {
 	UpdatedAt   string `db:"updated_at"`
 }
 
-func (m *microservice) ToModel() *model.Microservice {
+func (m *microserviceRecord) ToModel() *model.Microservice {
 	return &model.Microservice{
-		ID: m.ID,
+		ID: model.ID(m.ID),
 		Name: m.Name,
 		Description: m.Description,
 		CreatedAt: m.CreatedAt,
@@ -39,7 +39,7 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 		return nil, err
 	}
 
-	selectSQL, selectArgs, err := firstMicroserviceByIDQuery(m.ID)
+	selectSQL, selectArgs, err := firstMicroserviceByIDQuery(m.ID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 		return nil, errors.Wrapf(err, "cannot insert record into microservices table")
 	}
 
-	var ms microservice
+	var ms microserviceRecord
 
 	if err := selectStmt.GetContext(ctx, &ms, selectArgs...); err != nil {
 		r.lg.Error(err)
@@ -75,7 +75,7 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 // SelectAll microservices
 func (r *MicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
 	stmt := `SELECT BIN_TO_UUID(id) as id, name, description, created_at, updated_at FROM microservices`
-	ms := []microservice{}
+	ms := []microserviceRecord{}
 
 	if err := r.mysqlTx.Select(&ms, stmt); err != nil {
 		return nil, errors.Wrap(err, "could not select all microservices")
@@ -85,7 +85,7 @@ func (r *MicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
 
 	for i := range ms {
 		result[i] = &model.Microservice{
-			ID:          ms[i].ID,
+			ID:          model.ID(ms[i].ID),
 			Name:        ms[i].Name,
 			Description: ms[i].Description,
 			CreatedAt:   ms[i].CreatedAt,
@@ -120,7 +120,7 @@ func (r *MicroserviceRepository) Update(ID model.ID, m *model.Microservice) erro
 
 // FirstByID - find one microservices by ID
 func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, error) {
-	var m microservice
+	var m microserviceRecord
 
 	q, args, err := firstMicroserviceByIDQuery(ID.String())
 	if err != nil {
@@ -140,7 +140,7 @@ func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, er
 	}
 
 	return &model.Microservice{
-		ID:          m.ID,
+		ID:          model.ID(m.ID),
 		Name:        m.Name,
 		Description: m.Description,
 		CreatedAt:   m.CreatedAt,
@@ -150,7 +150,7 @@ func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, er
 
 // FirstByName - gets first microservices by its name
 func (r *MicroserviceRepository) FirstByName(ctx context.Context, name string) (*model.Microservice, error) {
-	m := new(microservice)
+	m := new(microserviceRecord)
 
 	query := `
 		SELECT 
@@ -170,7 +170,7 @@ func (r *MicroserviceRepository) FirstByName(ctx context.Context, name string) (
 	}
 
 	return &model.Microservice{
-		ID:          m.ID,
+		ID:          model.ID(m.ID),
 		Name:        m.Name,
 		Description: m.Description,
 		CreatedAt:   m.CreatedAt,
@@ -190,7 +190,7 @@ func (r *MicroserviceRepository) FirstOrCreateByName(ctx context.Context, name s
 	}
 
 	m = &model.Microservice{
-		ID:          r.uuid4.Generate(),
+		ID:          model.ID(r.uuid4.Generate()),
 		Name:        name,
 		Description: "",
 	}
@@ -203,11 +203,11 @@ func (r *MicroserviceRepository) FirstOrCreateByName(ctx context.Context, name s
 }
 
 func createMicroserviceQuery(m *model.Microservice) (string, []interface{}, error) {
-	if validator.IsEmptyString(m.ID) {
+	if validator.IsEmptyString(m.ID.String()) {
 		return "", nil, db.ErrEmptyUUID4
 	}
 
-	if !validator.IsUUID4(m.ID) {
+	if !validator.IsUUID4(m.ID.String()) {
 		return "", nil, errors.Errorf("%s is not a valid uuid4", m.ID)
 	}
 

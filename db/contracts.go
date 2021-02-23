@@ -7,11 +7,14 @@ import (
 
 type Tx interface {
 	Entities() EntityRepository
+	EntityTypes() EntityTypeRepository
+	Actions() ActionRepository
+	Microservices() MicroserviceRepository
 }
 
 type Database interface {
-	ReadOnly(ctx context.Context, cb func(context.Context, *Tx) error) error
-	ReadWrite(ctx context.Context, cb func(context.Context, *Tx) error) error
+	ReadOnly(ctx context.Context, cb func(context.Context, Tx) error) error
+	ReadWrite(ctx context.Context, cb func(context.Context, Tx) error) error
 }
 
 // EntityRepository provides entities data interactions
@@ -57,4 +60,21 @@ type EntityTypeRepository interface {
 		name string,
 		serviceID model.ID,
 	) (*model.EntityType, error)
+}
+
+type MicroserviceRepository interface {
+	Create(ctx context.Context, m *model.Microservice) (*model.Microservice, error)
+	Delete(ID model.ID) error
+	Update(ID model.ID, m *model.Microservice) error
+	FirstByID(ID model.ID) (*model.Microservice, error)
+	FirstByName(ctx context.Context, name string) (*model.Microservice, error)
+	FirstOrCreateByName(ctx context.Context, name string) (*model.Microservice, error)
+}
+
+type ActionRepository interface {
+	Create(context.Context, *model.Action) (*model.Action, error)
+	Names(context.Context) ([]string, error)
+	Delete(context.Context, model.ID) error
+	FirstByID(context.Context, model.ID) (*model.Action, error)
+	Select(context.Context, *Cursor, *Filter) (*model.ActionCollection, error)
 }

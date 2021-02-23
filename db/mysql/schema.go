@@ -55,18 +55,21 @@ const actionsSchema = `
 		status TINYINT(1) DEFAULT 0,
 		is_async TINYINT(1) DEFAULT 0,
 		hash VARCHAR(40),
-		actor_id BINARY(16),
-		target_id BINARY(16),
+		actor_entity_id BINARY(16),
+		target_entity_id BINARY(16),
 		name VARCHAR(36) NOT NULL,
 		emitted_at TIMESTAMP NOT NULL,
 		registered_at TIMESTAMP NOT NULL,
 		details JSON,
+		delta JSON,
 
-		FOREIGN KEY (actor_id)
+		INDEX name_idx (name),
+
+		FOREIGN KEY (actor_entity_id)
         REFERENCES entities(id)
 		ON DELETE CASCADE,
 
-		FOREIGN KEY (target_id)
+		FOREIGN KEY (target_entity_id)
         REFERENCES entities(id)
 		ON DELETE CASCADE,
 	) ENGINE=INNODB;

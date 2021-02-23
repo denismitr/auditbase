@@ -72,7 +72,7 @@ func (r *EntityRepository) Create(ctx context.Context, e *model.Entity) (*model.
 		panic(errors.Wrap(err, "how could query builder fail?"))
 	}
 
-	stmt, err := r.mysqlTx.Preparex(q)
+	stmt, err := r.mysqlTx.PreparexContext(ctx, q)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not prepare tx to create entityRecord")
 	}
@@ -94,7 +94,7 @@ func (r *EntityRepository) FirstByExternalIDAndTypeID(
 		panic(fmt.Sprintf("could not build firstByExternalIDAndTypeIDQuery query for %s - %s", externalID, entityTypeID.String()))
 	}
 
-	stmt, err := r.mysqlTx.Preparex(q)
+	stmt, err := r.mysqlTx.PreparexContext(ctx, q)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not prepare query %s", q)
 	}
@@ -104,7 +104,7 @@ func (r *EntityRepository) FirstByExternalIDAndTypeID(
 	if err := stmt.GetContext(ctx, &ent, args...); err != nil {
 		return nil, errors.Wrapf(
 			err,
-			"could not find entities with externalID %s and entityTypeID",
+			"could not find entities with externalID [%s] and entityTypeID [%s]",
 			externalID,
 			entityTypeID.String(),
 		)
@@ -271,8 +271,7 @@ func createEntityQuery(id, entityTypeID model.ID, externalID string, isActor boo
 
 	return sq.Insert("entities").
 		Columns("id", "external_id", "entity_type_id", "is_actor").
-		Values(sq.Expr("uuid_to_bin(?)", id), externalID).
-		Values(sq.Expr("uuid_to_bin(?)", entityTypeID), isActor).
+		Values(sq.Expr("uuid_to_bin(?)", id), externalID, sq.Expr("uuid_to_bin(?)", entityTypeID), isActor).
 		ToSql()
 }
 

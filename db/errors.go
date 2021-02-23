@@ -13,3 +13,5 @@ const ErrInvalidUUID4 = errtype.StringError("invalid string given instead of uui
 const ErrCouldNotCommit = errtype.StringError("could not commit transaction")
 const ErrCouldNotBuildQuery = errtype.StringError("could not build query")
 const ErrEmptyWhereInList = errtype.StringError("WHERE IN clause is empty")
+
+const ErrActionNotFound = errtype.StringError("action not found")

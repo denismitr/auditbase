@@ -74,3 +74,32 @@ func mapEntityTypesToCollection(items []entityTypeRecord, cnt int, page, perPage
 
 	return &result
 }
+
+func mapActionRecordsToCollection(items []actionRecord, total int, page uint, perPage uint) *model.ActionCollection {
+	result := model.ActionCollection{}
+	for _, a := range items {
+		result.Items = append(result.Items, *mapActionRecordToModel(a))
+	}
+
+	result.Meta.Total = total
+	result.Meta.Page = int(page)
+	result.Meta.PerPage = int(perPage)
+
+	return &result
+}
+
+func mapActionRecordToModel(ar actionRecord) *model.Action {
+	a := model.Action{
+		ID: model.ID(ar.ID),
+		Name: ar.Name,
+		Hash: ar.Hash,
+		EmittedAt: model.JSONTime{Time: ar.EmittedAt},
+		RegisteredAt: model.JSONTime{Time: ar.RegisteredAt},
+	}
+
+	if ar.ParentEventID.Valid {
+		a.ParentID = model.IDPointer(ar.ParentEventID.String)
+	}
+
+	return &a
+}

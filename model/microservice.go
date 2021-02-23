@@ -8,7 +8,7 @@ import (
 )
 
 type Microservice struct {
-	ID          string `json:"id"`
+	ID          ID     `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	CreatedAt   string `json:"createdAt,omitempty"`
@@ -28,7 +28,7 @@ type MicroserviceRepository interface {
 func (m *Microservice) Validate() *errbag.ErrorBag {
 	eb := errbag.New()
 
-	if !validator.IsUUID4(m.ID) {
+	if !validator.IsUUID4(m.ID.String()) {
 		eb.Add("ID", ErrInvalidUUID4)
 	}
 

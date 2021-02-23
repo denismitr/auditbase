@@ -97,15 +97,15 @@ func (ce CreateEvent) ToEvent() *model.Action {
 	}
 
 	return &model.Action{
-		ID:      ce.ID,
-		ActorID: ce.ActorID,
+		ID:            ce.ID,
+		ActorEntityID: ce.ActorID,
 		ActorEntity: model.Entity{
 			Name: ce.ActorEntity,
 		},
 		ActorService: model.Microservice{
 			Name: ce.ActorService,
 		},
-		TargetID: ce.TargetID,
+		TargetEntityID: ce.TargetID,
 		TargetEntity: model.Entity{
 			Name: ce.TargetEntity,
 		},

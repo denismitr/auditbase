@@ -259,7 +259,7 @@ func firstEntityTypeByNameAndServiceIDQuery(name string, serviceID model.ID) (st
 	}
 
 	if !validator.IsUUID4(serviceID.String()) {
-		panic(fmt.Sprintf("%s is not a valid microservice id (UUID4)", serviceID.String()))
+		panic(fmt.Sprintf("%s is not a valid microserviceRecord id (UUID4)", serviceID.String()))
 	}
 
 	return sq.Select(
