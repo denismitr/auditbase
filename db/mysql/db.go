@@ -15,7 +15,15 @@ const MySQL8 = "mysql8"
 type Database struct {
 	conn  *sqlx.DB
 	uuid4 uuid.UUID4Generator
-	log   logger.Logger
+	lg    logger.Logger
+}
+
+func NewDatabase(conn *sqlx.DB, uuid4 uuid.UUID4Generator, lg logger.Logger) *Database {
+	return &Database{
+		conn:  conn,
+		uuid4: uuid4,
+		lg:    lg,
+	}
 }
 
 type Tx struct {
@@ -26,13 +34,13 @@ type Tx struct {
 
 var _ db.Tx = (*Tx)(nil)
 
-func (db *Database) ReadOnly(ctx context.Context, cb func (context.Context, *Tx) error) error {
+func (db *Database) ReadOnly(ctx context.Context, cb func (context.Context, db.Tx) error) error {
 	mysqlTx, err := db.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelSerializable})
 	if err != nil {
 		return errors.Wrap(err, "could not start read only Tx")
 	}
 
-	if err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.log}); err != nil {
+	if err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg}); err != nil {
 		if rbErr := mysqlTx.Rollback(); rbErr != nil {
 			return errors.Wrap(err, rbErr.Error())
 		}
@@ -47,13 +55,13 @@ func (db *Database) ReadOnly(ctx context.Context, cb func (context.Context, *Tx)
 	return nil
 }
 
-func (db *Database) ReadWrite(ctx context.Context, cb func (context.Context, *Tx) error) error {
+func (db *Database) ReadWrite(ctx context.Context, cb func (context.Context, db.Tx) error) error {
 	mysqlTx, err := db.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: false, Isolation: sql.LevelSerializable})
 	if err != nil {
 		return errors.Wrap(err, "could not start read write Tx")
 	}
 
-	if err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.log}); err != nil {
+	if err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg}); err != nil {
 		if rbErr := mysqlTx.Rollback(); rbErr != nil {
 			return errors.Wrap(err, rbErr.Error())
 		}

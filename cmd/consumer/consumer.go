@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
+	"github.com/denismitr/auditbase/service"
 	"github.com/pkg/errors"
 	"flag"
-	"github.com/denismitr/auditbase/cache"
-	"github.com/denismitr/auditbase/persister"
-	"github.com/go-redis/redis/v7"
 	"github.com/jmoiron/sqlx"
 	"os"
 	"os/signal"
@@ -40,7 +38,9 @@ func main() {
 
 	debug(*errorsConsumer)
 
-	run(lg, cfg, consumerName, queueName)
+	if err := run(lg, cfg, consumerName, queueName); err != nil {
+		panic(err)
+	}
 }
 
 func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (string, string) {
@@ -63,7 +63,6 @@ func createConsumer(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, erro
 	defer cancel()
 
 	connCh := make(chan *sqlx.DB)
-	cacheCh := make(chan cache.Cacher)
 	efCh := make(chan *flow.MQActionFlow)
 	errCh := make(chan error)
 
@@ -95,30 +94,12 @@ func createConsumer(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, erro
 		efCh <- ef
 	}()
 
-	go func() {
-		opts := &redis.Options{
-			Addr:     env.MustString("REDIS_HOST") + ":" + env.MustString("REDIS_PORT"),
-			Password: env.String("REDIS_PASSWORD"),
-			DB:       env.IntOrDefault("REDIS_DB", 0),
-		}
-
-		c, err := cache.ConnectRedis(startCtx, lg, opts)
-
-		if err != nil {
-			errCh <- err
-			return
-		}
-
-		cacheCh <- c
-	}()
-
 	var conn *sqlx.DB
 	var ef *flow.MQActionFlow
-	var cacher cache.Cacher
 	var err error
 
 	allServicesReady := func() bool {
-		return conn != nil && ef != nil && cacher != nil
+		return conn != nil && ef != nil
 	}
 
 done:
@@ -132,10 +113,6 @@ done:
 				if allServicesReady() {
 					break done
 				}
-			case cacher = <-cacheCh:
-				if allServicesReady() {
-					break done
-				}
 			case err = <-errCh:
 				break done
 		}
@@ -144,20 +121,19 @@ done:
 	close(efCh)
 	close(connCh)
 	close(errCh)
-	close(cacheCh)
 
 	if err != nil {
 		return nil, err
 	}
 
 	uuid4 := uuid.NewUUID4Generator()
-	factory := mysql.Factory(conn, uuid4, lg)
-	persister := persister.New(factory, lg, cacher, 7)
+	db := mysql.NewDatabase(conn, uuid4, lg)
+	actionService := service.NewActionService(db, lg)
 
-	return consumer.New(ef, lg, persister), nil
+	return consumer.New(ef, lg, actionService), nil
 }
 
-func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) {
+func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) error {
 	c, err := createConsumer(lg, cfg)
 	if err != nil {
 		panic(err)
@@ -165,19 +141,27 @@ func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) {
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
+	errCh := make(chan error, 1)
+	doneCh := make(chan struct{})
 
-	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		if err := c.Start(ctx, queueName, consumerName); err != nil {
-			panic(err)
+		if err := c.Start(terminate, queueName, consumerName); err != nil {
+			errCh <- err
+		} else {
+			doneCh <- struct{}{}
 		}
 	}()
 
-	<-terminate
-	lg.Error(errors.New("TERMINATE SIGNAL"))
-	cancel()
-	<-time.After(10 * time.Second)
-	lg.Error(errors.Errorf("CONSUMER %s TERMINATED", consumerName))
+	for {
+		select {
+			case err := <-errCh:
+				lg.Error(errors.Errorf("consumer [%s] exiting with error %s", err))
+				return err
+			case <-doneCh:
+				lg.Error(errors.Errorf("consumer [%s] is done", consumerName))
+				return nil
+		}
+	}
 }
 
 func debug(isErrorsConsumer bool) {

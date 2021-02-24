@@ -16,6 +16,13 @@ type BaseActionService struct {
 	lg logger.Logger
 }
 
+func NewActionService(db db.Database, lg logger.Logger) *BaseActionService {
+	return &BaseActionService{
+		db: db,
+		lg: lg,
+	}
+}
+
 func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewAction) (*model.Action, error) {
 	var result *model.Action
 	if err := s.db.ReadWrite(ctx, func(ctx context.Context, tx db.Tx) error {
