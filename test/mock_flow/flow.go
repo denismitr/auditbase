@@ -11,7 +11,7 @@ import (
 	reflect "reflect"
 )
 
-// MockEventFlow is a mock of EventFlow interface
+// MockEventFlow is a mock of ActionFlow interface
 type MockEventFlow struct {
 	ctrl     *gomock.Controller
 	recorder *MockEventFlowMockRecorder

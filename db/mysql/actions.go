@@ -36,7 +36,21 @@ type actionRecord struct {
 var _ db.ActionRepository = (*ActionRepository)(nil)
 
 func (r *ActionRepository) Create(ctx context.Context, action *model.Action) (*model.Action, error) {
-	panic("implement me")
+	q, args, err := createActionQuery(action)
+	if err != nil {
+		panic(fmt.Sprintf("how could createActionQuery func have failed? %s", err.Error()))
+	}
+
+	stmt, err := r.mysqlTx.PreparexContext(ctx, q)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not prepare query %s", q)
+	}
+
+	if _, err := stmt.ExecContext(ctx, args...); err != nil {
+		return nil, errors.Wrap(err, "could not create action")
+	}
+
+	return r.FirstByID(ctx, action.ID)
 }
 
 func (r *ActionRepository) Select(

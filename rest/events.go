@@ -15,7 +15,7 @@ type eventsController struct {
 	logger logger.Logger
 	uuid4  uuid.UUID4Generator
 	events model.EventRepository
-	ef     flow.EventFlow
+	ef     flow.ActionFlow
 	clock  clock.Clock
 	cacher cache.Cacher
 }
@@ -25,7 +25,7 @@ func newEventsController(
 	uuid4 uuid.UUID4Generator,
 	clock clock.Clock,
 	events model.EventRepository,
-	ef flow.EventFlow,
+	ef flow.ActionFlow,
 	cacher cache.Cacher,
 ) *eventsController {
 	return &eventsController{

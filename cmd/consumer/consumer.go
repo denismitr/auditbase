@@ -64,7 +64,7 @@ func createConsumer(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, erro
 
 	connCh := make(chan *sqlx.DB)
 	cacheCh := make(chan cache.Cacher)
-	efCh := make(chan *flow.MQEventFlow)
+	efCh := make(chan *flow.MQActionFlow)
 	errCh := make(chan error)
 
 	go func() {
@@ -113,7 +113,7 @@ func createConsumer(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, erro
 	}()
 
 	var conn *sqlx.DB
-	var ef *flow.MQEventFlow
+	var ef *flow.MQActionFlow
 	var cacher cache.Cacher
 	var err error
 

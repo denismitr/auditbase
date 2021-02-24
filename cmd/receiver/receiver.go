@@ -52,7 +52,7 @@ func create(lg logger.Logger) (*rest.API, error) {
 	defer cancel()
 
 	cacheCh := make(chan cache.Cacher)
-	efCh := make(chan *flow.MQEventFlow)
+	efCh := make(chan *flow.MQActionFlow)
 	errCh := make(chan error)
 
 	go func() {
@@ -90,7 +90,7 @@ func create(lg logger.Logger) (*rest.API, error) {
 		cacheCh <- c
 	}()
 
-	var ef *flow.MQEventFlow
+	var ef *flow.MQActionFlow
 	var cacher cache.Cacher
 	var err error
 

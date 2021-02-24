@@ -16,7 +16,7 @@ func NewReceiverAPI(
 	e *echo.Echo,
 	cfg Config,
 	lg logger.Logger,
-	ef flow.EventFlow,
+	ef flow.ActionFlow,
 	cacher cache.Cacher,
 ) *API {
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))
@@ -46,7 +46,7 @@ type receiverController struct {
 	lg    logger.Logger
 	uuid4 uuid.UUID4Generator
 	clock   clock.Clock
-	ef    flow.EventFlow
+	ef    flow.ActionFlow
 	cacher     cache.Cacher
 }
 

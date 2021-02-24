@@ -15,7 +15,7 @@ func BackOfficeAPI(
 	e *echo.Echo,
 	cfg Config,
 	log logger.Logger,
-	ef flow.EventFlow,
+	ef flow.ActionFlow,
 	factory model.RepositoryFactory,
 	cacher cache.Cacher,
 ) *API {

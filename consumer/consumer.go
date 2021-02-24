@@ -11,11 +11,11 @@ import (
 	"time"
 )
 
-// Consumer - consumers from the event flow and
+// Consumer - consumers from the action flow and
 // persists events to the permanent storage
 type Consumer struct {
 	lg            logger.Logger
-	actionFlow    flow.EventFlow
+	actionFlow    flow.ActionFlow
 	actionService service.ActionService
 
 	receiveCh        chan queue.ReceivedMessage
@@ -31,7 +31,7 @@ type Consumer struct {
 
 // New consumer
 func New(
-	ef flow.EventFlow,
+	ef flow.ActionFlow,
 	lg logger.Logger,
 	actionService service.ActionService,
 ) *Consumer {

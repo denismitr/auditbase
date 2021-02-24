@@ -75,7 +75,7 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 
 	connCh := make(chan *sqlx.DB)
 	cacheCh := make(chan cache.Cacher)
-	efCh := make(chan *flow.MQEventFlow)
+	efCh := make(chan *flow.MQActionFlow)
 	errCh := make(chan error)
 
 	go func() {
@@ -124,7 +124,7 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 	}()
 
 	var conn *sqlx.DB
-	var ef *flow.MQEventFlow
+	var ef *flow.MQActionFlow
 	var cacher cache.Cacher
 	var err error
 
