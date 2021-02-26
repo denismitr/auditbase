@@ -7,6 +7,7 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/validator"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -114,25 +115,23 @@ func (r *EntityRepository) FirstByExternalIDAndTypeID(
 }
 
 func (r *EntityRepository) FirstByID(ctx context.Context, ID model.ID) (*model.Entity, error) {
-	sql, args, err := firstEntityByIDQuery(ID)
+	return firstEntityByID(ctx, r.mysqlTx, ID)
+}
+
+func (r *EntityRepository) FirstByIDWithEntityType(ctx context.Context, ID model.ID) (*model.Entity, error) {
+	entity, err := firstEntityByID(ctx, r.mysqlTx, ID)
 	if err != nil {
 		return nil, err
 	}
 
-	ent := entityRecord{}
-
-	stmt, err := r.mysqlTx.Preparex(sql)
+	entityType, err := firstEntityTypeByID(ctx, r.mysqlTx, entity.EntityTypeID)
 	if err != nil {
-		return nil, errors.Errorf("could not prepare sql statement %s to get entityRecord by id", sql)
+		return nil, errors.Wrap(err, "could not join entity type to entity")
 	}
 
-	defer func() { _ = stmt.Close() }()
+	entity.EntityType = entityType
 
-	if err := stmt.GetContext(ctx, &ent, args...); err != nil {
-		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
-	}
-
-	return mapEntityRecordToModel(ent), nil
+	return entity, nil
 }
 
 // FirstOrCreateByNameAndService ...
@@ -166,6 +165,28 @@ func (r *EntityRepository) FirstOrCreateByExternalIDAndEntityTypeID(
 	}
 
 	return created, nil
+}
+
+func firstEntityByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.Entity, error) {
+	sql, args, err := firstEntityByIDQuery(ID)
+	if err != nil {
+		return nil, err
+	}
+
+	ent := entityRecord{}
+
+	stmt, err := tx.Preparex(sql)
+	if err != nil {
+		return nil, errors.Errorf("could not prepare sql statement %s to get entityRecord by id", sql)
+	}
+
+	defer func() { _ = stmt.Close() }()
+
+	if err := stmt.GetContext(ctx, &ent, args...); err != nil {
+		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
+	}
+
+	return mapEntityRecordToModel(ent), nil
 }
 
 func selectEntitiesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {

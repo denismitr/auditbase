@@ -19,13 +19,13 @@ type EntityType struct {
 // Entities - represents something that can act on data
 // or be acted on, or both
 type Entity struct {
-	ID           ID        `json:"id"`
-	ExternalID   string    `json:"externalId"`
-	EntityTypeID ID        `json:"entityTypeId"`
-	Entity       *Entity   `json:"service,omitempty"`
-	IsActor      bool      `json:"isActor"`
-	CreatedAt    time.Time `json:"createdAt,omitempty"`
-	UpdatedAt    time.Time `json:"updatedAt,omitempty"`
+	ID           ID          `json:"id"`
+	ExternalID   string      `json:"externalId"`
+	EntityTypeID ID          `json:"entityTypeId"`
+	EntityType   *EntityType `json:"entityType,omitempty"`
+	IsActor      bool        `json:"isActor"`
+	CreatedAt    time.Time   `json:"createdAt,omitempty"`
+	UpdatedAt    time.Time   `json:"updatedAt,omitempty"`
 }
 
 type EntityCollection struct {

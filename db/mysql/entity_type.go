@@ -7,6 +7,7 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/validator"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -113,10 +114,10 @@ func (r *EntityTypeRepository) FirstOrCreateByNameAndServiceID(
 }
 
 func (r *EntityTypeRepository) FirstByID(ctx context.Context, ID model.ID) (*model.EntityType, error) {
-	if !validator.IsUUID4(ID.String()) {
-		panic("how can id be invalid?")
-	}
+	return firstEntityTypeByID(ctx, r.mysqlTx, ID)
+}
 
+func firstEntityTypeByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.EntityType, error) {
 	sql, args, err := firstEntityTypeByIDQuery(ID.String())
 	if err != nil {
 		return nil, err
@@ -124,7 +125,7 @@ func (r *EntityTypeRepository) FirstByID(ctx context.Context, ID model.ID) (*mod
 
 	ent := entityTypeRecord{}
 
-	stmt, err := r.mysqlTx.Preparex(sql)
+	stmt, err := tx.Preparex(sql)
 	if err != nil {
 		return nil, errors.Errorf("could not prepare sql statement %s to get entityRecord by id", sql)
 	}
@@ -209,15 +210,21 @@ func selectEntityTypesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
 		q = q.Where(`name = ?`, f.StringOrDefault("name", ""))
 	}
 
-	if c.Sort.Has("name") {
-		q = q.OrderByClause("name ?", c.Sort.GetOrDefault("name", db.ASCOrder).String())
-	} else {
-		q = q.OrderBy("updated_at ?", c.Sort.GetOrDefault("updatedAt", db.DESCOrder).String())
-	}
-
 	q = q.GroupBy("id", "service_id", "name", "description", "created_at", "updated_at")
-	q = q.Limit(uint64(c.PerPage))
-	q = q.Offset(uint64(c.Offset()))
+
+	if c != nil {
+		if c.Sort.Has("name") {
+			q = q.OrderByClause("name ?", c.Sort.GetOrDefault("name", db.ASCOrder).String())
+		} else {
+			q = q.OrderBy("updated_at ?", db.DESCOrder.String())
+		}
+
+		q = q.Limit(uint64(c.PerPage))
+		q = q.Offset(uint64(c.Offset()))
+	} else {
+		q = q.Offset(0)
+		q = q.OrderBy("updated_at ?", db.DESCOrder.String())
+	}
 
 	sQ := selectQuery{}
 	if sql, args, err := q.ToSql(); err != nil {

@@ -73,7 +73,7 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 }
 
 // SelectAll microservices
-func (r *MicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
+func (r *MicroserviceRepository) SelectAll(ctx context.Context) ([]*model.Microservice, error) {
 	stmt := `SELECT BIN_TO_UUID(id) as id, name, description, created_at, updated_at FROM microservices`
 	ms := []microserviceRecord{}
 
@@ -97,7 +97,7 @@ func (r *MicroserviceRepository) SelectAll() ([]*model.Microservice, error) {
 }
 
 // Delete microservices by ID
-func (r *MicroserviceRepository) Delete(ID model.ID) error {
+func (r *MicroserviceRepository) Delete(ctx context.Context, ID model.ID) error {
 	stmt := `DELETE FROM microservices WHERE id = UUID_TO_BIN(?)`
 
 	if _, err := r.mysqlTx.Exec(stmt, ID.String()); err != nil {
@@ -108,7 +108,7 @@ func (r *MicroserviceRepository) Delete(ID model.ID) error {
 }
 
 // Update microservices by ID
-func (r *MicroserviceRepository) Update(ID model.ID, m *model.Microservice) error {
+func (r *MicroserviceRepository) Update(ctx context.Context, ID model.ID, m *model.Microservice) error {
 	stmt := `UPDATE microservices SET name = ?, description = ? WHERE id = UUID_TO_BIN(?)`
 
 	if _, err := r.mysqlTx.Exec(stmt, m.Name, m.Description, ID.String()); err != nil {
@@ -119,7 +119,7 @@ func (r *MicroserviceRepository) Update(ID model.ID, m *model.Microservice) erro
 }
 
 // FirstByID - find one microservices by ID
-func (r *MicroserviceRepository) FirstByID(ID model.ID) (*model.Microservice, error) {
+func (r *MicroserviceRepository) FirstByID(ctx context.Context, ID model.ID) (*model.Microservice, error) {
 	var m microserviceRecord
 
 	q, args, err := firstMicroserviceByIDQuery(ID.String())

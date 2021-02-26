@@ -34,46 +34,48 @@ type Tx struct {
 
 var _ db.Tx = (*Tx)(nil)
 
-func (db *Database) ReadOnly(ctx context.Context, cb func (context.Context, db.Tx) error) error {
+func (db *Database) ReadOnly(ctx context.Context, cb db.TxCallback) (interface{}, error) {
 	mysqlTx, err := db.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelSerializable})
 	if err != nil {
-		return errors.Wrap(err, "could not start read only Tx")
+		return nil, errors.Wrap(err, "could not start read only Tx")
 	}
 
-	if err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg}); err != nil {
+	result, err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg});
+	if err != nil {
 		if rbErr := mysqlTx.Rollback(); rbErr != nil {
-			return errors.Wrap(err, rbErr.Error())
+			return nil, errors.Wrap(err, rbErr.Error())
 		}
 
-		return err
+		return nil, err
 	}
 
 	if err := mysqlTx.Commit(); err != nil {
-		return errors.Wrap(err, "could not commit read only Tx")
+		return nil, errors.Wrap(err, "could not commit read only Tx")
 	}
 
-	return nil
+	return result, nil
 }
 
-func (db *Database) ReadWrite(ctx context.Context, cb func (context.Context, db.Tx) error) error {
+func (db *Database) ReadWrite(ctx context.Context, cb db.TxCallback) (interface{}, error) {
 	mysqlTx, err := db.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: false, Isolation: sql.LevelSerializable})
 	if err != nil {
-		return errors.Wrap(err, "could not start read write Tx")
+		return nil, errors.Wrap(err, "could not start read write Tx")
 	}
 
-	if err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg}); err != nil {
+	result, err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg});
+	if err != nil {
 		if rbErr := mysqlTx.Rollback(); rbErr != nil {
-			return errors.Wrap(err, rbErr.Error())
+			return nil, errors.Wrap(err, rbErr.Error())
 		}
 
-		return err
+		return err, nil
 	}
 
 	if err := mysqlTx.Commit(); err != nil {
-		return errors.Wrap(err, "could not commit read write Tx")
+		return nil, errors.Wrap(err, "could not commit read write Tx")
 	}
 
-	return nil
+	return result, nil
 }
 
 func (tx *Tx) Entities() db.EntityRepository {

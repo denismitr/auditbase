@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/denismitr/auditbase/cache"
 	"github.com/go-redis/redis/v7"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
@@ -74,7 +73,6 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 	defer cancel()
 
 	connCh := make(chan *sqlx.DB)
-	cacheCh := make(chan cache.Cacher)
 	efCh := make(chan *flow.MQActionFlow)
 	errCh := make(chan error)
 
@@ -97,23 +95,6 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 	}()
 
 	go func() {
-		opts := &redis.Options{
-			Addr:     net.JoinHostPort(env.MustString("REDIS_HOST"), env.MustString("REDIS_PORT")),
-			Password: env.String("REDIS_PASSWORD"),
-			DB:       env.IntOrDefault("REDIS_DB", 0),
-		}
-
-		c, err := cache.ConnectRedis(ctx, lg, opts)
-
-		if err != nil {
-			errCh <- err
-			return
-		}
-
-		cacheCh <- c
-	}()
-
-	go func() {
 		dbConn, err := mysql.ConnectAndMigrate(ctx, lg, env.MustString("AUDITBASE_DB_DSN"), 50, 10)
 		if err != nil {
 			errCh <- err
@@ -125,11 +106,10 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 
 	var conn *sqlx.DB
 	var ef *flow.MQActionFlow
-	var cacher cache.Cacher
 	var err error
 
 	allServicesReady := func() bool {
-		return conn != nil && ef != nil && cacher != nil
+		return conn != nil && ef != nil
 	}
 
 done:
@@ -143,10 +123,6 @@ done:
 			if allServicesReady() {
 				break done
 			}
-		case cacher = <-cacheCh:
-			if allServicesReady() {
-				break done
-			}
 		case err = <-errCh:
 			break done
 		}
@@ -155,18 +131,12 @@ done:
 	close(efCh)
 	close(connCh)
 	close(errCh)
-	close(cacheCh)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return rest.BackOfficeAPI(
-		echo.New(),
-		restCfg,
-		lg,
-		ef,
-		mysql.Factory(conn, uuid.NewUUID4Generator(), lg),
-		cacher,
-	), nil
+	db := mysql.NewDatabase(conn, uuid.NewUUID4Generator(), lg)
+
+	return rest.BackOfficeAPI(echo.New(), restCfg, lg, ef, db), nil
 }

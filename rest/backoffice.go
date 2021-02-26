@@ -2,6 +2,7 @@ package rest
 
 import (
 	"github.com/denismitr/auditbase/cache"
+	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/flow"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/clock"
@@ -16,8 +17,7 @@ func BackOfficeAPI(
 	cfg Config,
 	log logger.Logger,
 	ef flow.ActionFlow,
-	factory model.RepositoryFactory,
-	cacher cache.Cacher,
+	db db.Database,
 ) *API {
 	e.Use(middleware.Logger())
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))

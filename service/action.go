@@ -5,10 +5,12 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/pkg/errors"
 )
 
 type ActionService interface {
 	Create(ctx context.Context, action *model.NewAction) (*model.Action, error)
+	FirstByID(ctx context.Context, ID model.ID) (*model.Action, error)
 }
 
 type BaseActionService struct {
@@ -23,17 +25,67 @@ func NewActionService(db db.Database, lg logger.Logger) *BaseActionService {
 	}
 }
 
+func (s *BaseActionService) FirstByID(ctx context.Context, ID model.ID) (*model.Action, error) {
+	result, err := s.db.ReadWrite(ctx, func(ctx context.Context, tx db.Tx) (interface{}, error) {
+		actions := tx.Actions()
+		action, err := actions.FirstByID(ctx, ID)
+		if err != nil {
+			return nil, err
+		}
+
+		if action.ParentID != nil {
+			parent, err := actions.FirstByID(ctx, *action.ParentID)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not get parent ID")
+			}
+
+			action.Parent = parent
+		}
+
+		entities := tx.Entities()
+		if action.ActorEntityID != nil {
+			actor, err := entities.FirstByIDWithEntityType(ctx, *action.ActorEntityID)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not join actor to action")
+			}
+
+			action.Actor = actor
+		}
+
+		if action.TargetEntityID != nil {
+			target, err := entities.FirstByIDWithEntityType(ctx, *action.TargetEntityID)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not join target to action")
+			}
+
+			action.Target = target
+		}
+
+		return action, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	action, ok := result.(*model.Action);
+	if !ok {
+		panic("how result could have of different type than Action?")
+	}
+
+	return action, nil
+}
+
 func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewAction) (*model.Action, error) {
-	var result *model.Action
-	if err := s.db.ReadWrite(ctx, func(ctx context.Context, tx db.Tx) error {
+	result, err := s.db.ReadWrite(ctx, func(ctx context.Context, tx db.Tx) (interface{}, error) {
 		actingService, err := tx.Microservices().FirstOrCreateByName(ctx, newAction.ActorService)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		targetService, err := tx.Microservices().FirstOrCreateByName(ctx, newAction.TargetService)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		action := new(model.Action)
@@ -44,12 +96,12 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 
 			actingEntityType, err := tx.EntityTypes().FirstOrCreateByNameAndServiceID(ctx, *newAction.ActorEntity, actingService.ID)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			actingEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.ActorExternalID, actingEntityType.ID, true)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			action.ActorEntityID = &actingEntity.ID
@@ -61,12 +113,12 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 
 			targetEntityType, err := tx.EntityTypes().FirstOrCreateByNameAndServiceID(ctx, *newAction.TargetEntity, targetService.ID)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			targetEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.TargetExternalID, targetEntityType.ID, false)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			action.TargetEntityID = &targetEntity.ID
@@ -78,17 +130,24 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 		action.Status = newAction.Status
 		action.IsAsync = newAction.IsAsync
 
-		result, err = tx.Actions().Create(ctx, action)
+		action, err = tx.Actions().Create(ctx, action)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		return nil
-	}); err != nil {
+		return action, nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	action, ok := result.(*model.Action)
+	if !ok {
+		panic("how result could have of different type than Action?")
+	}
+
+	return action, nil
 }
 
 

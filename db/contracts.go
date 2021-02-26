@@ -12,9 +12,11 @@ type Tx interface {
 	Microservices() MicroserviceRepository
 }
 
+type TxCallback func(context.Context, Tx) (interface{}, error)
+
 type Database interface {
-	ReadOnly(ctx context.Context, cb func(context.Context, Tx) error) error
-	ReadWrite(ctx context.Context, cb func(context.Context, Tx) error) error
+	ReadOnly(context.Context, TxCallback) (interface{}, error)
+	ReadWrite(context.Context, TxCallback) (interface{}, error)
 }
 
 // EntityRepository provides entities data interactions
@@ -35,6 +37,8 @@ type EntityRepository interface {
 	) (*model.Entity, error)
 
 	FirstByID(ctx context.Context, ID model.ID) (*model.Entity, error)
+
+	FirstByIDWithEntityType(ctx context.Context, ID model.ID) (*model.Entity, error)
 }
 
 // EntityTypeRepository provides entity types data interactions
@@ -64,9 +68,9 @@ type EntityTypeRepository interface {
 
 type MicroserviceRepository interface {
 	Create(ctx context.Context, m *model.Microservice) (*model.Microservice, error)
-	Delete(ID model.ID) error
-	Update(ID model.ID, m *model.Microservice) error
-	FirstByID(ID model.ID) (*model.Microservice, error)
+	Delete(context.Context, model.ID) error
+	Update(context.Context, model.ID, *model.Microservice) error
+	FirstByID(context.Context, model.ID) (*model.Microservice, error)
 	FirstByName(ctx context.Context, name string) (*model.Microservice, error)
 	FirstOrCreateByName(ctx context.Context, name string) (*model.Microservice, error)
 }

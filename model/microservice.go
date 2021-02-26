@@ -8,11 +8,12 @@ import (
 )
 
 type Microservice struct {
-	ID          ID     `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CreatedAt   string `json:"createdAt,omitempty"`
-	UpdatedAt   string `json:"updatedAt,omitempty"`
+	ID          ID           `json:"id"`
+	Name        string       `json:"name"`
+	EntityTypes []EntityType `json:"entityTypes"`
+	Description string       `json:"description"`
+	CreatedAt   string       `json:"createdAt,omitempty"`
+	UpdatedAt   string       `json:"updatedAt,omitempty"`
 }
 
 type MicroserviceRepository interface {

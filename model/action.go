@@ -36,6 +36,7 @@ type NewAction struct {
 type Action struct {
 	ID             ID          `json:"id"`
 	ParentID       *ID         `json:"parentId"`
+	Parent         *Action     `json:"parent"`
 	ChildrenCount  int         `json:"childrenCount"`
 	Hash           string      `json:"hash"`
 	ActorEntityID  *ID         `json:"actorEntityId"`
