@@ -20,23 +20,39 @@ func mapEntitiesToCollection(items []entityRecord, cnt int, page, perPage uint) 
 }
 
 func mapEntityRecordToModel(e entityRecord) *model.Entity {
-	cat, err := time.Parse(model.DefaultTimeFormat, e.CreatedAt)
-	if err != nil {
-		panic(errors.Wrap(err, "how can created at be invalid?"))
-	}
-
-	uat, err := time.Parse(model.DefaultTimeFormat, e.UpdatedAt)
-	if err != nil {
-		panic(errors.Wrap(err, "how can updated at be invalid?"))
-	}
-
 	return &model.Entity{
 		ID:           model.ID(e.ID),
 		ExternalID:   e.ExternalID,
 		EntityTypeID: model.ID(e.EntityTypeID),
 		IsActor:      e.IsActor,
-		CreatedAt:    cat,
-		UpdatedAt:    uat,
+		CreatedAt:    e.CreatedAt,
+		UpdatedAt:    e.UpdatedAt,
+	}
+}
+
+func mapEntityRecordAllJoinedToModel(e entityRecordAllJoined) *model.Entity {
+	return &model.Entity{
+		ID:           model.ID(e.EntityID),
+		ExternalID:   e.EntityExternalID,
+		EntityTypeID: model.ID(e.EntityTypeID),
+		IsActor:      e.IsActor,
+		CreatedAt:    e.EntityCreatedAt,
+		UpdatedAt:    e.EntityUpdatedAt,
+		EntityType: &model.EntityType{
+			ID: model.ID(e.EntityTypeID),
+			Name: e.EntityTypeName,
+			Description: e.EntityTypeDescription,
+			ServiceID: model.ID(e.ServiceID),
+			CreatedAt: e.EntityTypeCreatedAt,
+			UpdatedAt: e.EntityTypeUpdatedAt,
+			Service: &model.Microservice{
+				ID: model.ID(e.ServiceID),
+				Name: e.ServiceName,
+				Description: e.ServiceDescription,
+				CreatedAt: model.JSONTime{Time: e.ServiceCreatedAt},
+				UpdatedAt: model.JSONTime{Time: e.ServiceUpdatedAt},
+			},
+		},
 	}
 }
 
@@ -103,3 +119,4 @@ func mapActionRecordToModel(ar actionRecord) *model.Action {
 
 	return &a
 }
+

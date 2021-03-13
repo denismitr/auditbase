@@ -18,24 +18,24 @@ type QueueReceivedAction struct {
 	msg queue.ReceivedMessage
 }
 
-func (re *QueueReceivedAction) NewAction() (*model.NewAction, error) {
+func (qra *QueueReceivedAction) NewAction() (*model.NewAction, error) {
 	a := model.NewAction{}
 
-	if err := json.Unmarshal(re.msg.Body(), &a); err != nil {
+	if err := json.Unmarshal(qra.msg.Body(), &a); err != nil {
 		return nil, errors.Wrap(err, "could not get event from received queue message bytes")
 	}
 
 	return &a, nil
 }
 
-func (re *QueueReceivedAction) CloneMsgToRequeue() queue.Message {
-	return re.msg.CloneToReque()
+func (qra *QueueReceivedAction) CloneMsgToRequeue() queue.Message {
+	return qra.msg.CloneToReque()
 }
 
-func (re *QueueReceivedAction) Tag() uint64 {
-	return re.msg.Tag()
+func (qra *QueueReceivedAction) Tag() uint64 {
+	return qra.msg.Tag()
 }
 
-func (re *QueueReceivedAction) Attempt() int {
-	return re.msg.Attempt()
+func (qra *QueueReceivedAction) Attempt() int {
+	return qra.msg.Attempt()
 }

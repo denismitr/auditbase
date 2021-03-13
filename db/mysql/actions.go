@@ -53,6 +53,26 @@ func (r *ActionRepository) Create(ctx context.Context, action *model.Action) (*m
 	return r.FirstByID(ctx, action.ID)
 }
 
+func (r *ActionRepository) CountAll(ctx context.Context) (int, error) {
+	q := `select count(*) as cnt from actions`
+
+	stmt, err := r.mysqlTx.PreparexContext(ctx, q)
+	if err != nil {
+		return 0, errors.Wrap(err, "could not prepare count all actions")
+	}
+
+	var count int
+	row := stmt.QueryRowContext(ctx)
+	switch err := row.Scan(&count); err {
+	case sql.ErrNoRows:
+		return 0, nil
+	case nil:
+		return count, nil
+	default:
+		return 0, errors.Wrap(err, "could not count actions")
+	}
+}
+
 func (r *ActionRepository) Select(
 	ctx context.Context,
 	c *db.Cursor,
@@ -87,8 +107,8 @@ func (r *ActionRepository) Select(
 }
 
 func selectActionsQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
-	dialectCq := goqu.Dialect("mysql8")
-	dialectSq := goqu.Dialect("mysql8")
+	dialectCq := goqu.Dialect(MySQL8)
+	dialectSq := goqu.Dialect(MySQL8)
 
 	countQ := dialectCq.
 		From("actions").

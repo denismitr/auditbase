@@ -9,8 +9,10 @@ import (
 )
 
 type ActionService interface {
-	Create(ctx context.Context, action *model.NewAction) (*model.Action, error)
-	FirstByID(ctx context.Context, ID model.ID) (*model.Action, error)
+	Select(context.Context, *db.Cursor, *db.Filter) (*model.ActionCollection, error)
+	Create(context.Context, *model.NewAction) (*model.Action, error)
+	FirstByID(context.Context, model.ID) (*model.Action, error)
+	Count(ctx context.Context) (int, error)
 }
 
 type BaseActionService struct {
@@ -22,6 +24,50 @@ func NewActionService(db db.Database, lg logger.Logger) *BaseActionService {
 	return &BaseActionService{
 		db: db,
 		lg: lg,
+	}
+}
+
+func (s *BaseActionService) Select(ctx context.Context, c *db.Cursor, f *db.Filter) (*model.ActionCollection, error) {
+	result, err := s.db.ReadOnly(ctx, func(ctx context.Context, tx db.Tx) (interface{}, error) {
+		actions, err := tx.Actions().Select(ctx, c, f)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: join entities
+
+		return actions, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if actions, ok := result.(*model.ActionCollection); !ok {
+		panic("how could result not be of type *model.ActionCollection")
+	} else {
+		return actions, nil
+	}
+}
+
+func (s *BaseActionService) Count(ctx context.Context) (int, error) {
+	result, err := s.db.ReadOnly(ctx, func(ctx context.Context, tx db.Tx) (interface{}, error) {
+		count, err := tx.Actions().CountAll(ctx)
+		if err != nil {
+			return 0, err
+		}
+
+		return count, nil
+	})
+
+	if err != nil {
+		return 0, err
+	}
+
+	if count, ok := result.(int); !ok {
+		panic("how could count not be of type int")
+	} else {
+		return count, nil
 	}
 }
 

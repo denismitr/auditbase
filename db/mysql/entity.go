@@ -7,18 +7,39 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/validator"
+	"github.com/doug-martin/goqu/v9"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	"time"
 )
 
 type entityRecord struct {
-	ID               string `db:"id"`
-	ExternalID       string `db:"external_id"`
-	EntityTypeID     string `db:"entity_type_id"`
-	IsActor          bool   `db:"is_actor"`
-	TargetActionsCnt int    `db:"target_actions_cnt"`
-	CreatedAt        string `db:"created_at"`
-	UpdatedAt        string `db:"updated_at"`
+	ID               string    `db:"id"`
+	ExternalID       string    `db:"external_id"`
+	EntityTypeID     string    `db:"entity_type_id"`
+	IsActor          bool      `db:"is_actor"`
+	TargetActionsCnt int       `db:"target_actions_cnt"`
+	CreatedAt        time.Time `db:"created_at"`
+	UpdatedAt        time.Time `db:"updated_at"`
+}
+
+type entityRecordAllJoined struct {
+	EntityID              string    `db:"entity_id"`
+	EntityExternalID      string    `db:"entity_external_id"`
+	EntityTypeID          string    `db:"entity_type_id"`
+	IsActor               bool      `db:"is_actor"`
+	TargetActionsCnt      int       `db:"target_actions_cnt"`
+	EntityCreatedAt       time.Time `db:"entity_created_at"`
+	EntityUpdatedAt       time.Time `db:"entity_updated_at"`
+	EntityTypeName        string    `db:"entity_type_name"`
+	ServiceID             string    `db:"service_id"`
+	EntityTypeDescription string    `db:"entity_type_description"`
+	EntityTypeCreatedAt   time.Time `db:"entity_type_created_at"`
+	EntityTypeUpdatedAt   time.Time `db:"entity_type_updated_at"`
+	ServiceName           string    `db:"service_name"`
+	ServiceDescription    string    `db:"service_description"`
+	ServiceCreatedAt      time.Time `db:"service_created_at"`
+	ServiceUpdatedAt      time.Time `db:"service_updated_at"`
 }
 
 type EntityRepository struct {
@@ -154,7 +175,7 @@ func (r *EntityRepository) FirstOrCreateByExternalIDAndEntityTypeID(
 		IsActor:      isActor,
 	}
 
-	created, err := r.Create(ctx, ent);
+	created, err := r.Create(ctx, ent)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -173,7 +194,7 @@ func firstEntityByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.Enti
 		return nil, err
 	}
 
-	ent := entityRecord{}
+	ent := entityRecordAllJoined{}
 
 	stmt, err := tx.Preparex(sql)
 	if err != nil {
@@ -186,7 +207,7 @@ func firstEntityByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.Enti
 		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
 	}
 
-	return mapEntityRecordToModel(ent), nil
+	return mapEntityRecordAllJoinedToModel(ent), nil
 }
 
 func selectEntitiesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
@@ -240,17 +261,33 @@ func firstEntityByIDQuery(ID model.ID) (string, []interface{}, error) {
 		panic(fmt.Sprintf("%s is not a valid entityRecord id (UUID4)", ID))
 	}
 
-	return sq.Select(
-		"bin_to_uuid(id) as id",
-		"count(distinct actions.id) as target_actions_cnt",
-		"bin_to_uuid(entity_type_id) as entity_type_id",
-		"external_id", "is_active", "created_at", "updated_at").
-		From("entities").
-		LeftJoin("actions on actions.target_entity_id = entities.id").
-		Where("id = uuid_to_bin(?)", ID.String()).
-		GroupBy("id", "entity_type_id", "external_id", "is_active", "created_at", "updated_at").
-		Limit(1).
-		ToSql()
+	dialect := goqu.Dialect(MySQL8)
+
+	return dialect.Select(
+		goqu.L("bin_to_uuid(`e`.`id`)").As("entity_id"),
+		goqu.L("bin_to_uuid(`e`.`entity_type_id`)").As("entity_type_id"),
+		goqu.L("bin_to_uuid(`e`.`service_id`)").As("service_id"),
+		goqu.I("e.external_id").As("entity_external_id"),
+		goqu.I("e.is_actor").As("is_actor"),
+		goqu.I("et.name").As("entity_type_name"),
+		goqu.I("et.description").As("entity_type_description"),
+		goqu.I("ms.name").As("service_name"),
+		goqu.I("ms.description").As("service_description"),
+		goqu.I("e.created_at").As("entity_created_at"),
+		goqu.I("et.created_at").As("entity_type_created_at"),
+		goqu.I("ms.created_at").As("service_created_at"),
+		goqu.I("e.updated_at").As("entity_updated_at"),
+		goqu.I("et.updated_at").As("entity_type_updated_at"),
+		goqu.I("ms.updated_at").As("service_updated_at"),
+	).From("entities").As("e").InnerJoin(
+		goqu.T("entity_types").As("et"),
+		goqu.On(goqu.Ex{"e.entity_type_id": goqu.I("et.id")}),
+	).InnerJoin(
+		goqu.T("microservices").As("ms"),
+		goqu.On(goqu.Ex{"e.service_id": goqu.I("ms.id")}),
+	).Where(
+		goqu.L("`e`.`id` = uuid_to_bin(?)", ID.String()),
+	).Limit(1).Prepared(true).ToSQL()
 }
 
 func firstByExternalIDAndTypeIDQuery(externalID string, entityTypeID model.ID) (string, []interface{}, error) {
@@ -295,4 +332,3 @@ func createEntityQuery(id, entityTypeID model.ID, externalID string, isActor boo
 		Values(sq.Expr("uuid_to_bin(?)", id), externalID, sq.Expr("uuid_to_bin(?)", entityTypeID), isActor).
 		ToSql()
 }
-

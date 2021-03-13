@@ -1,7 +1,19 @@
 REST_PORT ?= 5000
 PERCONA_PORT ?= 3306
-GO_VERSION ?= 1.13.3
-AUDITBASE_VERSION ?= $(shell git rev-parse --short HEAD || echo "GitNotFound")
+GO_VERSION := 1.15.2
+GO := go
+GO_TEST := $(GO) test -race
+GO_BUILD := $(GO) build
+GO_COVER := $(GO) tool cover
+COVER_OUT := ./.cover/c.out
+AUDITBASE_VERSION := $(shell git rev-parse --short HEAD || echo "GitNotFound")
+
+BACK_OFFICE_BINARY := ./cmd/backoffice/backoffice
+BACK_OFFICE_MAIN := ./cmd/backoffice/backoffice.go
+CONSUMER_BINARY := ./cmd/consumer/consumer
+CONSUMER_MAIN := ./cmd/consumer/consumer.go
+RECEIVER_BINARY := ./cmd/receiver/receiver
+RECEIVER_MAIN := ./cmd/receiver/receiver.go
 
 # Version is a git tag name for current SHA commit hash or this hash if tag is not presented
 # APP_VERSION ?= $$(git describe --exact-match --tags $(git log -n1 --pretty='%h') 2> /dev/null || \
@@ -11,8 +23,9 @@ vars:
 	@echo APP_VERSION=${APP_VERSION}
 	@echo REST_PORT=${REST_PORT}
 	@echo PERCONA_PORT=${PERCONA_PORT}
+	@echo AUDITBASE_VERSION
 
-.PHONY: test clean mock wrk debug recompile up
+.PHONY: test clean mock wrk debug recompile up build
 
 up: vars
 	docker-compose -f docker-compose-dev.yml up -d --build --force-recreate
@@ -26,26 +39,18 @@ recompile:
 clean:
 	docker-compose -f docker-compose-dev.yml rm --force --stop -v
 
-mock:
-	mockgen -source flow/flow.go -destination ./test/mock_flow/flow.go
-	mockgen -source flow/event.go -destination ./test/mock_flow/event.go
-	mockgen -source cache/cache.go -destination ./test/mock_cache/cache.go
-	mockgen -source queue/queue.go -destination ./test/mock_queue/queue.go
-	mockgen -source queue/message.go -destination ./test/mock_queue/message.go
-	mockgen -source model/event.go -destination ./test/mock_model/event.go
-	mockgen -source model/microservice.go -destination ./test/mock_model/microservice.go
-	mockgen -source model/entity.go -destination ./test/mock_model/entity.go
-	mockgen -source model/change.go -destination ./test/mock_model/change.go
-	mockgen -source model/property.go -destination ./test/mock_model/property.go
-	mockgen -source model/factory.go -destination ./test/mock_model/factory.go
-	mockgen -source persister/persister.go -destination ./test/mock_persister/persister.go
-	mockgen -source utils/clock/clock.go -destination ./test/mock_utils/mock_clock/clock.go
-	mockgen -source utils/uuid/uuid.go -destination ./test/mock_utils/mock_uuid/uuid.go
+build:
+	@echo Building the backoffice
+	$(GO_BUILD) -o $(BACK_OFFICE_BINARY) $(BACK_OFFICE_MAIN)
+	@echo Building the receiver
+	$(GO_BUILD) -o $(RECEIVER_BINARY) $(RECEIVER_MAIN)
+	@echo Building the consumer
+	$(GO_BUILD) -o $(CONSUMER_BINARY) $(CONSUMER_MAIN)
 
-test/local:
+local/test:
 	go test ./db/mysql ./model ./rest ./flow
 
-test:
+docker/test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
 
 seed:
@@ -54,10 +59,10 @@ seed:
 integration_test:
 	go test ./test/integration/...
 
-debug: vars
+docker/debug: vars
 	docker-compose -f docker-compose-debug.yml up -d --build --force-recreate
 
-wrk/local:
+wrk/run:
 	wrk -c50 -t3 -d100s -s ./test/lua/events.lua http://127.0.0.1:8888
 
 wrk/debug:

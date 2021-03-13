@@ -12,8 +12,13 @@ type Microservice struct {
 	Name        string       `json:"name"`
 	EntityTypes []EntityType `json:"entityTypes"`
 	Description string       `json:"description"`
-	CreatedAt   string       `json:"createdAt,omitempty"`
-	UpdatedAt   string       `json:"updatedAt,omitempty"`
+	CreatedAt   JSONTime       `json:"createdAt,omitempty"`
+	UpdatedAt   JSONTime       `json:"updatedAt,omitempty"`
+}
+
+type MicroserviceCollection struct {
+	Items []Microservice
+	Meta
 }
 
 type MicroserviceRepository interface {

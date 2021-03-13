@@ -69,10 +69,11 @@ type EntityTypeRepository interface {
 type MicroserviceRepository interface {
 	Create(ctx context.Context, m *model.Microservice) (*model.Microservice, error)
 	Delete(context.Context, model.ID) error
-	Update(context.Context, model.ID, *model.Microservice) error
+	Update(context.Context, model.ID, *model.Microservice) (*model.Microservice, error)
 	FirstByID(context.Context, model.ID) (*model.Microservice, error)
 	FirstByName(ctx context.Context, name string) (*model.Microservice, error)
 	FirstOrCreateByName(ctx context.Context, name string) (*model.Microservice, error)
+	SelectAll(context.Context) (*model.MicroserviceCollection, error)
 }
 
 type ActionRepository interface {
@@ -81,4 +82,5 @@ type ActionRepository interface {
 	Delete(context.Context, model.ID) error
 	FirstByID(context.Context, model.ID) (*model.Action, error)
 	Select(context.Context, *Cursor, *Filter) (*model.ActionCollection, error)
+	CountAll(context.Context) (int, error)
 }

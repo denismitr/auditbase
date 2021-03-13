@@ -12,7 +12,7 @@ import (
 
 // ActionFlow interface
 type ActionFlow interface {
-	Send(e *model.Action) error
+	Send(e *model.NewAction) error
 	Receive(queue, consumer string) <-chan ReceivedAction
 	Requeue(ReceivedAction) error
 	Ack(ReceivedAction) error
@@ -91,10 +91,10 @@ func (ef *MQActionFlow) NotifyOnStateChange(l chan State) {
 }
 
 // Send event to the event flow
-func (ef *MQActionFlow) Send(e *model.Action) error {
-	b, err := json.Marshal(e)
+func (ef *MQActionFlow) Send(newAction *model.NewAction) error {
+	b, err := json.Marshal(newAction)
 	if err != nil {
-		return errors.Wrapf(err, "could not convert event with ID %s to json bytes", e.ID)
+		return errors.Wrapf(err, "could not convert event with ID %s to json bytes", newAction.ID)
 	}
 
 	msg := queue.NewJSONMessage(b, 1)
@@ -133,7 +133,7 @@ func (ef *MQActionFlow) Receive(queue, consumer string) <-chan ReceivedAction {
 func (ef *MQActionFlow) Requeue(re ReceivedAction) error {
 	if err := ef.mq.Reject(re.Tag()); err != nil {
 		ef.lg.Error(err)
-		return ErrCannotRequeueEvent
+		return ErrCannotRequeueAction
 	}
 
 	msg := re.CloneMsgToRequeue()
@@ -184,24 +184,24 @@ func (ef *MQActionFlow) Stop() error {
 // Scaffold the the exchange, queue and binding
 func (ef *MQActionFlow) Scaffold() error {
 	if err := ef.mq.DeclareExchange(ef.cfg.ExchangeName, ef.cfg.ExchangeType); err != nil {
-		return errors.Wrap(err, "could not scaffold DirectEventExchange on exchage declaration")
+		return errors.Wrap(err, "could not scaffold DirectActionExchange on exchage declaration")
 	}
 
 	if err := ef.mq.DeclareQueue(ef.cfg.QueueName); err != nil {
-		return errors.Wrap(err, "could not scaffold DirectEventExchange on queue declaration")
+		return errors.Wrap(err, "could not scaffold DirectActionExchange on queue declaration")
 	}
 
 	if err := ef.mq.Bind(ef.cfg.QueueName, ef.cfg.ExchangeName, ef.cfg.RoutingKey); err != nil {
-		return errors.Wrap(err, "could not scaffold DirectEventExchange on queue binding")
+		return errors.Wrap(err, "could not scaffold DirectActionExchange on queue binding")
 	}
 
 	if ef.cfg.ErrorQueueName != ef.cfg.QueueName {
 		if err := ef.mq.DeclareQueue(ef.cfg.ErrorQueueName); err != nil {
-			return errors.Wrap(err, "could not scaffold DirectEventExchange on error queue declaration")
+			return errors.Wrap(err, "could not scaffold DirectActionExchange on error queue declaration")
 		}
 
 		if err := ef.mq.Bind(ef.cfg.ErrorQueueName, ef.cfg.ExchangeName, ef.cfg.RequeueRoutingKey); err != nil {
-			return errors.Wrap(err, "could not scaffold DirectEventExchange on error queue binding")
+			return errors.Wrap(err, "could not scaffold DirectActionExchange on error queue binding")
 		}
 	}
 

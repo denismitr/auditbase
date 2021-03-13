@@ -1,75 +1,9 @@
 package rest
 
 import (
-	"github.com/denismitr/auditbase/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
-
-func TestDataType(t *testing.T) {
-	tt := []struct {
-		name string
-		from *string
-		to   *string
-		dt   model.DataType
-	}{
-		{
-			name: "string_to_int_as_string",
-			from: interfaceToStringPointer("foo bar"),
-			to:   interfaceToStringPointer("1234"),
-			dt:   model.StringDataType,
-		},
-		{
-			name: "string_to_int_as_string",
-			from: interfaceToStringPointer("foo bar"),
-			to:   interfaceToStringPointer(1234),
-			dt:   model.StringDataType,
-		},
-		{
-			name: "int->int",
-			from: interfaceToStringPointer(4567),
-			to:   interfaceToStringPointer(1234),
-			dt:   model.IntegerDataType,
-		},
-		{
-			name: "float->int",
-			from: interfaceToStringPointer(4567.984),
-			to:   interfaceToStringPointer(1234),
-			dt:   model.FloatDataType,
-		},
-		{
-			name: "int->float",
-			from: interfaceToStringPointer(9384),
-			to:   interfaceToStringPointer(1234.7645),
-			dt:   model.FloatDataType,
-		},
-		{
-			name: "nil->string",
-			from: interfaceToStringPointer(nil),
-			to:   interfaceToStringPointer("foooo"),
-			dt:   model.StringDataType,
-		},
-		{
-			name: "nil->integer",
-			from: interfaceToStringPointer(nil),
-			to:   interfaceToStringPointer(1234),
-			dt:   model.IntegerDataType,
-		},
-		{
-			name: "nil->float",
-			from: interfaceToStringPointer(nil),
-			to:   interfaceToStringPointer(1234.874),
-			dt:   model.FloatDataType,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			dt := guessPairDataType(tc.from, tc.to)
-			assert.Equal(t, tc.dt, dt)
-		})
-	}
-}
 
 func TestInterfaceToPointer(t *testing.T) {
 	tt := []struct {

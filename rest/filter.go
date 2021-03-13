@@ -1,14 +1,14 @@
 package rest
 
 import (
-	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/db"
 	"net/url"
 	"strconv"
 	"strings"
 )
 
-func createFilter(q url.Values, allowedKeys []string) *model.Filter {
-	f := model.NewFilter(allowedKeys)
+func createFilter(q url.Values, allowedKeys []string) *db.Filter {
+	f := db.NewFilter(allowedKeys)
 
 	for k, v := range convertQueryArrayToSimpleMap("filter", q) {
 		if f.Allows(k) {
@@ -38,42 +38,32 @@ func convertQueryArrayToSimpleMap(key string, q url.Values) map[string]string {
 	return result
 }
 
-func createSort(q url.Values) *model.Sort {
-	s := model.NewSort()
-
-	for k, value := range convertQueryArrayToSimpleMap("sort", q) {
-		v := strings.ToUpper(value)
-		if v == string(model.ASCOrder) || v == string(model.DESCOrder) {
-			s.Add(k, model.Order(v))
-		}
-	}
-
-	return s
-}
-
-func createPagination(q url.Values, maxPerPage int) *model.Pagination {
-	pagination := new(model.Pagination)
+func createCursor(q url.Values, maxPerPage int, allowedSortColumns []string) *db.Cursor {
+	cursor := new(db.Cursor)
 
 	if v, ok := q["page"]; ok && len(v) > 0 {
 		if p, err := strconv.Atoi(v[0]); err == nil {
-			pagination.Page = p
+			cursor.Page = uint(p)
 		}
 	}
 
 	if v, ok := q["perPage"]; ok && len(v) > 0 {
 		if pp, err := strconv.Atoi(v[0]); err == nil {
-			pagination.PerPage = pp
+			cursor.PerPage = uint(pp)
 		}
 	}
 
-	if pagination.Page == 0 {
-		pagination.Page = 1
+	if cursor.Page == 0 {
+		cursor.Page = 1
 	}
 
-	if pagination.PerPage == 0 {
-		pagination.PerPage = maxPerPage
+	if cursor.PerPage == 0 {
+		cursor.PerPage = uint(maxPerPage)
 	}
 
-	return pagination
+	s := db.NewSort(allowedSortColumns)
+	cursor.Sort = s
+
+	return cursor
 }
 

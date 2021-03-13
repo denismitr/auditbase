@@ -95,11 +95,13 @@ const entityTypesSchema = `
 const entitiesSchema = `
 	CREATE TABLE IF NOT EXISTS targets (
 		id BINARY(16) PRIMARY KEY,
-		entity_type_id VARCHAR(36) NOT NULL,
+		entity_type_id BINARY(16) NOT NULL,
 		external_id VARCHAR(36) NOT NULL,
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		UNIQUE KEY unique_idx (entity_id, external_id)
+
+		UNIQUE KEY unique_idx (entity_type_id, external_id),
+
 	) ENGINE=INNODB;
 `
 

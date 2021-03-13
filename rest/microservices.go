@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"github.com/denismitr/auditbase/model"
+	"github.com/denismitr/auditbase/service"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
@@ -11,97 +12,115 @@ import (
 )
 
 type microservicesController struct {
-	logger        logger.Logger
-	uuid4         uuid.UUID4Generator
-	microservices model.MicroserviceRepository
+	lg  logger.Logger
+	uuid4   uuid.UUID4Generator
+	microservices service.MicroserviceService
 }
 
 func newMicroservicesController(
-	l logger.Logger,
+	lg logger.Logger,
 	uuid4 uuid.UUID4Generator,
-	m model.MicroserviceRepository,
+	microservices service.MicroserviceService,
 ) *microservicesController {
 	return &microservicesController{
-		logger:        l,
+		lg:        lg,
 		uuid4:         uuid4,
-		microservices: m,
+		microservices: microservices,
 	}
 }
 
-func (mc *microservicesController) create(ctx echo.Context) error {
+func (mc *microservicesController) create(rCtx echo.Context) error {
 	m := new(model.Microservice)
 
-	if err := ctx.Bind(m); err != nil {
-		return ctx.JSON(badRequest(errors.Wrap(err, "could not parse request payload")))
+	if err := rCtx.Bind(m); err != nil {
+		return rCtx.JSON(badRequest(errors.Wrap(err, "could not parse request payload")))
 	}
 
 	if m.ID == "" {
-		m.ID = mc.uuid4.Generate()
+		m.ID = model.ID(mc.uuid4.Generate())
 	}
 
 	errs := m.Validate()
 	if errs.NotEmpty() {
-		return ctx.JSON(validationFailed(errs.All()...))
+		return rCtx.JSON(validationFailed(errs.All()...))
 	}
 
-	runtimeCtx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	savedMicroservice, err := mc.microservices.Create(runtimeCtx, m)
+	savedMicroservice, err := mc.microservices.Create(ctx, m)
 	if err != nil {
-		return ctx.JSON(internalError(err))
+		return rCtx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(201, newMicroserviceResponse(savedMicroservice))
+	return rCtx.JSON(201, itemResource{
+		Data: savedMicroservice,
+	})
 }
 
-func (mc *microservicesController) index(ctx echo.Context) error {
-	ms, err := mc.microservices.SelectAll()
+func (mc *microservicesController) index(rCtx echo.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+	defer cancel()
+
+	ms, err := mc.microservices.SelectAll(ctx, nil)
 	if err != nil {
-		return ctx.JSON(internalError(err))
+		return rCtx.JSON(internalError(err))
 	}
 
-	return ctx.JSON(200, newMicroservicesResponse(ms))
+	return rCtx.JSON(200, itemResource{
+		Data: ms,
+	})
 }
 
-func (mc *microservicesController) update(ctx echo.Context) error {
+func (mc *microservicesController) update(rCtx echo.Context) error {
 	m := new(model.Microservice)
-	if err := ctx.Bind(m); err != nil {
-		return ctx.JSON(badRequest(errors.Wrap(err, "could not parse JSON payload")))
+	if err := rCtx.Bind(m); err != nil {
+		return rCtx.JSON(badRequest(errors.Wrap(err, "could not parse JSON update payload")))
 	}
 
-	if errors := m.Validate(); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors.All()...))
+	if errs := m.Validate(); errs.NotEmpty() {
+		return rCtx.JSON(validationFailed(errs.All()...))
 	}
 
-	ID := model.ID(ctx.Param("id"))
-	if errors := ID.Validate(); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors.All()...))
+	ID := model.ID(rCtx.Param("id"))
+	if errs := ID.Validate(); errs.NotEmpty() {
+		return rCtx.JSON(validationFailed(errs.All()...))
 	}
 
-	if err := mc.microservices.Update(ID, m); err != nil {
-		return ctx.JSON(badRequest(err))
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+	defer cancel()
+
+	updated, err := mc.microservices.Update(ctx, ID, m);
+	if err != nil {
+		return rCtx.JSON(badRequest(err))
 	}
 
-	return ctx.JSON(200, newMicroserviceResponse(m))
+	return rCtx.JSON(200, itemResource{
+		Data: updated,
+	})
 }
 
-func (mc *microservicesController) show(ctx echo.Context) error {
-	ID := extractIDParamFrom(ctx)
+func (mc *microservicesController) show(rCtx echo.Context) error {
+	ID := extractIDParamFrom(rCtx)
 
-	if errors := ID.Validate(); errors.NotEmpty() {
-		return ctx.JSON(validationFailed(errors.All()...))
+	if errs := ID.Validate(); errs.NotEmpty() {
+		return rCtx.JSON(validationFailed(errs.All()...))
 	}
 
-	m, err := mc.microservices.FirstByID(ID)
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+	defer cancel()
+
+	m, err := mc.microservices.FirstByID(ctx, ID, nil)
 	if err != nil {
 		if err == ErrMicroserviceNotFound {
-			return ctx.JSON(
+			return rCtx.JSON(
 				notFound(errors.Wrapf(err, "could not get microservice with ID %s from database", ID)))
 		}
 
-		return ctx.JSON(badRequest(err))
+		return rCtx.JSON(badRequest(err))
 	}
 
-	return ctx.JSON(200, newMicroserviceResponse(m))
+	return rCtx.JSON(200, itemResource{
+		Data: m,
+	})
 }

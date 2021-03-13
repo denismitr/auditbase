@@ -31,6 +31,7 @@ type NewAction struct {
 	IsAsync          bool        `json:"isAsync"`
 	Details          interface{} `json:"details"`
 	Delta            interface{} `json:"delta"`
+	Hash             string      `json:"hash"`
 }
 
 type Action struct {
@@ -61,7 +62,7 @@ func (a *Action) Validate() *errbag.ErrorBag {
 	bag := errbag.New()
 
 	if !validator.IsEmptyString(a.ID.String()) {
-		bag.Add("id", ErrMissingEventID)
+		bag.Add("id", ErrMissingActionID)
 	}
 
 	if !validator.IsUUID4(a.ID.String()) {
@@ -69,4 +70,38 @@ func (a *Action) Validate() *errbag.ErrorBag {
 	}
 
 	return bag
+}
+
+func (na *NewAction) Validate() *errbag.ErrorBag {
+	eb := errbag.New()
+
+	if !validator.IsEmptyString(na.ID) && !validator.IsUUID4(na.ID) {
+		eb.Add("id", ErrInvalidUUID4)
+	}
+
+	if na.ActorID != nil && validator.IsEmptyString(na.ActorID.String()) {
+		eb.Add("actorID", ErrActorIDEmpty)
+	}
+
+	if na.ActorEntity != nil && validator.IsEmptyString(*na.ActorEntity) {
+		eb.Add("actorEntity", ErrActorEntityEmpty)
+	}
+
+	if na.TargetEntity != nil && validator.IsEmptyString(*na.TargetEntity) {
+		eb.Add("targetEntity", ErrTargetEntityEmpty)
+	}
+
+	if validator.IsEmptyString(na.ActorService) {
+		eb.Add("actorService", ErrActorServiceEmpty)
+	}
+
+	if validator.IsEmptyString(na.TargetService) {
+		eb.Add("targetService", ErrTargetServiceEmpty)
+	}
+
+	if na.EmittedAt.IsZero() {
+		eb.Add("emittedAt", ErrEmittedAtEmpty)
+	}
+
+	return eb
 }

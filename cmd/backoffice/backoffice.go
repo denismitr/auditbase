@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/go-redis/redis/v7"
+	"github.com/denismitr/auditbase/service"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
-	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -36,7 +36,7 @@ func main() {
 		BodyLimit: "250K",
 	}
 
-	backOffice, err := create(lg, restCfg)
+	backOffice, err := createBackOffice(lg, restCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -68,15 +68,20 @@ func debug(run bool) {
 }
 
 
-func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
+func createBackOffice(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	connCh := make(chan *sqlx.DB)
-	efCh := make(chan *flow.MQActionFlow)
-	errCh := make(chan error)
+	connCh := make(chan *sqlx.DB, 1)
+	afCh := make(chan *flow.MQActionFlow, 1)
+	errCh := make(chan error, 2)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 
 	go func() {
+		defer wg.Done()
+
 		mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 3)
 
 		if err := mq.Connect(ctx); err != nil {
@@ -91,10 +96,12 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 			return
 		}
 
-		efCh <- ef
+		afCh <- ef
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		dbConn, err := mysql.ConnectAndMigrate(ctx, lg, env.MustString("AUDITBASE_DB_DSN"), 50, 10)
 		if err != nil {
 			errCh <- err
@@ -104,39 +111,22 @@ func create(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 		connCh <- dbConn
 	}()
 
-	var conn *sqlx.DB
-	var ef *flow.MQActionFlow
-	var err error
+	wg.Wait()
 
-	allServicesReady := func() bool {
-		return conn != nil && ef != nil
-	}
-
-done:
-	for {
-		select {
-		case ef = <-efCh:
-			if allServicesReady() {
-				break done
-			}
-		case conn = <-connCh:
-			if allServicesReady() {
-				break done
-			}
-		case err = <-errCh:
-			break done
-		}
-	}
-
-	close(efCh)
-	close(connCh)
-	close(errCh)
-
-	if err != nil {
+	select {
+	case err :=  <-errCh:
 		return nil, err
+	default:
+		lg.Debugf("Connection to DB and RabbitMQ have been established")
 	}
 
-	db := mysql.NewDatabase(conn, uuid.NewUUID4Generator(), lg)
+	db := mysql.NewDatabase(<-connCh, uuid.NewUUID4Generator(), lg)
 
-	return rest.BackOfficeAPI(echo.New(), restCfg, lg, ef, db), nil
+	services := rest.BackOfficeServices{
+		Actions: service.NewActionService(db, lg),
+		Microservices: service.NewMicroserviceService(db, lg),
+		Entities: service.NewEntityService(db, lg),
+	}
+
+	return rest.BackOfficeAPI(echo.New(), restCfg, lg, <-afCh, services), nil
 }

@@ -6,26 +6,12 @@ import (
 	"github.com/denismitr/auditbase/utils/errtype"
 )
 
-const ErrMissingEventID = errtype.StringError("event ID is empty")
-const ErrInvalidUUID4 = errtype.StringError("not a valid UUID4")
-const ErrActorIDEmpty = errtype.StringError("actorID must not be empty")
-const ErrTargetIDEmpty = errtype.StringError("targetID must not be empty")
-const ErrActorEntityEmpty = errtype.StringError("actorEntity must not be empty")
-const ErrTargetEntityEmpty = errtype.StringError("targetEntity must not be empty")
-const ErrActorServiceEmpty = errtype.StringError("actorService must not be empty")
-const ErrTargetServiceEmpty = errtype.StringError("targetService must not be empty")
-const ErrEmittedAtEmpty = errtype.StringError("emittedAt must not be empty")
-const ErrMicroserviceNameTooLong = errtype.StringError("microservice name is too long")
-const ErrMicroserviceDescriptionTooLong = errtype.StringError("microservice description is too long")
 const ErrMicroserviceNotFound = errtype.StringError("not found")
-const ErrEventAlreadyReceived = errtype.StringError("event already received recently")
-const ErrEmptyPropertyName = errtype.StringError("property name cannot be empty")
 
 const msgBadRequest = "Bad request"
 const msgInternalError = "Auditbase internal error"
 const msgNotFound = "Entities not found"
 const msgValidationFailed = "Validation failed"
-const msgConflict = "entity you are trying to create already exists"
 
 type errorResource struct {
 	Title   string `json:"title"`
