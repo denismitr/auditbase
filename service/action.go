@@ -180,6 +180,8 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 		action.RegisteredAt = newAction.RegisteredAt
 		action.Status = newAction.Status
 		action.IsAsync = newAction.IsAsync
+		action.Details = newAction.Details
+		action.Delta = newAction.Delta
 
 		action, err = tx.Actions().Create(ctx, action)
 		if err != nil {

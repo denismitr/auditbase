@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"github.com/denismitr/auditbase/model"
 )
 
@@ -101,6 +102,18 @@ func mapActionRecordToModel(ar actionRecord) *model.Action {
 
 	if ar.ParentEventID.Valid {
 		a.ParentID = model.IDPointer(ar.ParentEventID.String)
+	}
+
+	if ar.Delta != nil {
+		if err := json.Unmarshal([]byte(*ar.Delta), &a.Delta); err != nil {
+			panic(err)
+		}
+	}
+
+	if ar.Details != nil {
+		if err := json.Unmarshal([]byte(*ar.Details), &a.Details); err != nil {
+			panic(err)
+		}
 	}
 
 	return &a

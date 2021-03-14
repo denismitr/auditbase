@@ -4,12 +4,12 @@ Accept: application/json
 
 {
     "targetExternalId": "9309213",
-	"targetEntity": "article",
-	"targetService": "articlestorage",
+	"targetEntity": "article3",
+	"targetService": "article-storage-3",
     "parentId": null,
 	"actorExternalId": "9",
-	"actorEntity": "promoter",
-	"actorService": "back-office",
+	"actorEntity": "promoter3",
+	"actorService": "back-office-3",
     "name": "articlePublished",
     "emittedAt": "2006-01-02 15:04:05",
     "isAsync": false,

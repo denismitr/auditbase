@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/db"
@@ -27,8 +28,8 @@ type actionRecord struct {
 	ActorEntityID  sql.NullString `db:"actor_entity_id"`
 	TargetEntityID sql.NullString `db:"target_entity_id"`
 	Name           string         `db:"name"`
-	Details        interface{}    `db:"details"`
-	Delta          interface{}    `db:"delta"`
+	Details        *string         `db:"details"`
+	Delta          *string         `db:"delta"`
 	EmittedAt      time.Time      `db:"emitted_at"`
 	RegisteredAt   time.Time      `db:"registered_at"`
 }
@@ -309,6 +310,22 @@ func createActionQuery(action *model.Action) (string, []interface{}, error) {
 	row["is_async"] = action.IsAsync
 	row["emitted_at"] = action.EmittedAt.Time
 	row["registered_at"] = action.RegisteredAt.Time
+
+	if action.Details != nil {
+		b, err := json.Marshal(action.Details)
+		if err != nil {
+			return "", nil, errors.Wrapf(err, "could not create details json string")
+		}
+		row["details"] = string(b)
+	}
+
+	if action.Delta != nil {
+		b, err := json.Marshal(action.Delta)
+		if err != nil {
+			return "", nil, errors.Wrapf(err, "could not create delta json string")
+		}
+		row["delta"] = string(b)
+	}
 
 	return dialect.Insert("actions").Rows(row).ToSQL()
 }
