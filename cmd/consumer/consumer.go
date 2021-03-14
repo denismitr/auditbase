@@ -128,7 +128,7 @@ done:
 
 	uuid4 := uuid.NewUUID4Generator()
 	db := mysql.NewDatabase(conn, uuid4, lg)
-	actionService := service.NewActionService(db, lg)
+	actionService := service.NewActionService(db, lg, uuid.NewUUID4Generator())
 
 	return consumer.New(ef, lg, actionService), nil
 }

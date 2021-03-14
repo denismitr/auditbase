@@ -33,7 +33,6 @@ type EntityRepository interface {
 		ctx context.Context,
 		externalID string,
 		entityTypeID model.ID,
-		isActor bool,
 	) (*model.Entity, error)
 
 	FirstByID(ctx context.Context, ID model.ID) (*model.Entity, error)

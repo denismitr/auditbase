@@ -36,7 +36,7 @@ func main() {
 		BodyLimit: "250K",
 	}
 
-	backOffice, err := createBackOffice(lg, restCfg)
+	backOffice, err := createBackOffice(lg, restCfg, uuid.NewUUID4Generator())
 	if err != nil {
 		panic(err)
 	}
@@ -68,7 +68,7 @@ func debug(run bool) {
 }
 
 
-func createBackOffice(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
+func createBackOffice(lg logger.Logger, restCfg rest.Config, uuid4 uuid.UUID4Generator) (*rest.API, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -123,7 +123,7 @@ func createBackOffice(lg logger.Logger, restCfg rest.Config) (*rest.API, error) 
 	db := mysql.NewDatabase(<-connCh, uuid.NewUUID4Generator(), lg)
 
 	services := rest.BackOfficeServices{
-		Actions: service.NewActionService(db, lg),
+		Actions: service.NewActionService(db, lg, uuid4),
 		Microservices: service.NewMicroserviceService(db, lg),
 		Entities: service.NewEntityService(db, lg),
 	}

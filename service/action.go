@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -18,12 +20,14 @@ type ActionService interface {
 type BaseActionService struct {
 	db db.Database
 	lg logger.Logger
+	uuid4 uuid.UUID4Generator
 }
 
-func NewActionService(db db.Database, lg logger.Logger) *BaseActionService {
+func NewActionService(db db.Database, lg logger.Logger, uuid4 uuid.UUID4Generator) *BaseActionService {
 	return &BaseActionService{
 		db: db,
 		lg: lg,
+		uuid4: uuid4,
 	}
 }
 
@@ -145,7 +149,7 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 				return nil, err
 			}
 
-			actingEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.ActorExternalID, actingEntityType.ID, true)
+			actingEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.ActorExternalID, actingEntityType.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -162,7 +166,7 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 				return nil, err
 			}
 
-			targetEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.TargetExternalID, targetEntityType.ID, false)
+			targetEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.TargetExternalID, targetEntityType.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -170,6 +174,7 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 			action.TargetEntityID = &targetEntity.ID
 		}
 
+		action.ID = model.ID(s.uuid4.Generate())
 		action.Name = newAction.Name
 		action.EmittedAt = newAction.EmittedAt
 		action.RegisteredAt = newAction.RegisteredAt
@@ -190,7 +195,7 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 
 	action, ok := result.(*model.Action)
 	if !ok {
-		panic("how result could have of different type than Action?")
+		panic(fmt.Sprintf("how result could have of different type than Action? %#v", result))
 	}
 
 	return action, nil

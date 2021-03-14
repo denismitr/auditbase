@@ -28,7 +28,10 @@ vars:
 .PHONY: test clean mock wrk debug recompile up build
 
 up: vars
-	docker-compose -f docker-compose-dev.yml up -d --build --force-recreate
+	docker-compose -f docker-compose-dev.yml up -d --build
+
+recreate: vars
+	docker-compose -f docker-compose-dev.yml up -d --build --renew-anon-volumes --force-recreate
 
 down:
 	docker-compose -f docker-compose-dev.yml down --remove-orphans

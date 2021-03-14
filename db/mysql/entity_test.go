@@ -86,32 +86,9 @@ import (
 //	}
 //}
 
-func TestCreateFirstEntityByIDQuery(t *testing.T) {
-	//tt := []struct{
-	//	name string
-	//	sql string
-	//	args []interface{}
-	//	ID string
-	//	err error
-	//}{
-	//	{
-	//		name: "default",
-	//		sql: `SELECT BIN_TO_UUID(id) as id, BIN_TO_UUID(service_id) as service_id, name, description, created_at, updated_at FROM entities WHERE id = UUID_TO_BIN(?) LIMIT 1`,
-	//		ID: "eadd1efe-2430-4c9c-a7fc-04d1a8e82e96",
-	//		args: []interface{}{"eadd1efe-2430-4c9c-a7fc-04d1a8e82e96"},
-	//		err: nil,
-	//	},
-	//	{
-	//		name: "invalid-uuid-4",
-	//		sql: "",
-	//		ID: "foo-123",
-	//		args: nil,
-	//		err: errors.New("foo-123 is not a valid UUID4"),
-	//	},
-	//}
-
+func Test_firstEntityByIDQuery(t *testing.T) {
 	t.Run("valid ID", func(t *testing.T) {
-		expected := "SELECT bin_to_uuid(`e`.`id`) AS `entity_id`, bin_to_uuid(`e`.`entity_type_id`) AS `entity_type_id`, bin_to_uuid(`e`.`service_id`) AS `service_id`, `e`.`external_id` AS `entity_external_id`, `e`.`is_actor` AS `is_actor`, `et`.`name` AS `entity_type_name`, `et`.`description` AS `entity_type_description`, `ms`.`name` AS `service_name`, `ms`.`description` AS `service_description`, `e`.`created_at` AS `entity_created_at`, `et`.`created_at` AS `entity_type_created_at`, `ms`.`created_at` AS `service_created_at`, `e`.`updated_at` AS `entity_updated_at`, `et`.`updated_at` AS `entity_type_updated_at`, `ms`.`updated_at` AS `service_updated_at` FROM `entities` INNER JOIN `entity_types` AS `et` ON (`e`.`entity_type_id` = `et`.`id`) INNER JOIN `microservices` AS `ms` ON (`e`.`service_id` = `ms`.`id`) WHERE `e`.`id` = uuid_to_bin(?) LIMIT ?"
+		expected := "SELECT bin_to_uuid(`e`.`id`) AS `entity_id`, bin_to_uuid(`e`.`entity_type_id`) AS `entity_type_id`, bin_to_uuid(`et`.`service_id`) AS `service_id`, `e`.`external_id` AS `entity_external_id`, `et`.`name` AS `entity_type_name`, `et`.`description` AS `entity_type_description`, `ms`.`name` AS `service_name`, `ms`.`description` AS `service_description`, `e`.`created_at` AS `entity_created_at`, `et`.`created_at` AS `entity_type_created_at`, `ms`.`created_at` AS `service_created_at`, `e`.`updated_at` AS `entity_updated_at`, `et`.`updated_at` AS `entity_type_updated_at`, `ms`.`updated_at` AS `service_updated_at` FROM `entities` AS `e` INNER JOIN `entity_types` AS `et` ON (`e`.`entity_type_id` = `et`.`id`) INNER JOIN `microservices` AS `ms` ON (`et`.`service_id` = `ms`.`id`) WHERE `e`.`id` = uuid_to_bin(?) LIMIT ?"
 		ID := "eadd1efe-2430-4c9c-a7fc-04d1a8e82e96"
 
 		sql, args, err := firstEntityByIDQuery(model.ID(ID))

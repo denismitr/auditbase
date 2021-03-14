@@ -2,8 +2,6 @@ package mysql
 
 import (
 	"github.com/denismitr/auditbase/model"
-	"github.com/pkg/errors"
-	"time"
 )
 
 func mapEntitiesToCollection(items []entityRecord, cnt int, page, perPage uint) *model.EntityCollection {
@@ -24,7 +22,6 @@ func mapEntityRecordToModel(e entityRecord) *model.Entity {
 		ID:           model.ID(e.ID),
 		ExternalID:   e.ExternalID,
 		EntityTypeID: model.ID(e.EntityTypeID),
-		IsActor:      e.IsActor,
 		CreatedAt:    e.CreatedAt,
 		UpdatedAt:    e.UpdatedAt,
 	}
@@ -35,7 +32,6 @@ func mapEntityRecordAllJoinedToModel(e entityRecordAllJoined) *model.Entity {
 		ID:           model.ID(e.EntityID),
 		ExternalID:   e.EntityExternalID,
 		EntityTypeID: model.ID(e.EntityTypeID),
-		IsActor:      e.IsActor,
 		CreatedAt:    e.EntityCreatedAt,
 		UpdatedAt:    e.EntityUpdatedAt,
 		EntityType: &model.EntityType{
@@ -57,24 +53,14 @@ func mapEntityRecordAllJoinedToModel(e entityRecordAllJoined) *model.Entity {
 }
 
 func mapEntityTypeRecordToModel(e entityTypeRecord) *model.EntityType {
-	cat, err := time.Parse(model.DefaultTimeFormat, e.CreatedAt)
-	if err != nil {
-		panic(errors.Wrap(err, "how can created at be invalid?"))
-	}
-
-	uat, err := time.Parse(model.DefaultTimeFormat, e.UpdatedAt)
-	if err != nil {
-		panic(errors.Wrap(err, "how can updated at be invalid?"))
-	}
-
 	return &model.EntityType{
 		ID:          model.ID(e.ID),
 		Name:        e.Name,
 		Description: e.Description,
 		ServiceID:   model.ID(e.ServiceID),
 		EntitiesCnt: e.EntitiesCnt,
-		CreatedAt:   cat,
-		UpdatedAt:   uat,
+		CreatedAt:   e.CreatedAt,
+		UpdatedAt:   e.UpdatedAt,
 	}
 }
 

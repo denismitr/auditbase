@@ -68,7 +68,7 @@ func (db *Database) ReadWrite(ctx context.Context, cb db.TxCallback) (interface{
 			return nil, errors.Wrap(err, rbErr.Error())
 		}
 
-		return err, nil
+		return nil, err
 	}
 
 	if err := mysqlTx.Commit(); err != nil {

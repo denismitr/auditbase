@@ -1,19 +1,19 @@
-POST {{receiver}}/api/v1/events
+POST {{receiver}}/api/v1/actions
 Content-Type: application/json
 Accept: application/json
 
 {
-    "targetId": "9309213",
+    "targetExternalId": "9309213",
 	"targetEntity": "article",
-	"targetService": "article-storage",
-    "parentEventId": null,
-	"actorId": "9",
-    "crud": "create",
+	"targetService": "articlestorage",
+    "parentId": null,
+	"actorExternalId": "9",
 	"actorEntity": "promoter",
 	"actorService": "back-office",
-    "eventName": "articlePublished",
-    "emittedAt": 1778174522,
-	"changes": [
+    "name": "articlePublished",
+    "emittedAt": "2006-01-02 15:04:05",
+    "isAsync": false,
+	"details": [
       {
         "propertyName": "status",
         "from": null,
@@ -29,7 +29,7 @@ Accept: application/json
 
 ###
 
-POST {{receiver}}/api/v1/events
+POST {{receiver}}/api/v1/actions
 Content-Type: application/json
 Accept: application/json
 
@@ -43,29 +43,7 @@ Accept: application/json
 	"actorEntity": "user",
 	"actorService": "front",
     "eventName": "subscriptionUpdated",
-    "emittedAt": 1578173212,
-  "changes": [
-    {
-      "propertyName": "account_status",
-      "from": "foo",
-      "to": "1234"
-    },
-    {
-      "propertyName": "meta",
-      "from": "baz",
-      "to": null
-    },
-    {
-      "propertyName": "balance",
-      "from": 12345.876,
-      "to": 16345.876
-    },
-    {
-      "propertyName": "complaints",
-      "from": "5",
-      "to": "6"
-    }
-  ]
+    "emittedAt": 1578173212
 }
 
 ###

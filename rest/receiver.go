@@ -31,7 +31,7 @@ func NewReceiverAPI(
 		af:    ef,
 	}
 
-	e.POST("/api/v1/events", receiverController.create)
+	e.POST("/api/v1/actions", receiverController.create)
 
 	return &API{
 		e:   e,

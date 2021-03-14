@@ -5,7 +5,7 @@ import "github.com/denismitr/auditbase/utils/errtype"
 const ErrDBWriteFailed = errtype.StringError("db write failed")
 const ErrDBReadFailed = errtype.StringError("db read failed")
 const ErrUniqueConstrainedFailed = errtype.StringError("db unique constrained failed")
-const ErrEntityDoesNotExist = errtype.StringError("requested entity does not exist in DB")
+const ErrNotFound = errtype.StringError("requested entity or collection not found in DB")
 const ErrPersisterCouldNotPrepareEvent = errtype.StringError("persister could not prepare event")
 const ErrCouldNotCreateEvent = errtype.StringError("could not create event")
 const ErrEmptyUUID4 = errtype.StringError("empty string given instead of uuid4")

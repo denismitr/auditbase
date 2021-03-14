@@ -21,16 +21,16 @@ type ActionRepository struct {
 }
 
 type actionRecord struct {
-	ID             string             `db:"id"`
-	ParentEventID  sql.NullString     `db:"parent_event_id"`
-	Hash           string             `db:"hash"`
-	ActorEntityID  sql.NullString     `db:"actor_entity_id"`
-	TargetEntityID sql.NullString     `db:"target_entity_id"`
-	Name           string             `db:"event_name"`
-	Details        StringInterfaceMap `db:"details"`
-	Delta          StringInterfaceMap `db:"delta"`
-	EmittedAt      time.Time          `db:"emitted_at"`
-	RegisteredAt   time.Time          `db:"registered_at"`
+	ID             string         `db:"id"`
+	ParentEventID  sql.NullString `db:"parent_event_id"`
+	Hash           string         `db:"hash"`
+	ActorEntityID  sql.NullString `db:"actor_entity_id"`
+	TargetEntityID sql.NullString `db:"target_entity_id"`
+	Name           string         `db:"name"`
+	Details        interface{}    `db:"details"`
+	Delta          interface{}    `db:"delta"`
+	EmittedAt      time.Time      `db:"emitted_at"`
+	RegisteredAt   time.Time      `db:"registered_at"`
 }
 
 var _ db.ActionRepository = (*ActionRepository)(nil)
@@ -193,7 +193,7 @@ func (r *ActionRepository) FirstByID(ctx context.Context, ID model.ID) (*model.A
 
 	if err := stmt.GetContext(ctx, &ar, args...); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.Wrapf(db.ErrActionNotFound, "id [%s]", ID.String())
+			return nil, db.ErrNotFound
 		}
 
 		return nil, errors.Wrap(err, "could not get action with ID [%s]")
@@ -279,6 +279,10 @@ func createActionQuery(action *model.Action) (string, []interface{}, error) {
 
 	row := goqu.Record{}
 
+	if action.ID == "" {
+		panic("how can action ID be empty?")
+	}
+
 	row["id"] = goqu.L("uuid_to_bin(?)", action.ID.String())
 
 	if action.ParentID != nil {
@@ -287,13 +291,13 @@ func createActionQuery(action *model.Action) (string, []interface{}, error) {
 		row["parent_id"] = nil
 	}
 
-	if action.ActorEntityID != nil {
-		row["action_entity_id"] = goqu.L("uuid_to_bin(?)", action.ActorEntityID.String())
+	if action.ActorEntityID != nil && action.ActorEntityID.String() != "" {
+		row["actor_entity_id"] = goqu.L("uuid_to_bin(?)", action.ActorEntityID.String())
 	} else {
-		row["action_entity_id"] = nil
+		row["actor_entity_id"] = nil
 	}
 
-	if action.TargetEntityID != nil {
+	if action.TargetEntityID != nil && action.TargetEntityID.String() != "" {
 		row["target_entity_id"] = goqu.L("uuid_to_bin(?)", action.TargetEntityID.String())
 	} else {
 		row["target_entity_id"] = nil

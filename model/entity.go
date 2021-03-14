@@ -9,6 +9,7 @@ type EntityType struct {
 	ID          ID            `json:"id"`
 	ServiceID   ID            `json:"serviceId"`
 	Service     *Microservice `json:"service,omitempty"`
+	IsActor     bool          `json:"is_actor"`
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
 	EntitiesCnt int           `json:"entitiesCount"`
@@ -23,7 +24,6 @@ type Entity struct {
 	ExternalID   string      `json:"externalId"`
 	EntityTypeID ID          `json:"entityTypeId"`
 	EntityType   *EntityType `json:"entityType,omitempty"`
-	IsActor      bool        `json:"isActor"`
 	CreatedAt    time.Time   `json:"createdAt,omitempty"`
 	UpdatedAt    time.Time   `json:"updatedAt,omitempty"`
 }

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
@@ -186,8 +187,12 @@ func (r *MicroserviceRepository) FirstByID(ctx context.Context, ID model.ID) (*m
 	defer func() { _ = stmt.Close() }()
 
 	if err := stmt.Get(&m, args...); err != nil {
-		r.lg.Error(err)
-		return nil, model.ErrMicroserviceNotFound
+		switch err {
+		case sql.ErrNoRows:
+			return nil, db.ErrNotFound
+		default:
+			return nil, errors.Wrap(err, "could not get microservice by ID")
+		}
 	}
 
 	return &model.Microservice{
@@ -217,7 +222,12 @@ func (r *MicroserviceRepository) FirstByName(ctx context.Context, name string) (
 	defer func() { _ = stmt.Close() }()
 
 	if err := stmt.GetContext(ctx, m, name); err != nil {
-		return nil, errors.Wrapf(err, "could not get microservices with name %s from database", name)
+		switch err {
+		case sql.ErrNoRows:
+			return nil, db.ErrNotFound
+		default:
+			return nil, errors.Wrapf(err, "could not get microservices with name %s from database", name)
+		}
 	}
 
 	return &model.Microservice{
@@ -237,7 +247,12 @@ func (r *MicroserviceRepository) FirstOrCreateByName(ctx context.Context, name s
 	if err == nil {
 		return m, nil
 	} else {
-		r.lg.Error(err)
+		switch err {
+		case db.ErrNotFound:
+			r.lg.Error(err)
+		default:
+			return nil, err
+		}
 	}
 
 	m = &model.Microservice{

@@ -17,7 +17,6 @@ const (
 type NewAction struct {
 	ID               string      `json:"id"`
 	ParentID         *string     `json:"parentId"`
-	ActorID          *ID         `json:"actorId"`
 	ActorExternalID  *string     `json:"actorExternalId"`
 	ActorEntity      *string     `json:"actorEntity"`
 	ActorService     string      `json:"actorService"`
@@ -77,10 +76,6 @@ func (na *NewAction) Validate() *errbag.ErrorBag {
 
 	if !validator.IsEmptyString(na.ID) && !validator.IsUUID4(na.ID) {
 		eb.Add("id", ErrInvalidUUID4)
-	}
-
-	if na.ActorID != nil && validator.IsEmptyString(na.ActorID.String()) {
-		eb.Add("actorID", ErrActorIDEmpty)
 	}
 
 	if na.ActorEntity != nil && validator.IsEmptyString(*na.ActorEntity) {

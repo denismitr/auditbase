@@ -71,16 +71,17 @@ const actionsSchema = `
 
 		FOREIGN KEY (target_entity_id)
         REFERENCES entities(id)
-		ON DELETE CASCADE,
+		ON DELETE CASCADE
 	) ENGINE=INNODB;
 `
 
 const entityTypesSchema = `
-	CREATE TABLE IF NOT EXISTS entities (
+	CREATE TABLE IF NOT EXISTS entity_types (
 		id BINARY(16) PRIMARY KEY,
 		service_id BINARY(16) NOT NULL,
-		name VARCHAR(64) NOT NULL,
-		description VARCHAR(255),
+		name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+		description VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+		is_actor TINYINT (1) NOT NULL DEFAULT 0, 
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -93,15 +94,14 @@ const entityTypesSchema = `
 `
 
 const entitiesSchema = `
-	CREATE TABLE IF NOT EXISTS targets (
+	CREATE TABLE IF NOT EXISTS entities (
 		id BINARY(16) PRIMARY KEY,
 		entity_type_id BINARY(16) NOT NULL,
 		external_id VARCHAR(36) NOT NULL,
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-		UNIQUE KEY unique_idx (entity_type_id, external_id),
-
+		UNIQUE KEY unique_idx (entity_type_id, external_id)
 	) ENGINE=INNODB;
 `
 
