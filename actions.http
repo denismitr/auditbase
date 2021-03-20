@@ -1,0 +1,32 @@
+GET {{back-office}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+WQDQD3W
+###
+
+GET {{back-office}}/api/v1/events/015dc021-e6c0-4e25-a1a1-50e6c637524c
+Content-Type: application/json
+Accept: application/json
+
+###
+
+GET {{back-office}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+
+###
+
+GET {{back-office}}/api/v1/events/count
+Content-Type: application/json
+Accept: application/json
+
+###
+
+GET {{back-office}}/api/v1/events/queue
+Content-Type: application/json
+Accept: application/json
+
+###
+GET {{consumer}}/health
+Content-Type: application/json
+Accept: application/json

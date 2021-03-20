@@ -44,7 +44,7 @@ func TestReceiverController(t *testing.T) {
 			efMock.EXPECT().Send(gomock.Any()).Return(nil),
 		)
 
-		c := &receiverController{lg: lg, uuid4: uuidMock, ef: efMock, clock: clock, cacher: cacher}
+		c := &receiverController{lg: lg, uuid4: uuidMock, af: efMock, clock: clock, cacher: cacher}
 
 		req := test.Request{
 			Method:            http.MethodPost,
@@ -85,7 +85,7 @@ func TestReceiverController(t *testing.T) {
 			efMock.EXPECT().Send(evt).Return(nil),
 		)
 
-		c := &receiverController{lg: lg, uuid4: uuidMock, ef: efMock, clock: clock, cacher: cacher}
+		c := &receiverController{lg: lg, uuid4: uuidMock, af: efMock, clock: clock, cacher: cacher}
 
 		req := test.Request{
 			Method:            http.MethodPost,
@@ -118,7 +118,7 @@ func TestReceiverController(t *testing.T) {
 		clock := mock_clock.NewMockClock(ctrl)
 		cacher := mock_cache.NewMockCacher(ctrl)
 
-		c := &receiverController{lg: lg, uuid4: uuidMock, ef: efMock, clock: clock, cacher: cacher}
+		c := &receiverController{lg: lg, uuid4: uuidMock, af: efMock, clock: clock, cacher: cacher}
 
 		req := test.Request{
 			Method:            http.MethodPost,

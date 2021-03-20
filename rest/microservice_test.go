@@ -262,7 +262,7 @@ package rest
 //		uuidMock.EXPECT().Generate().Return(id)
 //		mrMock.
 //			EXPECT().
-//			Create(cloneMicroserviceWithNewID(m, model.ID(id))).
+//			MakeNewActions(cloneMicroserviceWithNewID(m, model.ID(id))).
 //			Return(cloneMicroserviceWithNewID(m, model.ID(id)), nil)
 //
 //		req := test.Request{

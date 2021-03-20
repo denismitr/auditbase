@@ -12,10 +12,9 @@ COPY rest/ ./rest
 COPY queue/ ./queue
 COPY model/ ./model
 COPY utils/ ./utils
-COPY persister/ ./persister
 COPY flow/ ./flow
+COPY service/ ./service
 COPY db/ ./db
-COPY cache/ ./cache
 COPY .env ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o receiver ./cmd/receiver

@@ -25,8 +25,7 @@ func Migrator(conn *sqlx.DB, lg logger.Logger) *SQLMigrator {
 		applied: make(map[string]bool),
 	}
 
-	m.up["001_initial"] = []string{microserviceSchema, entitySchema, eventSchema, propertySchema, propertySchema, changeSchema}
-	m.up["002_add_crud_to_events"] = []string{addCrudToEventSchema}
+	m.up["001_initial"] = []string{microservicesSchema, entityTypesSchema, entitiesSchema, actionsSchema}
 
 	return m
 }
@@ -38,7 +37,7 @@ CREATE TABLE IF NOT EXISTS migrations (
 ) ENGINE=INNODB;
 `
 
-const microserviceSchema = `
+const microservicesSchema = `
 	CREATE TABLE IF NOT EXISTS microservices (
 		id binary(16) PRIMARY KEY,
 		name VARCHAR(36),
@@ -49,48 +48,43 @@ const microserviceSchema = `
 	) ENGINE=INNODB;
 `
 
-const eventSchema = `
-	CREATE TABLE IF NOT EXISTS events (
-		id binary(16) PRIMARY KEY,
-		parent_event_id binary(16),
+const actionsSchema = `
+	CREATE TABLE IF NOT EXISTS actions (
+		id BINARY(16) PRIMARY KEY,
+		parent_id BINARY(16),
+		status TINYINT(1) DEFAULT 0,
+		is_async TINYINT(1) DEFAULT 0,
 		hash VARCHAR(40),
-		actor_id VARCHAR(36) NOT NULL,
-		actor_entity_id binary(16) NOT NULL,
-		actor_service_id binary(16) NOT NULL,
-		target_id VARCHAR(36) NOT NULL,
-		target_entity_id binary(16),
-		target_service_id binary(16) NOT NULL,
-		event_name VARCHAR(36) NOT NULL,
-		operation SMALLINT, 
+		actor_entity_id BINARY(16),
+		target_entity_id BINARY(16),
+		name VARCHAR(36) NOT NULL,
 		emitted_at TIMESTAMP NOT NULL,
 		registered_at TIMESTAMP NOT NULL,
+		details JSON,
+		delta JSON,
 
-		FOREIGN KEY (actor_service_id)
-        REFERENCES microservices(id)
-		ON DELETE CASCADE,
+		INDEX name_idx (name),
 
-		FOREIGN KEY (target_service_id)
-        REFERENCES microservices(id)
-		ON DELETE CASCADE,
-		
 		FOREIGN KEY (actor_entity_id)
         REFERENCES entities(id)
 		ON DELETE CASCADE,
-		
+
 		FOREIGN KEY (target_entity_id)
         REFERENCES entities(id)
-        ON DELETE CASCADE
+		ON DELETE CASCADE
 	) ENGINE=INNODB;
 `
 
-const entitySchema = `
-	CREATE TABLE IF NOT EXISTS entities (
-		id binary(16) PRIMARY KEY,
-		service_id binary(16) NOT NULL,
-		name VARCHAR(64) NOT NULL,
-		description VARCHAR(255),
+const entityTypesSchema = `
+	CREATE TABLE IF NOT EXISTS entity_types (
+		id BINARY(16) PRIMARY KEY,
+		service_id BINARY(16) NOT NULL,
+		name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+		description VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+		is_actor TINYINT (1) NOT NULL DEFAULT 0, 
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
 		UNIQUE KEY unique_service_and_name (service_id, name),
 
 		FOREIGN KEY (service_id)
@@ -99,57 +93,23 @@ const entitySchema = `
 	) ENGINE=INNODB;		
 `
 
-const propertySchema = `
-	CREATE TABLE IF NOT EXISTS properties (
-		id binary(16) PRIMARY KEY,
-		entity_id binary(16) NOT NULL,
-		name VARCHAR(64) NOT NULL,
-		
-		UNIQUE KEY unique_entity_and_name (entity_id, name),
-		INDEX name_index (name),
+const entitiesSchema = `
+	CREATE TABLE IF NOT EXISTS entities (
+		id BINARY(16) PRIMARY KEY,
+		entity_type_id BINARY(16) NOT NULL,
+		external_id VARCHAR(36) NOT NULL,
+		created_at TIMESTAMP default CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-		FOREIGN KEY (entity_id)
-        REFERENCES entities(id)
-        ON DELETE CASCADE
-	)
+		UNIQUE KEY unique_idx (entity_type_id, external_id)
+	) ENGINE=INNODB;
 `
-
-const changeSchema = `
-	CREATE TABLE IF NOT EXISTS changes (
-		id binary(16) PRIMARY KEY,
-		property_id binary(16) NOT NULL,
-		event_id binary(16) NOT NULL,
-		from_value TEXT,
-		to_value TEXT,
-		current_data_type TINYINT(1),
-
-		INDEX event_and_property_index (event_id, property_id),
-		INDEX event_index (event_id),
-
-		FOREIGN KEY (event_id)
-        REFERENCES events(id)
-        ON DELETE CASCADE,
-
-		FOREIGN KEY (property_id)
-        REFERENCES properties(id)
-        ON DELETE CASCADE
-	)
-`
-
-const addCrudToEventSchema = `
-	ALTER TABLE events ADD COLUMN crud TINYINT(1) AFTER event_name 
-`
-
-
 
 const flush = `
 	SET FOREIGN_KEY_CHECKS=0;
 
-	DROP TABLE IF EXISTS properties;
-	DROP TABLE IF EXISTS changes;
-	DROP TABLE IF EXISTS entities;
 	DROP TABLE IF EXISTS microservices;
-	DROP TABLE IF EXISTS events; 
+	DROP TABLE IF EXISTS actions; 
 
 	SET FOREIGN_KEY_CHECKS=1;
 `

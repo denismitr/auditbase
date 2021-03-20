@@ -1,19 +1,54 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/test/seeder"
+	"github.com/denismitr/auditbase/utils/seeder"
+	"log"
+	"os"
 )
 
 func main() {
-	create := seeder.New(150, false, model.Create).Seed()
-	unknown := seeder.New(200, false, model.Unknown).Seed()
-	del := seeder.New(90, false, model.Delete).Seed()
-	update := seeder.New(300, false, model.Update).Seed()
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
 
-	results := seeder.Send("http://localhost:8888/api/v1/events", create, unknown, del, update) // fixme
-	for result := range results {
-		fmt.Printf("%#v", result)
+func run() error {
+	var endpoint string
+	flag.StringVar(&endpoint, "endpoint", "localhost:3000/api/v1/actions", "Endpoint of POST and PATCH controllers")
+	flag.Parse()
+
+	lg := log.New(os.Stderr, "Actions Seeder ", log.LstdFlags)
+
+	errCh := make(chan error)
+	create := seeder.GenerateNewActions(150, model.CreateAction)
+	various := seeder.GenerateNewActions(200, model.AnyAction)
+	del := seeder.GenerateNewActions(90, model.DeleteAction)
+	update := seeder.GenerateNewActions(300, model.UpdateAction)
+
+	sender := seeder.NewSender(endpoint, lg)
+
+	lg.Println("Starting to dispatch new actions")
+	resultCh := sender.DispatchNewActions(errCh, create, various, del, update)
+
+	for {
+		select {
+		case err, ok := <-errCh:
+			if ok {
+				lg.Println(err)
+				return err
+			} else {
+				lg.Println("Error ch closed. Exiting")
+				return nil
+			}
+		case result, ok := <-resultCh:
+			if ok {
+				lg.Printf("%#v", result)
+			} else {
+				lg.Println("Result ch closed. Exiting")
+				return nil
+			}
+		}
 	}
 }

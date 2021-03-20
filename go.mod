@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/Masterminds/squirrel v1.4.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/doug-martin/goqu/v9 v9.10.0
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/mock v1.4.3
@@ -14,7 +15,6 @@ require (
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0
 	github.com/lib/pq v1.3.0 // indirect
-	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.4.0
 	github.com/satori/go.uuid v1.2.0

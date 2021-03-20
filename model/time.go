@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const DefaultTimeFormat = "02-Jan-2006 15:04:05"
+const DefaultTimeFormat = "2006-01-02 15:04:05"
 
 type JSONTime struct {
 	time.Time

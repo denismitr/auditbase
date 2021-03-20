@@ -22,3 +22,8 @@ func Timestamp(min time.Time, max time.Time) int64 {
 	ts := seededInt.Intn(int(max.Unix()) - int(min.Unix()) + 1) + int(min.Unix())
 	return int64(ts)
 }
+
+func Time(min time.Time, max time.Time) time.Time {
+	ts := Timestamp(min, max)
+	return time.Unix(ts, 0)
+}

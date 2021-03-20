@@ -8,11 +8,17 @@ import (
 )
 
 type Microservice struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CreatedAt   string `json:"createdAt,omitempty"`
-	UpdatedAt   string `json:"updatedAt,omitempty"`
+	ID          ID           `json:"id"`
+	Name        string       `json:"name"`
+	EntityTypes []EntityType `json:"entityTypes"`
+	Description string       `json:"description"`
+	CreatedAt   JSONTime       `json:"createdAt,omitempty"`
+	UpdatedAt   JSONTime       `json:"updatedAt,omitempty"`
+}
+
+type MicroserviceCollection struct {
+	Items []Microservice
+	Meta
 }
 
 type MicroserviceRepository interface {
@@ -28,7 +34,7 @@ type MicroserviceRepository interface {
 func (m *Microservice) Validate() *errbag.ErrorBag {
 	eb := errbag.New()
 
-	if !validator.IsUUID4(m.ID) {
+	if !validator.IsUUID4(m.ID.String()) {
 		eb.Add("ID", ErrInvalidUUID4)
 	}
 

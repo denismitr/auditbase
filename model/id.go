@@ -20,3 +20,17 @@ func (id ID) Validate() *errbag.ErrorBag {
 func (id ID) String() string {
 	return string(id)
 }
+
+func IDPointer(id string) *ID {
+	if id == "" {
+		return nil
+	}
+
+	v := ID(id)
+
+	return &v
+}
+
+func IDToPointer(id ID) *ID {
+	return &id
+}
