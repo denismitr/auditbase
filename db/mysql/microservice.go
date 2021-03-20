@@ -35,7 +35,7 @@ type MicroserviceRepository struct {
 	*Tx
 }
 
-// Create microservices in MySQL DB and return a newly created instance
+// MakeNewActions microservices in MySQL DB and return a newly created instance
 func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservice) (*model.Microservice, error) {
 	createSQL, createArgs, err := createMicroserviceQuery(m)
 	if err != nil {
@@ -100,7 +100,7 @@ func selectAllMicroservicesQuery() (string, interface{}, error) {
 	).Prepared(true).ToSQL()
 }
 
-// Delete microservices by ID
+// DeleteAction microservices by ID
 func (r *MicroserviceRepository) Delete(ctx context.Context, ID model.ID) error {
 	q, args, err := deleteMicroserviceQuery(ID)
 	if err != nil {
@@ -129,7 +129,7 @@ func deleteMicroserviceQuery(ID model.ID) (string, []interface{}, error) {
 	return dialect.Delete("microservices").Where(expr).Prepared(true).ToSQL()
 }
 
-// Update microservices by ID
+// UpdateAction microservices by ID
 func (r *MicroserviceRepository) Update(ctx context.Context, ID model.ID, m *model.Microservice) (*model.Microservice, error) {
 	q, args, err := updateMicroserviceQuery(ID, m)
 	if err != nil {

@@ -8,10 +8,10 @@ import (
 type Crud int
 
 const (
-	Unknown Crud = iota
-	Create
-	Update
-	Delete
+	AnyAction Crud = iota
+	CreateAction
+	UpdateAction
+	DeleteAction
 )
 
 type NewAction struct {

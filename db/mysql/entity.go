@@ -88,7 +88,7 @@ func (r *EntityRepository) Select(
 	return mapEntitiesToCollection(entities, cnt, cursor.Page, cursor.PerPage), nil
 }
 
-// Create an entities
+// MakeNewActions an entities
 func (r *EntityRepository) Create(ctx context.Context, e *model.Entity) (*model.Entity, error) {
 	q, args, err := createEntityQuery(e.ID, e.EntityTypeID, e.ExternalID)
 	if err != nil {

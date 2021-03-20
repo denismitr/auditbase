@@ -23,13 +23,13 @@ type ActionRepository struct {
 
 type actionRecord struct {
 	ID             string         `db:"id"`
-	ParentEventID  sql.NullString `db:"parent_event_id"`
+	ParentID       sql.NullString `db:"parent_id"`
 	Hash           string         `db:"hash"`
 	ActorEntityID  sql.NullString `db:"actor_entity_id"`
 	TargetEntityID sql.NullString `db:"target_entity_id"`
 	Name           string         `db:"name"`
-	Details        *string         `db:"details"`
-	Delta          *string         `db:"delta"`
+	Details        *string        `db:"details"`
+	Delta          *string        `db:"delta"`
 	EmittedAt      time.Time      `db:"emitted_at"`
 	RegisteredAt   time.Time      `db:"registered_at"`
 }
@@ -100,7 +100,7 @@ func (r *ActionRepository) Select(
 	}
 
 	var ars []actionRecord
-	if err := selectStmt.GetContext(ctx, &ars); err != nil {
+	if err := selectStmt.SelectContext(ctx, &ars); err != nil {
 		return nil, errors.Wrap(err, "could not execute select actions query")
 	}
 

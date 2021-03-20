@@ -1,4 +1,5 @@
 REST_PORT ?= 5000
+RECEIVER_PORT ?= 8888
 PERCONA_PORT ?= 3306
 GO_VERSION := 1.15.2
 GO := go
@@ -7,6 +8,8 @@ GO_BUILD := $(GO) build
 GO_COVER := $(GO) tool cover
 COVER_OUT := ./.cover/c.out
 AUDITBASE_VERSION := $(shell git rev-parse --short HEAD || echo "GitNotFound")
+
+RECEIVER_ENDPOINT = http://localhost:$(RECEIVER_PORT)/api/v1/actions
 
 BACK_OFFICE_BINARY := ./cmd/backoffice/backoffice
 BACK_OFFICE_MAIN := ./cmd/backoffice/backoffice.go
@@ -57,7 +60,7 @@ docker/test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
 
 seed:
-	go run ./cmd/seed
+	go run ./cmd/seed --endpoint=$(RECEIVER_ENDPOINT)
 
 integration_test:
 	go test ./test/integration/...

@@ -100,8 +100,8 @@ func mapActionRecordToModel(ar actionRecord) *model.Action {
 		RegisteredAt: model.JSONTime{Time: ar.RegisteredAt},
 	}
 
-	if ar.ParentEventID.Valid {
-		a.ParentID = model.IDPointer(ar.ParentEventID.String)
+	if ar.ParentID.Valid {
+		a.ParentID = model.IDPointer(ar.ParentID.String)
 	}
 
 	if ar.Delta != nil {
