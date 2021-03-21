@@ -24,8 +24,8 @@ func Test_createActionQuery(t *testing.T) {
 	}{
 		{
 			action: &model.Action{
-				ID: model.ID("7c94b604-560b-4f3d-8cf0-c341faca3139"),
-				ParentID: model.IDToPointer("937468fd-d35b-4504-bb18-bf1903113727"),
+				ID: 10,
+				ParentID: 123,
 				Name: "foo-bar",
 				Hash: "foo-hash",
 				IsAsync: false,
@@ -37,9 +37,9 @@ func Test_createActionQuery(t *testing.T) {
 		},
 		{
 			action: &model.Action{
-				ID: model.ID("6c94b604-560b-4f3d-8cf0-c341faca3139"),
-				ParentID: model.IDToPointer("837468fd-d35b-4504-bb18-bf1903113727"),
-				ActorEntityID: model.IDToPointer("537468fd-d35b-4504-bb18-bf1903113725"),
+				ID: 34,
+				ParentID: 56,
+				ActorEntityID: 57,
 				Name: "foo-bar-2",
 				Hash: "foo-hash-2",
 				IsAsync: false,
@@ -51,9 +51,9 @@ func Test_createActionQuery(t *testing.T) {
 		},
 		{
 			action: &model.Action{
-				ID: model.ID("6d94b604-560b-4f3d-8cf0-c341faca3139"),
-				ActorEntityID: model.IDToPointer("537468fd-d35b-4504-bb18-bf1903113725"),
-				TargetEntityID: model.IDToPointer("355568fd-d35b-4504-bb18-bf1903113701"),
+				ID: 10,
+				ActorEntityID: 11,
+				TargetEntityID: 12,
 				Name: "foo-bar-2",
 				Hash: "foo-hash-2",
 				IsAsync: true,

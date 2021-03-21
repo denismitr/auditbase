@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -14,21 +13,18 @@ const MySQL8 = "mysql8"
 
 type Database struct {
 	conn  *sqlx.DB
-	uuid4 uuid.UUID4Generator
 	lg    logger.Logger
 }
 
-func NewDatabase(conn *sqlx.DB, uuid4 uuid.UUID4Generator, lg logger.Logger) *Database {
+func NewDatabase(conn *sqlx.DB, lg logger.Logger) *Database {
 	return &Database{
 		conn:  conn,
-		uuid4: uuid4,
 		lg:    lg,
 	}
 }
 
 type Tx struct {
 	mysqlTx *sqlx.Tx
-	uuid4   uuid.UUID4Generator
 	lg     logger.Logger
 }
 
@@ -40,7 +36,7 @@ func (db *Database) ReadOnly(ctx context.Context, cb db.TxCallback) (interface{}
 		return nil, errors.Wrap(err, "could not start read only Tx")
 	}
 
-	result, err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg});
+	result, err := cb(ctx, &Tx{mysqlTx: mysqlTx, lg: db.lg});
 	if err != nil {
 		if rbErr := mysqlTx.Rollback(); rbErr != nil {
 			return nil, errors.Wrap(err, rbErr.Error())
@@ -62,7 +58,7 @@ func (db *Database) ReadWrite(ctx context.Context, cb db.TxCallback) (interface{
 		return nil, errors.Wrap(err, "could not start read write Tx")
 	}
 
-	result, err := cb(ctx, &Tx{mysqlTx: mysqlTx, uuid4: db.uuid4, lg: db.lg});
+	result, err := cb(ctx, &Tx{mysqlTx: mysqlTx, lg: db.lg});
 	if err != nil {
 		if rbErr := mysqlTx.Rollback(); rbErr != nil {
 			return nil, errors.Wrap(err, rbErr.Error())

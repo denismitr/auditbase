@@ -2,15 +2,25 @@ package rest
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
+	"strconv"
 	"strings"
 
 	"github.com/denismitr/auditbase/model"
 	"github.com/labstack/echo"
 )
 
-func extractIDParamFrom(ctx echo.Context) model.ID {
+func extractIDParamFrom(ctx echo.Context) (model.ID, error) {
 	id := ctx.Param("id")
-	return model.ID(id)
+	numericID, err := strconv.Atoi(id)
+	if err != nil {
+		return 0, errors.Wrapf(err, "invalid numeric ID value [%s]", id)
+	}
+	if numericID <= 0 {
+		return 0, errors.Wrapf(err, "numeric ID must be positive, instead got [%s]", id)
+	}
+
+	return model.ID(numericID), nil
 }
 
 func interfaceToStringPointer(value interface{}) *string {

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/denismitr/auditbase/model"
 )
 
@@ -100,19 +101,13 @@ func mapActionRecordToModel(ar actionRecord) *model.Action {
 		RegisteredAt: model.JSONTime{Time: ar.RegisteredAt},
 	}
 
-	if ar.ParentID.Valid {
-		a.ParentID = model.IDPointer(ar.ParentID.String)
+	if ar.ParentID > 0 {
+		a.ParentID = model.ID(ar.ParentID)
 	}
 
-	if ar.Delta != nil {
-		if err := json.Unmarshal([]byte(*ar.Delta), &a.Delta); err != nil {
-			panic(err)
-		}
-	}
-
-	if ar.Details != nil {
-		if err := json.Unmarshal([]byte(*ar.Details), &a.Details); err != nil {
-			panic(err)
+	if ar.Details.Valid {
+		if err := json.Unmarshal([]byte(ar.Details.String), &a.Details); err != nil {
+			panic(fmt.Sprintf("could not unmarshal details of action [%d]: %v", ar.ID, err))
 		}
 	}
 

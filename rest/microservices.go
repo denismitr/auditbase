@@ -5,26 +5,23 @@ import (
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/service"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
+	"strconv"
 	"time"
 )
 
 type microservicesController struct {
 	lg  logger.Logger
-	uuid4   uuid.UUID4Generator
 	microservices service.MicroserviceService
 }
 
 func newMicroservicesController(
 	lg logger.Logger,
-	uuid4 uuid.UUID4Generator,
 	microservices service.MicroserviceService,
 ) *microservicesController {
 	return &microservicesController{
 		lg:        lg,
-		uuid4:         uuid4,
 		microservices: microservices,
 	}
 }
@@ -34,10 +31,6 @@ func (mc *microservicesController) create(rCtx echo.Context) error {
 
 	if err := rCtx.Bind(m); err != nil {
 		return rCtx.JSON(badRequest(errors.Wrap(err, "could not parse request payload")))
-	}
-
-	if m.ID == "" {
-		m.ID = model.ID(mc.uuid4.Generate())
 	}
 
 	errs := m.Validate()
@@ -82,7 +75,16 @@ func (mc *microservicesController) update(rCtx echo.Context) error {
 		return rCtx.JSON(validationFailed(errs.All()...))
 	}
 
-	ID := model.ID(rCtx.Param("id"))
+	numericID, err := strconv.Atoi(rCtx.Param("id"))
+	if err != nil {
+		return rCtx.JSON(badRequest(errors.New("ID is not numeric")))
+	}
+
+	if numericID <= 0 {
+		return rCtx.JSON(badRequest(errors.New("ID must be a positive integer")))
+	}
+
+	ID := model.ID(numericID)
 	if errs := ID.Validate(); errs.NotEmpty() {
 		return rCtx.JSON(validationFailed(errs.All()...))
 	}
@@ -101,10 +103,9 @@ func (mc *microservicesController) update(rCtx echo.Context) error {
 }
 
 func (mc *microservicesController) show(rCtx echo.Context) error {
-	ID := extractIDParamFrom(rCtx)
-
-	if errs := ID.Validate(); errs.NotEmpty() {
-		return rCtx.JSON(validationFailed(errs.All()...))
+	ID, err := extractIDParamFrom(rCtx)
+	if err != nil {
+		return rCtx.JSON(badRequest(err))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)

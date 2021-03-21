@@ -19,15 +19,7 @@ func WrappedString(prefix string, suffix string, length int) string {
 }
 
 func WrappedPointerToString(prefix string, suffix string, length int) *string {
-	r := random.String(length)
-
-	if prefix != "" {
-		r = prefix + "_" + r
-	}
-
-	if suffix != "" {
-		r = r + "_" + suffix
-	}
+	r := WrappedString(prefix, suffix, length)
 
 	return &r
 }

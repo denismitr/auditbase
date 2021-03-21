@@ -17,7 +17,6 @@ import (
 	"github.com/denismitr/auditbase/rest"
 	"github.com/denismitr/auditbase/utils/env"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/profile"
 )
@@ -36,7 +35,7 @@ func main() {
 		BodyLimit: "250K",
 	}
 
-	backOffice, err := createBackOffice(lg, restCfg, uuid.NewUUID4Generator())
+	backOffice, err := createBackOffice(lg, restCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -68,7 +67,7 @@ func debug(run bool) {
 }
 
 
-func createBackOffice(lg logger.Logger, restCfg rest.Config, uuid4 uuid.UUID4Generator) (*rest.API, error) {
+func createBackOffice(lg logger.Logger, restCfg rest.Config) (*rest.API, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -120,10 +119,10 @@ func createBackOffice(lg logger.Logger, restCfg rest.Config, uuid4 uuid.UUID4Gen
 		lg.Debugf("Connection to DB and RabbitMQ have been established")
 	}
 
-	db := mysql.NewDatabase(<-connCh, uuid.NewUUID4Generator(), lg)
+	db := mysql.NewDatabase(<-connCh, lg)
 
 	services := rest.BackOfficeServices{
-		Actions: service.NewActionService(db, lg, uuid4),
+		Actions: service.NewActionService(db, lg),
 		Microservices: service.NewMicroserviceService(db, lg),
 		Entities: service.NewEntityService(db, lg),
 	}

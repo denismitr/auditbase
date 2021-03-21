@@ -6,29 +6,25 @@ import (
 	"github.com/denismitr/auditbase/service"
 	"github.com/denismitr/auditbase/utils/clock"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
-	"github.com/denismitr/auditbase/utils/validator"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
+	"strconv"
 	"time"
 )
 
 type entitiesController struct {
 	logger   logger.Logger
-	uuid4    uuid.UUID4Generator
 	entities service.EntityService
 	clock    clock.Clock
 }
 
 func newEntitiesController(
 	l logger.Logger,
-	uuid4 uuid.UUID4Generator,
 	clock clock.Clock,
 	entities service.EntityService,
 ) *entitiesController {
 	return &entitiesController{
 		logger:   l,
-		uuid4:    uuid4,
 		entities: entities,
 		clock:    clock,
 	}
@@ -59,14 +55,17 @@ func (e *entitiesController) show(rCtx echo.Context) error {
 		return rCtx.JSON(badRequest(errors.New("ID is missing")))
 	}
 
-	if !validator.IsUUID4(ID) {
-		return rCtx.JSON(badRequest(errors.New("ID is missing")))
+	numericID, err := strconv.Atoi(ID)
+	if err != nil {
+		return rCtx.JSON(badRequest(errors.New("ID is not numeric")))
 	}
+
+	// todo: numericID > 0
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	entity, err := e.entities.FirstByID(ctx, model.ID(ID))
+	entity, err := e.entities.FirstByID(ctx, model.ID(numericID))
 	if err != nil {
 		e.logger.Error(err)
 		return rCtx.JSON(notFound(err))

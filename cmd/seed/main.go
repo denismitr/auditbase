@@ -22,10 +22,10 @@ func run() error {
 	lg := log.New(os.Stderr, "Actions Seeder ", log.LstdFlags)
 
 	errCh := make(chan error)
-	create := seeder.GenerateNewActions(150, model.CreateAction)
-	various := seeder.GenerateNewActions(200, model.AnyAction)
-	del := seeder.GenerateNewActions(90, model.DeleteAction)
-	update := seeder.GenerateNewActions(300, model.UpdateAction)
+	create := seeder.GenerateNewActions(1550, model.CreateAction)
+	various := seeder.GenerateNewActions(2000, model.AnyAction)
+	del := seeder.GenerateNewActions(9000, model.DeleteAction)
+	update := seeder.GenerateNewActions(3000, model.UpdateAction)
 
 	sender := seeder.NewSender(endpoint, lg)
 

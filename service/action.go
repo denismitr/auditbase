@@ -6,7 +6,6 @@ import (
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -20,14 +19,12 @@ type ActionService interface {
 type BaseActionService struct {
 	db db.Database
 	lg logger.Logger
-	uuid4 uuid.UUID4Generator
 }
 
-func NewActionService(db db.Database, lg logger.Logger, uuid4 uuid.UUID4Generator) *BaseActionService {
+func NewActionService(db db.Database, lg logger.Logger) *BaseActionService {
 	return &BaseActionService{
 		db: db,
 		lg: lg,
-		uuid4: uuid4,
 	}
 }
 
@@ -83,8 +80,8 @@ func (s *BaseActionService) FirstByID(ctx context.Context, ID model.ID) (*model.
 			return nil, err
 		}
 
-		if action.ParentID != nil {
-			parent, err := actions.FirstByID(ctx, *action.ParentID)
+		if action.ParentID != 0 {
+			parent, err := actions.FirstByID(ctx, action.ParentID)
 			if err != nil {
 				return nil, errors.Wrap(err, "could not get parent ID")
 			}
@@ -93,8 +90,8 @@ func (s *BaseActionService) FirstByID(ctx context.Context, ID model.ID) (*model.
 		}
 
 		entities := tx.Entities()
-		if action.ActorEntityID != nil {
-			actor, err := entities.FirstByIDWithEntityType(ctx, *action.ActorEntityID)
+		if action.ActorEntityID != 0 {
+			actor, err := entities.FirstByIDWithEntityType(ctx, action.ActorEntityID)
 			if err != nil {
 				return nil, errors.Wrap(err, "could not join actor to action")
 			}
@@ -102,8 +99,8 @@ func (s *BaseActionService) FirstByID(ctx context.Context, ID model.ID) (*model.
 			action.Actor = actor
 		}
 
-		if action.TargetEntityID != nil {
-			target, err := entities.FirstByIDWithEntityType(ctx, *action.TargetEntityID)
+		if action.TargetEntityID != 0 {
+			target, err := entities.FirstByIDWithEntityType(ctx, action.TargetEntityID)
 			if err != nil {
 				return nil, errors.Wrap(err, "could not join target to action")
 			}
@@ -141,47 +138,45 @@ func (s *BaseActionService) Create(ctx context.Context, newAction *model.NewActi
 		action := new(model.Action)
 
 		var actingEntity *model.Entity
-		if newAction.ActorExternalID != nil && newAction.ActorEntity != nil {
+		if newAction.ActorExternalID != "" && newAction.ActorEntity != "" {
 			var err error
 
-			actingEntityType, err := tx.EntityTypes().FirstOrCreateByNameAndServiceID(ctx, *newAction.ActorEntity, actingService.ID)
+			actingEntityType, err := tx.EntityTypes().FirstOrCreateByNameAndServiceID(ctx, newAction.ActorEntity, actingService.ID)
 			if err != nil {
 				return nil, err
 			}
 
-			actingEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.ActorExternalID, actingEntityType.ID)
+			actingEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, newAction.ActorExternalID, actingEntityType.ID)
 			if err != nil {
 				return nil, err
 			}
 
-			action.ActorEntityID = &actingEntity.ID
+			action.ActorEntityID = actingEntity.ID
 		}
 
 		var targetEntity *model.Entity
-		if newAction.TargetExternalID != nil && newAction.TargetEntity != nil {
+		if newAction.TargetExternalID != "" && newAction.TargetEntity != "" {
 			var err error
 
-			targetEntityType, err := tx.EntityTypes().FirstOrCreateByNameAndServiceID(ctx, *newAction.TargetEntity, targetService.ID)
+			targetEntityType, err := tx.EntityTypes().FirstOrCreateByNameAndServiceID(ctx, newAction.TargetEntity, targetService.ID)
 			if err != nil {
 				return nil, err
 			}
 
-			targetEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, *newAction.TargetExternalID, targetEntityType.ID)
+			targetEntity, err = tx.Entities().FirstOrCreateByExternalIDAndEntityTypeID(ctx, newAction.TargetExternalID, targetEntityType.ID)
 			if err != nil {
 				return nil, err
 			}
 
-			action.TargetEntityID = &targetEntity.ID
+			action.TargetEntityID = targetEntity.ID
 		}
 
-		action.ID = model.ID(s.uuid4.Generate())
 		action.Name = newAction.Name
 		action.EmittedAt = newAction.EmittedAt
 		action.RegisteredAt = newAction.RegisteredAt
 		action.Status = newAction.Status
 		action.IsAsync = newAction.IsAsync
 		action.Details = newAction.Details
-		action.Delta = newAction.Delta
 
 		action, err = tx.Actions().Create(ctx, action)
 		if err != nil {

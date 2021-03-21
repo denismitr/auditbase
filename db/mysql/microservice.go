@@ -6,7 +6,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils/validator"
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
@@ -14,20 +13,20 @@ import (
 )
 
 type microserviceRecord struct {
-	ID          string `db:"id"`
-	Name        string `db:"name"`
-	Description string `db:"description"`
+	ID          int       `db:"id"`
+	Name        string    `db:"name"`
+	Description string    `db:"description"`
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
 }
 
 func (m *microserviceRecord) ToModel() *model.Microservice {
 	return &model.Microservice{
-		ID: model.ID(m.ID),
-		Name: m.Name,
+		ID:          model.ID(m.ID),
+		Name:        m.Name,
 		Description: m.Description,
-		CreatedAt: model.JSONTime{Time: m.CreatedAt},
-		UpdatedAt: model.JSONTime{Time: m.UpdatedAt},
+		CreatedAt:   model.JSONTime{Time: m.CreatedAt},
+		UpdatedAt:   model.JSONTime{Time: m.UpdatedAt},
 	}
 }
 
@@ -49,17 +48,23 @@ func (r *MicroserviceRepository) Create(ctx context.Context, m *model.Microservi
 
 	defer func() { _ = createStmt.Close() }()
 
-	if _, err := createStmt.ExecContext(ctx, createArgs...); err != nil {
+	result, err := createStmt.ExecContext(ctx, createArgs...);
+	if err != nil {
 		return nil, errors.Wrapf(err, "cannot insert record into microservices table")
 	}
 
-	return r.FirstByID(ctx, m.ID)
+	newID, err := result.LastInsertId()
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not retrieve a new ID for created microservice %s", m.Name)
+	}
+
+	return r.FirstByID(ctx, model.ID(newID))
 }
 
 // SelectAll microservices
 // fixme: pagination
 func (r *MicroserviceRepository) SelectAll(ctx context.Context) (*model.MicroserviceCollection, error) {
-	q := `SELECT BIN_TO_UUID(id) as id, name, description, created_at, updated_at FROM microservices`
+	q := "SELECT `id`, `name`, `description`, `created_at`, `updated_at` FROM `microservices`"
 	var msr []microserviceRecord
 
 	stmt, err := r.mysqlTx.PreparexContext(ctx, q)
@@ -94,7 +99,7 @@ func selectAllMicroservicesQuery() (string, interface{}, error) {
 	dialect := goqu.Dialect(MySQL8)
 
 	return dialect.Select(
-		goqu.L("bin_to_uuid(id)").As("id"),
+		goqu.I("id"), // todo
 		"name", "description",
 		"created_at", "updated_at",
 	).Prepared(true).ToSQL()
@@ -113,19 +118,15 @@ func (r *MicroserviceRepository) Delete(ctx context.Context, ID model.ID) error 
 	}
 
 	if _, err := stmt.ExecContext(ctx, args); err != nil {
-		return errors.Wrapf(err, "could not delete microservices with ID %s", ID.String())
+		return errors.Wrapf(err, "could not delete microservices with ID %d", ID)
 	}
 
 	return nil
 }
 
 func deleteMicroserviceQuery(ID model.ID) (string, []interface{}, error) {
-	if ! validator.IsUUID4(ID.String()) {
-		return "", nil, errors.New("how could id not be a valid UUID")
-	}
-
 	dialect := goqu.Dialect(MySQL8)
-	expr := goqu.L("id = uuid_to_bin(?)", ID.String())
+	expr := goqu.L("`id` = ?", int(ID))
 	return dialect.Delete("microservices").Where(expr).Prepared(true).ToSQL()
 }
 
@@ -142,17 +143,13 @@ func (r *MicroserviceRepository) Update(ctx context.Context, ID model.ID, m *mod
 	}
 
 	if _, err := stmt.ExecContext(ctx, args...); err != nil {
-		return nil, errors.Wrapf(err, "could not update microservices with ID %s", m.ID.String())
+		return nil, errors.Wrapf(err, "could not update microservices with ID %d", m.ID)
 	}
 
 	return nil, nil
 }
 
 func updateMicroserviceQuery(ID model.ID, m *model.Microservice) (string, []interface{}, error) {
-	if ! validator.IsUUID4(ID.String()) {
-		return "", nil, errors.New("how could id not be a valid UUID")
-	}
-
 	if m.Name == "" {
 		return "", nil, errors.New("how can microservice name be empty on update?")
 	}
@@ -162,19 +159,19 @@ func updateMicroserviceQuery(ID model.ID, m *model.Microservice) (string, []inte
 	}
 
 	dialect := goqu.Dialect(MySQL8)
-	whereExpr := goqu.L("id = uuid_to_bin(?)", ID.String())
+	whereExpr := goqu.L("`id` = ?", int(ID))
 	return dialect.Update("microservices").Where(whereExpr).Set(goqu.Record{
-		"name": m.Name,
+		"name":        m.Name,
 		"description": m.Description,
-		"updated_at": m.UpdatedAt.Unix(),
+		"updated_at":  m.UpdatedAt.Unix(),
 	}).Prepared(true).ToSQL()
- }
+}
 
 // FirstByID - find one microservices by ID
 func (r *MicroserviceRepository) FirstByID(ctx context.Context, ID model.ID) (*model.Microservice, error) {
 	var m microserviceRecord
 
-	q, args, err := firstMicroserviceByIDQuery(ID.String())
+	q, args, err := firstMicroserviceByIDQuery(ID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +207,7 @@ func (r *MicroserviceRepository) FirstByName(ctx context.Context, name string) (
 
 	query := `
 		SELECT 
-			BIN_TO_UUID(id) as id, name, description, created_at, updated_at 
+			id, name, description, created_at, updated_at 
 		FROM microservices 
 			WHERE name = ?
 	`
@@ -256,48 +253,36 @@ func (r *MicroserviceRepository) FirstOrCreateByName(ctx context.Context, name s
 	}
 
 	m = &model.Microservice{
-		ID:          model.ID(r.uuid4.Generate()),
 		Name:        name,
 		Description: "",
 	}
 
-	if _, err := r.Create(ctx, m); err != nil {
+	createdMicroservice, err := r.Create(ctx, m);
+	if err != nil {
 		return nil, errors.Wrapf(err, "microservices with name %s does not exist and cannot be created", name)
 	}
 
-	return m, nil
+	return createdMicroservice, nil
 }
 
 func createMicroserviceQuery(m *model.Microservice) (string, []interface{}, error) {
-	if validator.IsEmptyString(m.ID.String()) {
-		return "", nil, db.ErrEmptyUUID4
-	}
-
-	if !validator.IsUUID4(m.ID.String()) {
-		return "", nil, errors.Errorf("%s is not a valid uuid4", m.ID)
-	}
-
 	return sq.Insert("microservices").
-		Columns("id", "name", "description").
-		Values(sq.Expr("UUID_TO_BIN(?)", m.ID), m.Name, m.Description).
+		Columns("name", "description").
+		Values(m.Name, m.Description).
 		ToSql()
 }
 
-func firstMicroserviceByIDQuery(ID string) (string, []interface{}, error) {
-	if validator.IsEmptyString(ID) {
-		return "", nil, db.ErrEmptyUUID4
-	}
-
-	if !validator.IsUUID4(ID) {
-		return "", nil, errors.Errorf("%s is not a valid uuid4", ID)
+func firstMicroserviceByIDQuery(ID model.ID) (string, []interface{}, error) {
+	if ID <= 0 {
+		return "", nil, db.ErrInvalidID
 	}
 
 	return sq.Select(
-		"BIN_TO_UUID(id) as id",
-			"name", "description",
-			"created_at", "updated_at",
-		).
+		"id",
+		"name", "description",
+		"created_at", "updated_at",
+	).
 		From("microservices").
-		Where("id = UUID_TO_BIN(?)", ID).
+		Where("id = ?", int(ID)).
 		ToSql()
 }

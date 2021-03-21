@@ -17,7 +17,6 @@ import (
 	"github.com/denismitr/auditbase/queue"
 	"github.com/denismitr/auditbase/utils/env"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/pkg/profile"
 )
 
@@ -126,9 +125,8 @@ done:
 		return nil, err
 	}
 
-	uuid4 := uuid.NewUUID4Generator()
-	db := mysql.NewDatabase(conn, uuid4, lg)
-	actionService := service.NewActionService(db, lg, uuid.NewUUID4Generator())
+	db := mysql.NewDatabase(conn, lg)
+	actionService := service.NewActionService(db, lg)
 
 	return consumer.New(ef, lg, actionService), nil
 }

@@ -3,11 +3,9 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils/validator"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -16,9 +14,9 @@ import (
 )
 
 type entityTypeRecord struct {
-	ID          string    `db:"id"`
+	ID          int    `db:"id"`
 	Name        string    `db:"name"`
-	ServiceID   string    `db:"service_id"`
+	ServiceID   int    `db:"service_id"`
 	Description string    `db:"description"`
 	EntitiesCnt int       `db:"entities_cnt"`
 	CreatedAt   time.Time `db:"created_at"`
@@ -75,7 +73,7 @@ func (r *EntityTypeRepository) Select(
 }
 
 func (r *EntityTypeRepository) Create(ctx context.Context, e *model.EntityType) (*model.EntityType, error) {
-	q, args, err := createEntityTypeQuery(e.ID.String(), e.ServiceID.String(), "Фоо", "Бар", e.IsActor)
+	q, args, err := createEntityTypeQuery(e.ID, e.ServiceID, e.Name, e.Description, e.IsActor)
 	if err != nil {
 		panic(errors.Wrap(err, "how could createEntityTypeQuery func fail?"))
 	}
@@ -85,11 +83,17 @@ func (r *EntityTypeRepository) Create(ctx context.Context, e *model.EntityType) 
 		return nil, errors.Wrap(err, "could not prepare tx to create entity type")
 	}
 
-	if _, err := stmt.ExecContext(ctx, args...); err != nil {
+	result, err := stmt.ExecContext(ctx, args...);
+	if err != nil {
 		return nil, errors.Wrapf(err, "could not create new entity type with name %s", e.Name)
 	}
 
-	return r.FirstByID(ctx, e.ID)
+	newID, err := result.LastInsertId()
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not retrieve last insert ID for create entity type [%s]", e.Name)
+	}
+
+	return r.FirstByID(ctx, model.ID(newID))
 }
 
 func (r *EntityTypeRepository) FirstOrCreateByNameAndServiceID(
@@ -109,7 +113,6 @@ func (r *EntityTypeRepository) FirstOrCreateByNameAndServiceID(
 	}
 
 	newEntity := &model.EntityType{
-		ID:        model.ID(r.uuid4.Generate()),
 		Name:      name,
 		ServiceID: serviceID,
 	}
@@ -118,9 +121,9 @@ func (r *EntityTypeRepository) FirstOrCreateByNameAndServiceID(
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
-			"entityTypeRecord with name [%s] and service ID [%s] does not exist and could not be created",
+			"entityTypeRecord with name [%s] and service ID [%d] does not exist and could not be created",
 			name,
-			serviceID.String(),
+			serviceID,
 		)
 	}
 
@@ -132,7 +135,7 @@ func (r *EntityTypeRepository) FirstByID(ctx context.Context, ID model.ID) (*mod
 }
 
 func firstEntityTypeByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.EntityType, error) {
-	q, args, err := firstEntityTypeByIDQuery(ID.String())
+	q, args, err := firstEntityTypeByIDQuery(ID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,23 +185,19 @@ func (r *EntityTypeRepository) FirstByNameAndServiceID(
 		case sql.ErrNoRows:
 			return nil, db.ErrNotFound
 		default:
-			return nil, errors.Wrapf(err, "could not find entity with name %s and serviceID %s", name, serviceID.String())
+			return nil, errors.Wrapf(err, "could not find entity with name %s and serviceID %s", name, serviceID)
 		}
 	}
 
 	return mapEntityTypeRecordToModel(ent), nil
 }
 
-func firstEntityTypeByIDQuery(ID string) (string, []interface{}, error) {
-	if !validator.IsUUID4(ID) {
-		panic(fmt.Sprintf("%s is not a valid entityRecord id (UUID4)", ID))
-	}
-
+func firstEntityTypeByIDQuery(ID model.ID) (string, []interface{}, error) {
 	dialect := goqu.Dialect(MySQL8)
 
 	q := dialect.Select(
-		goqu.L("bin_to_uuid(`et`.`id`)").As("id"),
-		goqu.L("bin_to_uuid(`et`.`service_id`)").As("service_id"),
+		goqu.L("`et`.`id`").As("id"),
+		goqu.L("`et`.`service_id`").As("service_id"),
 		goqu.I("et.name").As("name"),
 		goqu.I("et.description").As("description"),
 		goqu.I("et.created_at").As("created_at"),
@@ -207,7 +206,7 @@ func firstEntityTypeByIDQuery(ID string) (string, []interface{}, error) {
 	).
 		From(goqu.T("entity_types").As("et")).
 		LeftJoin(goqu.T("entities").As("e"), goqu.On(goqu.Ex{"e.entity_type_id": goqu.I("et.id")})).
-		Where(goqu.L("`et`.`id` = uuid_to_bin(?)", ID)).
+		Where(goqu.L("`et`.`id` = ?", int(ID))).
 		GroupBy(
 			goqu.I("et.id"),
 			goqu.I("et.service_id"),
@@ -224,8 +223,8 @@ func selectEntityTypesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
 	countQ := sq.Select("count(*) as cnt").From("entity_types")
 
 	q := sq.Select(
-		"bin_to_uuid(id) as id",
-		"bin_to_uuid(service_id) as service_id",
+		"id",
+		"service_id",
 		"name",
 		"description",
 		"created_at",
@@ -234,13 +233,13 @@ func selectEntityTypesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
 	).From("entities").LeftJoin("entities on entities.entity_type_id = entity_types.id")
 
 	if f.Has("serviceId") {
-		countQ = countQ.Where(`service_id = uuid_to_bin(?)`, f.StringOrDefault("serviceId", ""))
-		q = q.Where(`service_id = uuid_to_bin(?)`, f.StringOrDefault("serviceId", ""))
+		countQ = countQ.Where(`service_id = ?`, f.MustInt("serviceId"))
+		q = q.Where(`service_id = ?`, f.MustInt("serviceId"))
 	}
 
 	if f.Has("name") {
-		countQ = countQ.Where(`name = ?`, f.StringOrDefault("name", ""))
-		q = q.Where(`name = ?`, f.StringOrDefault("name", ""))
+		countQ = countQ.Where(`name = ?`, f.MustString("name"))
+		q = q.Where(`name = ?`, f.MustString("name"))
 	}
 
 	q = q.GroupBy("id", "service_id", "name", "description", "created_at", "updated_at")
@@ -277,15 +276,7 @@ func selectEntityTypesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
 	return &sQ, nil
 }
 
-func createEntityTypeQuery(ID, serviceID, name, description string, isActor bool) (string, []interface{}, error) {
-	if !validator.IsUUID4(ID) {
-		panic("how can entity type id not be valid UUID4?")
-	}
-
-	if !validator.IsUUID4(serviceID) {
-		panic("how can entity type service id not be a valid UUID4?")
-	}
-
+func createEntityTypeQuery(ID, serviceID model.ID, name, description string, isActor bool) (string, []interface{}, error) {
 	if !utf8.ValidString(name) {
 		panic("how could name not be a valid ut8 string")
 	}
@@ -293,11 +284,10 @@ func createEntityTypeQuery(ID, serviceID, name, description string, isActor bool
 	dialect := goqu.Dialect(MySQL8)
 
 	q := dialect.Insert(goqu.T("entity_types")).Cols(
-		"id", "service_id", "name", "description", "is_actor",
+		"service_id", "name", "description", "is_actor",
 	).Vals(
 		goqu.Vals{
-			goqu.L("uuid_to_bin(?)", ID),
-			goqu.L("uuid_to_bin(?)", serviceID),
+			goqu.L("?", int(serviceID)), // fixme
 			name, description, isActor,
 		},
 	)
@@ -310,15 +300,11 @@ func firstEntityTypeByNameAndServiceIDQuery(name string, serviceID model.ID) (st
 		panic("how can name be empty?")
 	}
 
-	if !validator.IsUUID4(serviceID.String()) {
-		panic(fmt.Sprintf("%s is not a valid microserviceRecord id (UUID4)", serviceID.String()))
-	}
-
 	dialect := goqu.Dialect(MySQL8)
 
 	q := dialect.Select(
-		goqu.L("bin_to_uuid(`et`.`id`)").As("id"),
-		goqu.L("bin_to_uuid(`et`.`service_id`)").As("service_id"),
+		goqu.L("`et`.`id`").As("id"),
+		goqu.L("`et`.`service_id`").As("service_id"),
 		goqu.I("et.name").As("name"),
 		goqu.I("et.description").As("description"),
 		goqu.I("et.created_at").As("created_at"),
@@ -327,7 +313,7 @@ func firstEntityTypeByNameAndServiceIDQuery(name string, serviceID model.ID) (st
 	).
 		From(goqu.T("entity_types").As("et")).
 		LeftJoin(goqu.T("entities").As("e"), goqu.On(goqu.Ex{"e.entity_type_id": goqu.I("et.id")})).
-		Where(goqu.L("`et`.`service_id` = uuid_to_bin(?)", serviceID.String())).
+		Where(goqu.L("`et`.`service_id` = ?", int(serviceID))).
 		Where(goqu.Ex{"name": name}).
 		GroupBy(
 			goqu.I("et.id"),

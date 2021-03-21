@@ -51,13 +51,12 @@ func GenerateNewActions(n int, crud model.Crud) <-chan model.NewAction {
 			}
 
 			e := model.NewAction{
-				ParentID:         nil,
-				TargetExternalID: faker.NumericIDAsPointer(150, 250),
-				ActorService:     faker.WrappedString("actor", "service", 2),
-				TargetService:    faker.WrappedString("target", "service", 2),
-				ActorEntity:      faker.WrappedPointerToString("actor", "entity", 2),
-				TargetEntity:     faker.WrappedPointerToString("target", "entity", 2),
-				ActorExternalID:  faker.NumericIDAsPointer(150, 250),
+				TargetExternalID: faker.NumericID(150, 250),
+				ActorService:     faker.WrappedString("actor", "service", 1),
+				TargetService:    faker.WrappedString("target", "service", 1),
+				ActorEntity:      faker.WrappedString("actor", "entity", 2),
+				TargetEntity:     faker.WrappedString("target", "entity", 2),
+				ActorExternalID:  faker.NumericID(150, 250),
 				EmittedAt:        model.JSONTime{Time: random.Time(minTs, maxTs)},
 				Name:             faker.WrappedString("event", "name", 2),
 			}

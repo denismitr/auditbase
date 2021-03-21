@@ -58,7 +58,7 @@ services:
         volumes:
             - auditbase_rabbit_volume:/var/lib/rabbitmq
         ports: 
-            - 15672:15672
+            - "15999:15672"
         env_file:
             - ./.env
 
@@ -74,7 +74,7 @@ services:
             MYSQL_USER: auditbase
             MYSQL_PASSWORD: secret
         ports:
-            - "3306:3306"
+            - "33066:3306"
 
 volumes:
     auditbase_rabbit_volume:

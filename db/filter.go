@@ -69,7 +69,15 @@ func (f *Filter) StringOrDefault(k, d string) string {
 
 func (f *Filter) MustString(k string) string {
 	if !f.Has(k) {
-		panic(fmt.Sprintf("no suchkey in filter %s", k))
+		panic(fmt.Sprintf( "no such key in filter %s", k))
+	}
+
+	return f.items[k]
+}
+
+func (f *Filter) MustInt(k string) string {
+	if !f.Has(k) {
+		panic(fmt.Sprintf("no such key in filter %s", k))
 	}
 
 	return f.items[k]

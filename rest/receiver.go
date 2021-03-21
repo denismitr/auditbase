@@ -5,7 +5,6 @@ import (
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/clock"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/pkg/errors"
@@ -22,11 +21,8 @@ func NewReceiverAPI(
 	e.Use(middleware.Recover())
 	e.Use(hashRequestBody)
 
-	uuid4 := uuid.NewUUID4Generator()
-
 	receiverController := &receiverController{
 		lg:    lg,
-		uuid4: uuid4,
 		clock: clock.New(),
 		af:    ef,
 	}
@@ -41,7 +37,6 @@ func NewReceiverAPI(
 
 type receiverController struct {
 	lg    logger.Logger
-	uuid4 uuid.UUID4Generator
 	clock clock.Clock
 	af    flow.ActionFlow
 }
@@ -72,10 +67,6 @@ func (rc *receiverController) create(ctx echo.Context) error {
 	//	return ctx.JSON(conflict(ErrEventAlreadyReceived, "event already processed"))
 	//}
 
-	if newAction.ID == "" {
-		newAction.ID = rc.uuid4.Generate()
-	}
-
 	newAction.RegisteredAt.Time = rc.clock.CurrentTime()
 
 	//if err := rc.cacher.CreateKey(hashKey(e.Hash), 1 * time.Minute); err != nil {
@@ -88,6 +79,5 @@ func (rc *receiverController) create(ctx echo.Context) error {
 
 	return ctx.JSON(202, itemResource{
 		Status: "accepted",
-		Data: map[string]string{"id": newAction.ID},
 	})
 }

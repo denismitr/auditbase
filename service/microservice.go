@@ -6,6 +6,7 @@ import (
 	"github.com/denismitr/auditbase/model"
 	"github.com/denismitr/auditbase/utils/logger"
 	"github.com/pkg/errors"
+	"strconv"
 )
 
 type MicroserviceService interface {
@@ -110,7 +111,7 @@ func (s *BaseMicroserviceService) FirstByID(
 		if inc.Has("entityTypes") {
 			c := &db.Cursor{Page: 1, PerPage: 200}
 			f := db.NewFilter([]string{"serviceId"})
-			f.Add("serviceId", result.ID.String())
+			f.Add("serviceId", strconv.Itoa(int(result.ID)))
 			entityTypes, err := tx.EntityTypes().Select(ctx, c, f)
 			if err != nil {
 				return nil, errors.Wrapf(err, "could not join entity types to microservice [%s]", result.Name)

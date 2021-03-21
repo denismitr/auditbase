@@ -39,29 +39,32 @@ CREATE TABLE IF NOT EXISTS migrations (
 
 const microservicesSchema = `
 	CREATE TABLE IF NOT EXISTS microservices (
-		id binary(16) PRIMARY KEY,
+		id BIGINT UNSIGNED AUTO_INCREMENT,
 		name VARCHAR(36),
 		description VARCHAR(255),
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		UNIQUE KEY unique_name (name)
+		UNIQUE KEY unique_name (name),
+
+		PRIMARY KEY (id)
 	) ENGINE=INNODB;
 `
 
 const actionsSchema = `
 	CREATE TABLE IF NOT EXISTS actions (
-		id BINARY(16) PRIMARY KEY,
-		parent_id BINARY(16),
+		id BIGINT UNSIGNED AUTO_INCREMENT,
+		parent_id BIGINT UNSIGNED,
 		status TINYINT(1) DEFAULT 0,
 		is_async TINYINT(1) DEFAULT 0,
 		hash VARCHAR(40),
-		actor_entity_id BINARY(16),
-		target_entity_id BINARY(16),
+		actor_entity_id BIGINT UNSIGNED,
+		target_entity_id BIGINT UNSIGNED,
 		name VARCHAR(36) NOT NULL,
 		emitted_at TIMESTAMP NOT NULL,
 		registered_at TIMESTAMP NOT NULL,
 		details JSON,
-		delta JSON,
+
+		PRIMARY KEY (id),
 
 		INDEX name_idx (name),
 
@@ -77,13 +80,15 @@ const actionsSchema = `
 
 const entityTypesSchema = `
 	CREATE TABLE IF NOT EXISTS entity_types (
-		id BINARY(16) PRIMARY KEY,
-		service_id BINARY(16) NOT NULL,
+		id BIGINT UNSIGNED AUTO_INCREMENT,
+		service_id BIGINT UNSIGNED NOT NULL,
 		name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 		description VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
 		is_actor TINYINT (1) NOT NULL DEFAULT 0, 
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+		PRIMARY KEY (id),
 
 		UNIQUE KEY unique_service_and_name (service_id, name),
 
@@ -95,13 +100,15 @@ const entityTypesSchema = `
 
 const entitiesSchema = `
 	CREATE TABLE IF NOT EXISTS entities (
-		id BINARY(16) PRIMARY KEY,
-		entity_type_id BINARY(16) NOT NULL,
+		id BIGINT UNSIGNED AUTO_INCREMENT,
+		entity_type_id BIGINT UNSIGNED NOT NULL,
 		external_id VARCHAR(36) NOT NULL,
 		created_at TIMESTAMP default CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-		UNIQUE KEY unique_idx (entity_type_id, external_id)
+		UNIQUE KEY unique_idx (entity_type_id, external_id),
+
+		PRIMARY KEY (id)
 	) ENGINE=INNODB;
 `
 

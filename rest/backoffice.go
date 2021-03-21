@@ -5,7 +5,6 @@ import (
 	"github.com/denismitr/auditbase/service"
 	"github.com/denismitr/auditbase/utils/clock"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
@@ -28,11 +27,10 @@ func BackOfficeAPI(
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 
-	uuid4 := uuid.NewUUID4Generator()
 
-	microservicesController := newMicroservicesController(log, uuid4, services.Microservices)
-	eventsController := newActionsController(log, uuid4, clock.New(), services.Actions, ef)
-	entitiesController := newEntitiesController(log, uuid4, clock.New(), services.Entities)
+	microservicesController := newMicroservicesController(log, services.Microservices)
+	eventsController := newActionsController(log, clock.New(), services.Actions, ef)
+	entitiesController := newEntitiesController(log, clock.New(), services.Entities)
 
 	// Microservices
 	e.GET("/api/v1/microservices", microservicesController.index)

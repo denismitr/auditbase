@@ -8,7 +8,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils/validator"
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/pkg/errors"
@@ -22,14 +21,13 @@ type ActionRepository struct {
 }
 
 type actionRecord struct {
-	ID             string         `db:"id"`
-	ParentID       sql.NullString `db:"parent_id"`
+	ID             int            `db:"id"`
+	ParentID       int            `db:"parent_id"`
 	Hash           string         `db:"hash"`
-	ActorEntityID  sql.NullString `db:"actor_entity_id"`
-	TargetEntityID sql.NullString `db:"target_entity_id"`
+	ActorEntityID  int            `db:"actor_entity_id"`
+	TargetEntityID int            `db:"target_entity_id"`
 	Name           string         `db:"name"`
-	Details        *string        `db:"details"`
-	Delta          *string        `db:"delta"`
+	Details        sql.NullString `db:"details"`
 	EmittedAt      time.Time      `db:"emitted_at"`
 	RegisteredAt   time.Time      `db:"registered_at"`
 }
@@ -47,11 +45,17 @@ func (r *ActionRepository) Create(ctx context.Context, action *model.Action) (*m
 		return nil, errors.Wrapf(err, "could not prepare query %s", q)
 	}
 
-	if _, err := stmt.ExecContext(ctx, args...); err != nil {
+	result, err := stmt.ExecContext(ctx, args...)
+	if err != nil {
 		return nil, errors.Wrap(err, "could not create action")
 	}
 
-	return r.FirstByID(ctx, action.ID)
+	newID, err := result.LastInsertId()
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not retrieve last insert ID on action [%s] create", action.Name)
+	}
+
+	return r.FirstByID(ctx, model.ID(newID))
 }
 
 func (r *ActionRepository) CountAll(ctx context.Context) (int, error) {
@@ -116,28 +120,28 @@ func selectActionsQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
 		Select(goqu.L("count(*)").As("cnt"))
 
 	q := dialectSq.Select(
-		goqu.L("bin_to_uuid(id)").As("id"),
+		goqu.I("id").As("id"),
 		"name", "hash",
-		goqu.L("ifnull(parent_id, bin_to_uuid(parent_id))").As("parent_id"),
-		goqu.L("ifnull(actor_entity_id, bin_to_uuid(actor_entity_id))").As("actor_entity_id"),
-		goqu.L("ifnull(target_entity_id, bin_to_uuid(target_entity_id))").As("target_entity_id"),
+		goqu.I("parent_id"),
+		goqu.I("actor_entity_id"),
+		goqu.I("target_entity_id"),
 		"emitted_at", "registered_at",
 	).From("actions")
 
 	if f.Has("parentId") {
-		exp := goqu.L(`parent_id = uuid_to_bin(?)`, f.StringOrDefault("parentId", ""))
+		exp := goqu.L("`parent_id` = ?", f.MustInt("parentId"))
 		countQ = countQ.Where(exp)
 		q = q.Where(exp)
 	}
 
 	if f.Has("actorEntityId") {
-		exp := goqu.L(`actor_entity_id = uuid_to_bin(?)`, f.StringOrDefault("actor_entity_id", ""))
+		exp := goqu.L("`actor_entity_id` = ?", f.MustInt("actor_entity_id"))
 		countQ = countQ.Where(exp)
 		q = q.Where(exp)
 	}
 
 	if f.Has("targetEntityId") {
-		exp := goqu.L(`target_entity_id = uuid_to_bin(?)`, f.StringOrDefault("target_entity_id", ""))
+		exp := goqu.L("target_entity_id = ?", f.MustInt("target_entity_id"))
 		countQ = countQ.Where(exp)
 		q = q.Where(exp)
 	}
@@ -216,10 +220,10 @@ func (r *ActionRepository) Delete(ctx context.Context, ID model.ID) error {
 
 	if _, err := stmt.ExecContext(ctx, args...); err != nil {
 		if err == sql.ErrNoRows {
-			return errors.Wrapf(db.ErrActionNotFound, "id [%s]", ID.String())
+			return errors.Wrapf(db.ErrActionNotFound, "id [%d]", ID)
 		}
 
-		return errors.Wrapf(err, "could not delete action with ID [%s]", ID.String())
+		return errors.Wrapf(err, "could not delete action with ID [%d]", ID)
 	}
 
 	return nil
@@ -253,25 +257,17 @@ func actionNamesQuery() (string, []interface{}, error) {
 }
 
 func deleteActionQuery(ID model.ID) (string, []interface{}, error) {
-	if !validator.IsUUID4(ID.String()) {
-		panic("how can action id not be a valid UUID4?")
-	}
-
-	return sq.Delete("actions").Where("id = uuid_to_bin(?)", ID.String()).ToSql()
+	return sq.Delete("actions").Where("`id` = ?", int(ID)).ToSql()
 }
 
 func firstActionByIDQuery(ID model.ID) (string, []interface{}, error) {
-	if !validator.IsUUID4(ID.String()) {
-		panic("how can action id not be a valid UUID4?")
-	}
-
 	dialect := goqu.Dialect(MySQL8)
 
 	return dialect.From("actions").Select(
-		goqu.L("bin_to_uuid(id)").As("id"),
-		"hash", "name", "details", "delta", "emitted_at", "registered_at",
+		goqu.I("id"),
+		"hash", "name", "details", "emitted_at", "registered_at",
 	).Where(
-		goqu.L("id = uuid_to_bin(?)", ID.String()),
+		goqu.L("`id` = ?", int(ID)),
 	).Limit(1).ToSQL()
 }
 
@@ -280,26 +276,20 @@ func createActionQuery(action *model.Action) (string, []interface{}, error) {
 
 	row := goqu.Record{}
 
-	if action.ID == "" {
-		panic("how can action ID be empty?")
-	}
-
-	row["id"] = goqu.L("uuid_to_bin(?)", action.ID.String())
-
-	if action.ParentID != nil {
-		row["parent_id"] = goqu.L("uuid_to_bin(?)", action.ParentID.String())
+	if action.ParentID != 0 {
+		row["parent_id"] = int(action.ParentID)
 	} else {
 		row["parent_id"] = nil
 	}
 
-	if action.ActorEntityID != nil && action.ActorEntityID.String() != "" {
-		row["actor_entity_id"] = goqu.L("uuid_to_bin(?)", action.ActorEntityID.String())
+	if action.ActorEntityID != 0 {
+		row["actor_entity_id"] = int(action.ActorEntityID)
 	} else {
 		row["actor_entity_id"] = nil
 	}
 
-	if action.TargetEntityID != nil && action.TargetEntityID.String() != "" {
-		row["target_entity_id"] = goqu.L("uuid_to_bin(?)", action.TargetEntityID.String())
+	if action.TargetEntityID != 0 {
+		row["target_entity_id"] = int(action.TargetEntityID)
 	} else {
 		row["target_entity_id"] = nil
 	}
@@ -317,14 +307,6 @@ func createActionQuery(action *model.Action) (string, []interface{}, error) {
 			return "", nil, errors.Wrapf(err, "could not create details json string")
 		}
 		row["details"] = string(b)
-	}
-
-	if action.Delta != nil {
-		b, err := json.Marshal(action.Delta)
-		if err != nil {
-			return "", nil, errors.Wrapf(err, "could not create delta json string")
-		}
-		row["delta"] = string(b)
 	}
 
 	return dialect.Insert("actions").Rows(row).ToSQL()

@@ -7,14 +7,12 @@ import (
 	"github.com/denismitr/auditbase/service"
 	"github.com/denismitr/auditbase/utils/clock"
 	"github.com/denismitr/auditbase/utils/logger"
-	"github.com/denismitr/auditbase/utils/uuid"
 	"github.com/labstack/echo"
 	"time"
 )
 
 type actionsController struct {
 	logger  logger.Logger
-	uuid4   uuid.UUID4Generator
 	actions service.ActionService
 	ef      flow.ActionFlow
 	clock   clock.Clock
@@ -22,7 +20,6 @@ type actionsController struct {
 
 func newActionsController(
 	l logger.Logger,
-	uuid4 uuid.UUID4Generator,
 	clock clock.Clock,
 	actions service.ActionService,
 	ef flow.ActionFlow,
@@ -30,7 +27,6 @@ func newActionsController(
 	return &actionsController{
 		logger: l,
 		clock:  clock,
-		uuid4:  uuid4,
 		actions: actions,
 		ef:     ef,
 	}
@@ -61,9 +57,9 @@ func (ec *actionsController) index(rCtx echo.Context) error {
 }
 
 func (ec *actionsController) show(rCtx echo.Context) error {
-	ID := extractIDParamFrom(rCtx)
-	if errBag := ID.Validate(); errBag.NotEmpty() {
-		return rCtx.JSON(validationFailed(errBag.All()...))
+	ID, err := extractIDParamFrom(rCtx)
+	if err != nil {
+		return rCtx.JSON(badRequest(err))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)

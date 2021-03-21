@@ -34,10 +34,6 @@ type MicroserviceRepository interface {
 func (m *Microservice) Validate() *errbag.ErrorBag {
 	eb := errbag.New()
 
-	if !validator.IsUUID4(m.ID.String()) {
-		eb.Add("ID", ErrInvalidUUID4)
-	}
-
 	if validator.IsEmptyString(m.Name) {
 		eb.Add("name", ErrNameIsRequired)
 	}

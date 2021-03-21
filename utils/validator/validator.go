@@ -6,13 +6,11 @@ import (
 )
 
 const (
-	uuid4 string = "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 	integer string = `^[0-9]+$`
 	float string = `[+-]?([0-9]*[.])[0-9]+`
 )
 
 var (
-	rxUUID4 = regexp.MustCompile(uuid4)
     rxInteger = regexp.MustCompile(integer)
     rxFloat = regexp.MustCompile(float)
 )
@@ -47,10 +45,6 @@ func StringLenLt(s string , max int) bool {
 
 func StringLenLte(s string , max int) bool {
 	return len(s) <= max
-}
-
-func IsUUID4(s string) bool {
-	return rxUUID4.MatchString(s)
 }
 
 func IsInteger(s string) bool {
