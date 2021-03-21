@@ -217,7 +217,7 @@ func firstEntityByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.Enti
 	defer func() { _ = stmt.Close() }()
 
 	if err := stmt.GetContext(ctx, &ent, args...); err != nil {
-		return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
+		return nil, errors.Wrapf(err, "could not find entities with ID %d", ID)
 	}
 
 	return mapEntityRecordAllJoinedToModel(ent), nil

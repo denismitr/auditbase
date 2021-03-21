@@ -7,6 +7,8 @@ import (
 	"github.com/denismitr/auditbase/utils/validator"
 )
 
+const MaxServiceNameLen = 36
+
 type Microservice struct {
 	ID          ID           `json:"id"`
 	Name        string       `json:"name"`
@@ -39,7 +41,7 @@ func (m *Microservice) Validate() *errbag.ErrorBag {
 	}
 
 	if validator.StringLenGt(m.Name, 36) {
-		eb.Add("name", ErrMicroserviceNameTooLong)
+		eb.Add("name", ErrServiceNameInvalid)
 	}
 
 	if validator.StringLenGt(m.Description, 255) {

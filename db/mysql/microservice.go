@@ -3,7 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	sq "github.com/Masterminds/squirrel"
+	"fmt"
 	"github.com/denismitr/auditbase/db"
 	"github.com/denismitr/auditbase/model"
 	"github.com/doug-martin/goqu/v9"
@@ -125,6 +125,13 @@ func (r *MicroserviceRepository) Delete(ctx context.Context, ID model.ID) error 
 }
 
 func deleteMicroserviceQuery(ID model.ID) (string, []interface{}, error) {
+	if ID <= 0 {
+		return "", nil, model.NewValidationError(
+			model.ErrInvalidID,
+			model.ErrField{Name: "id", Error: fmt.Sprintf("%d is invalid value for ID", ID)},
+		)
+	}
+
 	dialect := goqu.Dialect(MySQL8)
 	expr := goqu.L("`id` = ?", int(ID))
 	return dialect.Delete("microservices").Where(expr).Prepared(true).ToSQL()
@@ -159,7 +166,7 @@ func updateMicroserviceQuery(ID model.ID, m *model.Microservice) (string, []inte
 	}
 
 	dialect := goqu.Dialect(MySQL8)
-	whereExpr := goqu.L("`id` = ?", int(ID))
+	whereExpr := goqu.L("`id`=?", int(ID)) // fixme
 	return dialect.Update("microservices").Where(whereExpr).Set(goqu.Record{
 		"name":        m.Name,
 		"description": m.Description,
@@ -266,10 +273,19 @@ func (r *MicroserviceRepository) FirstOrCreateByName(ctx context.Context, name s
 }
 
 func createMicroserviceQuery(m *model.Microservice) (string, []interface{}, error) {
-	return sq.Insert("microservices").
-		Columns("name", "description").
-		Values(m.Name, m.Description).
-		ToSql()
+	if m.Name == "" || len(m.Name) > model.MaxServiceNameLen  {
+		return "", nil, model.NewValidationError(
+			model.ErrServiceNameInvalid,
+			model.ErrField{Name: "name", Error: fmt.Sprintf("value '%s' is invalid", m.Name)},
+		)
+	}
+
+	dialect := goqu.Dialect(MySQL8)
+
+	return dialect.Insert("microservices").
+		Rows(goqu.Record{"name": m.Name, "description": m.Description}).
+		Prepared(true).
+		ToSQL()
 }
 
 func firstMicroserviceByIDQuery(ID model.ID) (string, []interface{}, error) {
@@ -277,12 +293,10 @@ func firstMicroserviceByIDQuery(ID model.ID) (string, []interface{}, error) {
 		return "", nil, db.ErrInvalidID
 	}
 
-	return sq.Select(
-		"id",
-		"name", "description",
-		"created_at", "updated_at",
-	).
-		From("microservices").
-		Where("id = ?", int(ID)).
-		ToSql()
+	dialect := goqu.Dialect(MySQL8)
+
+	return dialect.From("microservices").
+		Select("id", "name", "description", "created_at", "updated_at").
+		Where(goqu.C("id").Eq(int(ID))).
+		Prepared(true).ToSQL()
 }

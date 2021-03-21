@@ -154,7 +154,7 @@ func firstEntityTypeByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.
 		case sql.ErrNoRows:
 			return nil, db.ErrNotFound
 		default:
-			return nil, errors.Wrapf(err, "could not find entities with ID %s", ID)
+			return nil, errors.Wrapf(err, "could not find entities with ID %d", ID)
 		}
 	}
 
@@ -185,7 +185,7 @@ func (r *EntityTypeRepository) FirstByNameAndServiceID(
 		case sql.ErrNoRows:
 			return nil, db.ErrNotFound
 		default:
-			return nil, errors.Wrapf(err, "could not find entity with name %s and serviceID %s", name, serviceID)
+			return nil, errors.Wrapf(err, "could not find entity with name %s and serviceID %d", name, serviceID)
 		}
 	}
 
