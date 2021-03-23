@@ -44,12 +44,12 @@ func (r *EntityTypeRepository) Select(
 
 	stmt, err := r.mysqlTx.Preparex(sQ.selectSQL)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not prepare sql to select entityTypes")
+		return nil, errors.Wrap(err, "could not prepare selectSql to select entityTypes")
 	}
 
 	cntStmt, err := r.mysqlTx.Preparex(sQ.countSQL)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not prepare sql to count entityTypes")
+		return nil, errors.Wrap(err, "could not prepare selectSql to count entityTypes")
 	}
 
 	defer func() { _ = stmt.Close() }()
@@ -60,13 +60,13 @@ func (r *EntityTypeRepository) Select(
 		case sql.ErrNoRows:
 			return nil, db.ErrNotFound
 		default:
-			return nil, errors.Wrap(err, "could not execute sql to select entityTypes")
+			return nil, errors.Wrap(err, "could not execute selectSql to select entityTypes")
 		}
 	}
 
 	var cnt int
 	if err := cntStmt.Get(ctx, &cnt); err != nil {
-		return nil, errors.Wrap(err, "could not execute sql to count entityTypes")
+		return nil, errors.Wrap(err, "could not execute selectSql to count entityTypes")
 	}
 
 	return mapEntityTypesToCollection(entityTypes, cnt, cursor.Page, cursor.PerPage), nil
@@ -144,7 +144,7 @@ func firstEntityTypeByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.
 
 	stmt, err := tx.Preparex(q)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not prepare sql statement %s to get entityRecord by id", q)
+		return nil, errors.Wrapf(err, "could not prepare selectSql statement %s to get entityRecord by id", q)
 	}
 
 	defer func() { _ = stmt.Close() }()
@@ -175,7 +175,7 @@ func (r *EntityTypeRepository) FirstByNameAndServiceID(
 
 	stmt, err := r.mysqlTx.Preparex(q)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not prepare sql statement %s to get entityRecord by name and service ID", q)
+		return nil, errors.Wrapf(err, "could not prepare selectSql statement %s to get entityRecord by name and service ID", q)
 	}
 
 	defer func() { _ = stmt.Close() }()
@@ -232,9 +232,9 @@ func selectEntityTypesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
 		"count(distinct entities.id) as entities_cnt",
 	).From("entities").LeftJoin("entities on entities.entity_type_id = entity_types.id")
 
-	if f.Has("serviceId") {
-		countQ = countQ.Where(`service_id = ?`, f.MustInt("serviceId"))
-		q = q.Where(`service_id = ?`, f.MustInt("serviceId"))
+	if f.Has("entityTypeID") {
+		countQ = countQ.Where(`service_id = ?`, f.MustInt("entityTypeID"))
+		q = q.Where(`service_id = ?`, f.MustInt("entityTypeID"))
 	}
 
 	if f.Has("name") {

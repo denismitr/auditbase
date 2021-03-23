@@ -85,9 +85,6 @@ func (mc *microservicesController) update(rCtx echo.Context) error {
 	}
 
 	ID := model.ID(numericID)
-	if errs := ID.Validate(); errs.NotEmpty() {
-		return rCtx.JSON(validationFailed(errs.All()...))
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
 	defer cancel()

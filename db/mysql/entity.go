@@ -64,24 +64,24 @@ func (r *EntityRepository) Select(
 
 	stmt, err := r.mysqlTx.Preparex(sQ.selectSQL)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not prepare sql to select entities")
+		return nil, errors.Wrap(err, "could not prepare selectSql to select entities")
 	}
 
 	cntStmt, err := r.mysqlTx.Preparex(sQ.countSQL)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not prepare sql to count entities")
+		return nil, errors.Wrap(err, "could not prepare selectSql to count entities")
 	}
 
 	defer func() { _ = stmt.Close() }()
 	defer func() { _ = cntStmt.Close() }()
 
 	if err := stmt.SelectContext(ctx, &entities, sQ.selectArgs...); err != nil {
-		return nil, errors.Wrap(err, "could not execute sql to select entities")
+		return nil, errors.Wrap(err, "could not execute selectSql to select entities")
 	}
 
 	var cnt int
 	if err := cntStmt.Get(ctx, &cnt); err != nil {
-		return nil, errors.Wrap(err, "could not execute sql to count entities")
+		return nil, errors.Wrap(err, "could not execute selectSql to count entities")
 	}
 
 	return mapEntitiesToCollection(entities, cnt, cursor.Page, cursor.PerPage), nil
@@ -211,7 +211,7 @@ func firstEntityByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.Enti
 
 	stmt, err := tx.Preparex(q)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not prepare sql statement %s to get entityRecord by id", q)
+		return nil, errors.Wrapf(err, "could not prepare selectSql statement %s to get entityRecord by id", q)
 	}
 
 	defer func() { _ = stmt.Close() }()
@@ -223,42 +223,54 @@ func firstEntityByID(ctx context.Context, tx *sqlx.Tx, ID model.ID) (*model.Enti
 	return mapEntityRecordAllJoinedToModel(ent), nil
 }
 
-// TODO: refactor to goqu
 func selectEntitiesQuery(c *db.Cursor, f *db.Filter) (*selectQuery, error) {
-	countQ := sq.Select("count(*) as cnt").From("entities")
+	dialect := goqu.Dialect(MySQL8)
 
-	q := sq.Select(
-		"id",
-		"entity_type_id",
-		"external_id",
-		"created_at",
-		"updated_at",
-	).From("entities")
+	countQ := dialect.Select(goqu.L("count(*)").As("cnt")).From(goqu.I("entities").As("e"))
+
+	q := dialect.Select(
+		goqu.I("e.id"),
+		goqu.I("e.entity_type_id"),
+		goqu.I("e.external_id"),
+		goqu.I("e.created_at"),
+		goqu.I("e.updated_at"),
+	).From(goqu.I("entities").As("e"))
 
 	if f.Has("entityTypeId") {
-		countQ = countQ.Where(`entity_type_id = ?`, f.MustInt("entityTypeId"))
-		q = q.Where(`entity_type_id = ?`, f.MustInt("entityTypeId"))
+		countQ = countQ.Where(goqu.I(`e.entity_type_id`).Eq(f.MustInt("entityTypeId")))
+		q = q.Where(goqu.I(`e.entity_type_id`).Eq(f.MustInt("entityTypeId")))
 	}
 
 	if c.Sort.Has("externalId") {
-		q = q.OrderByClause("external_id ?", c.Sort.GetOrDefault("externalId", db.ASCOrder).String())
+		ind := goqu.I("e.external_id")
+		order := c.Sort.GetOrDefault("externalId", db.ASCOrder)
+		if order == db.ASCOrder {
+			q = q.OrderAppend(ind.Asc())
+		} else {
+			q = q.OrderAppend(ind.Desc())
+		}
 	} else {
-		q = q.OrderBy("updated_at ?", c.Sort.GetOrDefault("updatedAt", db.DESCOrder).String())
+		ind := goqu.I("e.updated_at")
+		order := c.Sort.GetOrDefault("updatedAt", db.DESCOrder)
+		if order == db.DESCOrder {
+			q = q.OrderAppend(ind.Desc())
+		} else {
+			q = q.OrderAppend(ind.Asc())
+		}
 	}
 
-	q = q.GroupBy("id", "entity_type_id", "external_id", "created_at", "updated_at")
-	q = q.Limit(uint64(c.PerPage))
-	q = q.Offset(uint64(c.Offset()))
+	q = q.Limit(c.PerPage)
+	q = q.Offset(c.Offset())
 
 	sQ := selectQuery{}
-	if q, args, err := q.ToSql(); err != nil {
+	if q, args, err := q.Prepared(true).ToSQL(); err != nil {
 		return nil, errors.Wrap(err, "invalid select SQL for entities")
 	} else {
 		sQ.selectSQL = q
 		sQ.selectArgs = args
 	}
 
-	if q, args, err := countQ.ToSql(); err != nil {
+	if q, args, err := countQ.Prepared(true).ToSQL(); err != nil {
 		return nil, errors.Wrap(err, "invalid count SQL for entities")
 	} else {
 		sQ.countSQL = q
