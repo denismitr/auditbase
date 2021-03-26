@@ -9,18 +9,18 @@ import (
 func TestIDValidation(t *testing.T) {
 	invalidIDs := []struct {
 		name string
-		ID   string
+		valid bool
+		ID   int
 	}{
-		{name: "empty", ID: ""},
+		{name: "empty", valid: false, ID: 0},
+		{name: "non-empty", valid: true, ID: 4},
 	}
 
 	for _, tc := range invalidIDs {
 		t.Run(tc.name, func(t *testing.T) {
 			ID := ID(tc.ID)
 
-			errors := ID.Validate()
-
-			assert.False(t, errors.IsEmpty())
+			assert.Equal(t,tc.valid, ID.IsValid())
 		})
 	}
 }

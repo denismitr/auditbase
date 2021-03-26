@@ -53,6 +53,7 @@ build:
 	@echo Building the consumer
 	$(GO_BUILD) -o $(CONSUMER_BINARY) $(CONSUMER_MAIN)
 
+test: local/test
 local/test:
 	go test ./db/mysql ./model ./rest ./flow
 

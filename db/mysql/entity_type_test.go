@@ -57,32 +57,30 @@ func Test_create(t *testing.T) {
 		expected    string
 	}{
 		{
-			ID:          model.ID(123),
 			serviceID:   model.ID(124),
 			name:        "foo",
 			description: "bar",
 			isActor:     true,
-			expected:    "INSERT INTO `entity_types` (`id`, `service_id`, `name`, `description`, `is_actor`) VALUES (?, ?, ?, ?, ?)",
+			expected:    "INSERT INTO `entity_types` (`service_id`, `name`, `description`, `is_actor`) VALUES (?, ?, ?, ?)",
 		},
 		{
-			ID:          model.ID(123),
 			serviceID:   model.ID(124),
 			name:        "foo",
 			description: "",
 			isActor:     false,
-			expected:    "INSERT INTO `entity_types` (`id`, `service_id`, `name`, `description`, `is_actor`) VALUES (?, ?, ?, ?, ?)",
+			expected:    "INSERT INTO `entity_types` (`service_id`, `name`, `description`, `is_actor`) VALUES (?, ?, ?, ?)",
 		},
 	}
 
 	for _, tc := range validInputs {
 		q, args, err := createEntityTypeQuery(tc.ID, tc.serviceID, tc.name, tc.description, tc.isActor)
 		assert.NoError(t, err)
-		assert.Len(t, args, 5)
-		assert.Equal(t, args[0], tc.ID)
-		assert.Equal(t, args[1], tc.serviceID)
-		assert.Equal(t, args[2], tc.name)
-		assert.Equal(t, args[3], tc.description)
-		assert.Equal(t, args[4], tc.isActor)
 		assert.Equal(t, tc.expected, q)
+
+		assert.Len(t, args, 4)
+		assert.Equal(t, int64(tc.serviceID), args[0])
+		assert.Equal(t, tc.name, args[1])
+		assert.Equal(t, tc.description, args[2])
+		assert.Equal(t, tc.isActor, args[3])
 	}
 }

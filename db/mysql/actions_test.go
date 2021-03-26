@@ -33,7 +33,7 @@ func Test_createActionQuery(t *testing.T) {
 				EmittedAt: model.JSONTime{Time: emitted},
 				RegisteredAt: model.JSONTime{Time: registered},
 			},
-			expected: "INSERT INTO `actions` (`action_entity_id`, `emitted_at`, `hash`, `id`, `is_async`, `name`, `parent_id`, `registered_at`, `status`, `target_entity_id`) VALUES (NULL, '2021-02-23 16:51:35', 'foo-hash', uuid_to_bin('7c94b604-560b-4f3d-8cf0-c341faca3139'), 0, 'foo-bar', uuid_to_bin('937468fd-d35b-4504-bb18-bf1903113727'), '2021-02-23 16:54:49', 2, NULL)",
+			expected: "INSERT INTO `actions` (`actor_entity_id`, `emitted_at`, `hash`, `is_async`, `name`, `parent_id`, `registered_at`, `status`, `target_entity_id`) VALUES (NULL, '2021-02-23 16:51:35', 'foo-hash', 0, 'foo-bar', 123, '2021-02-23 16:54:49', 2, NULL)",
 		},
 		{
 			action: &model.Action{
@@ -47,7 +47,7 @@ func Test_createActionQuery(t *testing.T) {
 				EmittedAt: model.JSONTime{Time: emitted},
 				RegisteredAt: model.JSONTime{Time: registered},
 			},
-			expected: "INSERT INTO `actions` (`action_entity_id`, `emitted_at`, `hash`, `id`, `is_async`, `name`, `parent_id`, `registered_at`, `status`, `target_entity_id`) VALUES (uuid_to_bin('537468fd-d35b-4504-bb18-bf1903113725'), '2021-02-23 16:51:35', 'foo-hash-2', uuid_to_bin('6c94b604-560b-4f3d-8cf0-c341faca3139'), 0, 'foo-bar-2', uuid_to_bin('837468fd-d35b-4504-bb18-bf1903113727'), '2021-02-23 16:54:49', 0, NULL)",
+			expected: "INSERT INTO `actions` (`actor_entity_id`, `emitted_at`, `hash`, `is_async`, `name`, `parent_id`, `registered_at`, `status`, `target_entity_id`) VALUES (57, '2021-02-23 16:51:35', 'foo-hash-2', 0, 'foo-bar-2', 56, '2021-02-23 16:54:49', 0, NULL)",
 		},
 		{
 			action: &model.Action{
@@ -61,7 +61,7 @@ func Test_createActionQuery(t *testing.T) {
 				EmittedAt: model.JSONTime{Time: emitted},
 				RegisteredAt: model.JSONTime{Time: registered},
 			},
-			expected: "INSERT INTO `actions` (`action_entity_id`, `emitted_at`, `hash`, `id`, `is_async`, `name`, `parent_id`, `registered_at`, `status`, `target_entity_id`) VALUES (uuid_to_bin('537468fd-d35b-4504-bb18-bf1903113725'), '2021-02-23 16:51:35', 'foo-hash-2', uuid_to_bin('6d94b604-560b-4f3d-8cf0-c341faca3139'), 1, 'foo-bar-2', NULL, '2021-02-23 16:54:49', 6, uuid_to_bin('355568fd-d35b-4504-bb18-bf1903113701'))",
+			expected: "INSERT INTO `actions` (`actor_entity_id`, `emitted_at`, `hash`, `is_async`, `name`, `parent_id`, `registered_at`, `status`, `target_entity_id`) VALUES (11, '2021-02-23 16:51:35', 'foo-hash-2', 1, 'foo-bar-2', NULL, '2021-02-23 16:54:49', 6, 12)",
 		},
 	}
 

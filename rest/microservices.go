@@ -112,7 +112,7 @@ func (mc *microservicesController) show(rCtx echo.Context) error {
 	if err != nil {
 		if err == ErrMicroserviceNotFound {
 			return rCtx.JSON(
-				notFound(errors.Wrapf(err, "could not get microservice with ID %s from database", ID)))
+				notFound(errors.Wrapf(err, "could not get microservice with ID %d from database", ID)))
 		}
 
 		return rCtx.JSON(badRequest(err))

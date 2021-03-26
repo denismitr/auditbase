@@ -39,5 +39,5 @@ type EntityTypeCollection struct {
 }
 
 func EntityItemCacheKey(name string, microservice *Microservice) string {
-	return fmt.Sprintf("entity_%s_%s", name, microservice.ID)
+	return fmt.Sprintf("entity_%s_%d", name, microservice.ID)
 }
