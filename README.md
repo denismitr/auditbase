@@ -1,16 +1,16 @@
 # Auditbase 
-### an audit system for domain events, specifically designed for microservices
+### an audit system for domain actions and events, specifically designed for microservices
 
 ### WIP
 
-Auditbase is an application that collects events from your distributed system. 
-Denormalizes events data to make them better suitable for analytics
+Auditbase is an application that collects actions from your distributed systems. 
+Denormalizes data to make them better suitable for analysis
 
 consists of **receiver** REST API, **back-office** REST API, 
-AMQP events consumer, AMQP errors consumer
+AMQP consumer, AMQP errors consumer
 
 at the moment only MySQL storage is available, CockroachDB and MongoDB are planned.
-Redis is used as cache for faster denormalization, RabbitMQ as message broker
+Redis is used as caching, RabbitMQ as message broker
 
 ### RUN DEV MODE
 ```make up```
@@ -18,57 +18,97 @@ Redis is used as cache for faster denormalization, RabbitMQ as message broker
 ### UNIT TESTS
 RUN:
 
-- ```make mock```
 - ```make test```
-
-### RUN "WRK" BENCHMARK
-install `wrk` tool
-```
-wrk -c5 -t3 -R300 -d166s -s ./test/lua/events.lua --latency http://localhost:8888
-```
 
 ## REST API
 
 ### RECEIVER API
 Receives events to put them into queue for later processing by consumers
 
--  POST /api/v1/events
+-  POST /api/v1/actions
 
+##### Payload sample
+```json
+{
+  "uid": "111d2edbf207452eae7ec258271ee98c",
+  "parentUid": "44402edbf207452eae7ec258271ee98c",
+  "targetExternalId": "9309213",
+  "targetEntity": "article3",
+  "targetService": "article-storage-4",
+  "actorExternalId": "9",
+  "actorEntity": "promoter3",
+  "actorService": "back-office-4",
+  "name": "articlePublished",
+  "emittedAt": "2021-01-02 15:04:05",
+  "isAsync": true,
+  "status": 2,
+  "details": {
+    "delta": [
+      {
+        "propertyName": "text",
+        "currentPropertyType": "string",
+        "from": null,
+        "to": "foo says bar"
+      },
+      {
+        "propertyName": "title",
+        "currentPropertyType": "string",
+        "from": null,
+        "to": "baz title"
+      },
+      {
+        "propertyName": "rating",
+        "currentPropertyType": "float",
+        "from": null,
+        "to": 1.1
+      },
+      {
+        "propertyName": "views",
+        "currentPropertyType": "integer",
+        "from": null,
+        "to": 1
+      }
+    ]
+  }
+}
+```
 
-### BACK-OFFICE API
+## BACK-OFFICE API
 API suitable for a back-office admin panel
 
-##### Events
--  GET /api/v1/events
--  GET /api/v1/events/:id
--  GET /api/v1/events/count
--  GET /api/v1/events/queue
--  DELETE /api/v1/events/:id
+### Actions
+####  GET /api/v1/actions
+##### Allowed filters:
+- name="action_name"
+- parentUid="uuid4-without-dashes"
+- status=1
+- actorEntityId=123
+- targetEntityId=123
 
-##### Microservices
+##### Cursor:
+- page=1
+- perPage=20
+
+#### GET /api/v1/actions/:id
+-  GET /api/v1/actions/count // TODO
+-  GET /api/v1/actions/queue // TODO
+-  DELETE /api/v1/actions/:id // TODO
+
+### Microservices
 - GET /api/v1/microservices
 - POST /api/v1/microservices
 - GET /api/v1/microservices/:id
 - PUT /api/v1/microservices/:id
 
-##### Entities
+### Entities
 - GET /api/v1/entities
 - GET /api/v1/entities/:id
-
-##### Properties
-- GET /api/v1/properties
-- GET /api/v1/properties/:id
-
-##### Changes
-- GET /api/v1/changes
-- GET /api/v1/changes/:id
 
 ## TODO
 - unit tests
 - more integration tests
-- SQL query builder for all queries
-- refactor ID to object where suitable
-- create back-office UI dashboard
+- cleaner worker
+- replace squirrel for goqu everywhere
 - MongoDB as alternative storage
 - research GRPC and Protobuf as alternative to HTTP REST
 - research NATS as alternative to RabbitMQ
