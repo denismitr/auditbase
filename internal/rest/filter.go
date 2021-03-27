@@ -4,38 +4,18 @@ import (
 	"github.com/denismitr/auditbase/internal/db"
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 func createFilter(q url.Values, allowedKeys []string) *db.Filter {
 	f := db.NewFilter(allowedKeys)
 
-	for k, v := range convertQueryArrayToSimpleMap("filter", q) {
-		if f.Allows(k) {
-			f.Add(k, v)
+	for k, v := range q {
+		if f.Allows(k) && len(v) == 1 && v[0] != "" {
+			f.Add(k, v[0])
 		}
 	}
 
 	return f
-}
-
-func convertQueryArrayToSimpleMap(key string, q url.Values) map[string]string {
-	result := make(map[string]string)
-
-	prefix := key + "["
-	suffix := "]"
-	for k, values := range q {
-		if strings.HasPrefix(k, prefix) && strings.HasSuffix(k, suffix) {
-			if len(values) > 0 {
-				i := strings.Index(k, prefix) + len(prefix)
-				j := strings.Index(k, suffix)
-				param := k[i:j]
-				result[param] = values[0]
-			}
-		}
-	}
-
-	return result
 }
 
 func createCursor(q url.Values, maxPerPage int, allowedSortColumns []string) *db.Cursor {

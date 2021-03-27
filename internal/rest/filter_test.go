@@ -8,7 +8,7 @@ import (
 
 func TestCreateFilter(t *testing.T) {
 	t.Run("valid-serviceId", func(t *testing.T) {
-		q, err := url.Parse("/foo?filter[serviceId]=123")
+		q, err := url.Parse("/foo?serviceId=123")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -20,7 +20,7 @@ func TestCreateFilter(t *testing.T) {
 	})
 
 	t.Run("not-allowed-filters-are-ignored", func(t *testing.T) {
-		q, err := url.Parse("/foo?filter[bar]=123")
+		q, err := url.Parse("/foo?bar=123")
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -10,7 +10,7 @@ Accept: application/json
 
 ###
 
-GET {{back-office}}/api/v1/actions?filter[parentUid]=44402edbf207452eae7ec258271ee98c
+GET {{back-office}}/api/v1/actions?parentUid=44402edbf207452eae7ec258271ee98c
 Content-Type: application/json
 Accept: application/json
 
