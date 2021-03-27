@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"github.com/denismitr/auditbase/internal/cache"
+	"github.com/denismitr/auditbase/internal/receiver"
+	"github.com/denismitr/auditbase/internal/utils"
+	"github.com/denismitr/auditbase/internal/utils/clock"
+	"github.com/go-redis/redis/v7"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
 	"os"
@@ -9,11 +14,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/denismitr/auditbase/flow"
-	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/rest"
-	"github.com/denismitr/auditbase/utils/env"
-	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/internal/flow"
+	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/rest"
+	"github.com/denismitr/auditbase/internal/utils/env"
+	"github.com/denismitr/auditbase/internal/utils/logger"
 	"github.com/pkg/profile"
 )
 
@@ -24,7 +29,7 @@ func main() {
 
 	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 
-	receiver, err := create(lg)
+	receiverAPI, err := create(lg)
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +38,7 @@ func main() {
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 
 	lg.Debugf("All services are ready. Starting receiver...")
-	stop := receiver.Start()
+	stop := receiverAPI.Start()
 
 	<-terminate
 
@@ -60,14 +65,30 @@ func create(lg logger.Logger) (*rest.API, error) {
 		return nil, err
 	}
 
+	c := createRedisCache()
+
 	restCfg := rest.Config{
 		Port:      ":" + env.MustString("RECEIVER_API_PORT"),
 		BodyLimit: "250K",
 	}
 
+	rc := receiver.New(lg, clock.New(), af, utils.NewUUID4Generator(), c)
 	e := echo.New()
+	return rest.NewReceiverAPI(e, restCfg, lg, rc), nil
+}
 
-	return rest.NewReceiverAPI(e, restCfg, lg,  af), nil
+func createRedisCache() *cache.RedisCache {
+	c := redis.NewClient(&redis.Options{
+		Addr:     env.MustString("REDIS_HOST") + ":" + env.MustString("REDIS_PORT"),
+		Password: env.String("REDIS_PASSWORD"),
+		DB:       env.IntOrDefault("REDIS_DB", 0),
+	})
+
+	if err := c.Ping().Err(); err != nil {
+		panic(err)
+	}
+
+	return cache.NewRedisCache(c)
 }
 
 func debug() {

@@ -9,14 +9,7 @@ RUN go mod verify
 
 COPY cmd/consumer ./cmd/consumer
 #COPY cmd/healthcheck ./cmd/healthcheck
-COPY consumer/ ./consumer
-COPY queue/ ./queue
-COPY model/ ./model
-COPY flow/ ./flow
-COPY service/ ./service
-COPY service/ ./service
-COPY utils/ ./utils
-COPY db/ ./db
+COPY internal/ ./internal
 COPY .env ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o consumer ./cmd/consumer

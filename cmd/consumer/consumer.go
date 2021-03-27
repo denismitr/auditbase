@@ -2,21 +2,21 @@ package main
 
 import (
 	"context"
-	"github.com/denismitr/auditbase/service"
-	"github.com/pkg/errors"
 	"flag"
+	"github.com/denismitr/auditbase/internal/service"
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/denismitr/auditbase/consumer"
-	"github.com/denismitr/auditbase/db/mysql"
-	"github.com/denismitr/auditbase/flow"
-	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/utils/env"
-	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/internal/consumer"
+	"github.com/denismitr/auditbase/internal/db/mysql"
+	"github.com/denismitr/auditbase/internal/flow"
+	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/utils/env"
+	"github.com/denismitr/auditbase/internal/utils/logger"
 	"github.com/pkg/profile"
 )
 

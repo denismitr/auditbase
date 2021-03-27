@@ -6,6 +6,7 @@ require (
 	github.com/Masterminds/squirrel v1.4.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/doug-martin/goqu/v9 v9.10.0
+	github.com/go-redis/redis/v7 v7.4.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/joho/godotenv v1.3.0
@@ -15,6 +16,7 @@ require (
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.4.0
+	github.com/satori/go.uuid v1.2.0
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073 // indirect

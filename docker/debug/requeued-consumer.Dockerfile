@@ -8,15 +8,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY cmd/ ./cmd
-COPY rest/ ./rest
-COPY queue/ ./queue
-COPY model/ ./model
-COPY utils/ ./utils
-COPY consumer/ ./consumer
-COPY persister/ ./persister
-COPY flow/ ./flow
-COPY db/ ./db
-COPY cache/ ./cache
+COPY internal/ ./internal
 COPY .env ./
 
 ENTRYPOINT ["go", "run", "-race", "/source/cmd/consumer/consumer.go", "-errors"]

@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/denismitr/auditbase/model"
-	"github.com/denismitr/auditbase/utils/seeder"
+	"github.com/denismitr/auditbase/internal/model"
+	"github.com/denismitr/auditbase/internal/utils/seeder"
 	"log"
 	"os"
 )

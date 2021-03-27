@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/denismitr/auditbase/service"
+	"github.com/denismitr/auditbase/internal/service"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
 	"os"
@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/denismitr/auditbase/db/mysql"
-	"github.com/denismitr/auditbase/flow"
-	"github.com/denismitr/auditbase/queue"
-	"github.com/denismitr/auditbase/rest"
-	"github.com/denismitr/auditbase/utils/env"
-	"github.com/denismitr/auditbase/utils/logger"
+	"github.com/denismitr/auditbase/internal/db/mysql"
+	"github.com/denismitr/auditbase/internal/flow"
+	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/rest"
+	"github.com/denismitr/auditbase/internal/utils/env"
+	"github.com/denismitr/auditbase/internal/utils/logger"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/profile"
 )
@@ -122,9 +122,9 @@ func createBackOffice(lg logger.Logger, restCfg rest.Config) (*rest.API, error) 
 	db := mysql.NewDatabase(<-connCh, lg)
 
 	services := rest.BackOfficeServices{
-		Actions: service.NewActionService(db, lg),
+		Actions:       service.NewActionService(db, lg),
 		Microservices: service.NewMicroserviceService(db, lg),
-		Entities: service.NewEntityService(db, lg),
+		Entities:      service.NewEntityService(db, lg),
 	}
 
 	return rest.BackOfficeAPI(echo.New(), restCfg, lg, <-afCh, services), nil

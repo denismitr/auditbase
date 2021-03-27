@@ -1,0 +1,176 @@
+POST {{receiver}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+
+{
+    "targetExternalId": "9109213",
+	"targetEntity": "article3",
+	"targetService": "article-storage-4",
+	"actorExternalId": "9",
+	"actorEntity": "promoter3",
+	"actorService": "back-office-4",
+    "name": "articlePublished",
+    "emittedAt": "2006-01-02 15:04:05",
+    "isAsync": false,
+	"details": [
+      {
+        "propertyName": "status",
+        "from": null,
+        "to": "published"
+      },
+      {
+        "propertyName": "value",
+        "from": "bar",
+        "to": "baz"
+      }
+	]
+}
+
+###
+POST {{receiver}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+
+{
+    "parentUid": "44402edbf207452eae7ec258271ee98c",
+    "targetExternalId": "9109213",
+	"targetEntity": "article33",
+	"targetService": "article-storage-4",
+	"actorExternalId": "9",
+	"actorEntity": "promoter3",
+	"actorService": "back-office-4",
+    "name": "articlePublished",
+    "emittedAt": "2006-01-02 15:04:05",
+    "isAsync": false,
+	"details": [
+      {
+        "foo": "bar",
+        "from": null,
+        "baz": 1234
+      },
+      {
+        "abc": "",
+        "foo": 123.567,
+        "bar": "baz",
+        "nil": null
+      }
+	]
+}
+
+###
+
+POST {{receiver}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "uid": "12102edbf207452eae7ec258271ee98c",
+  "parentUid": "63502edbf207452eae7ec258271ee98c",
+  "targetExternalId": "9309213",
+  "targetEntity": "article3",
+  "targetService": "article-storage-4",
+  "actorExternalId": "9",
+  "actorEntity": "promoter3",
+  "actorService": "back-office-4",
+  "name": "articlePublished",
+  "emittedAt": "2021-01-02 15:04:05",
+  "isAsync": true,
+  "status": 2
+}
+
+###
+
+POST {{receiver}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "uid": "111d2edbf207452eae7ec258271ee98c",
+  "parentUid": "44402edbf207452eae7ec258271ee98c",
+  "targetExternalId": "9309213",
+  "targetEntity": "article3",
+  "targetService": "article-storage-4",
+  "actorExternalId": "9",
+  "actorEntity": "promoter3",
+  "actorService": "back-office-4",
+  "name": "articlePublished",
+  "emittedAt": "2021-01-02 15:04:05",
+  "isAsync": true,
+  "status": 2,
+  "details": {
+    "delta": [
+      {
+        "propertyName": "text",
+        "currentPropertyType": "string",
+        "from": null,
+        "to": "foo says bar"
+      },
+      {
+        "propertyName": "title",
+        "currentPropertyType": "string",
+        "from": null,
+        "to": "baz title"
+      },
+      {
+        "propertyName": "rating",
+        "currentPropertyType": "float",
+        "from": null,
+        "to": 1.1
+      },
+      {
+        "propertyName": "views",
+        "currentPropertyType": "integer",
+        "from": null,
+        "to": 1
+      }
+    ]
+  }
+}
+
+###
+
+POST {{receiver}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "uid": "44402edbf207452eae7ec258271ee98c",
+  "targetExternalId": "9309213",
+  "targetEntity": "article3",
+  "targetService": "article-storage-4",
+  "actorExternalId": "9",
+  "actorEntity": "promoter3",
+  "actorService": "back-office-4",
+  "name": "articlePublished",
+  "emittedAt": "2021-01-02 15:04:05",
+  "isAsync": true,
+  "status": 2,
+  "details": {
+    "delta": [
+      {
+        "propertyName": "text",
+        "currentPropertyType": "string",
+        "from": null,
+        "to": "foo says bar"
+      },
+      {
+        "propertyName": "title",
+        "currentPropertyType": "string",
+        "from": null,
+        "to": "baz title"
+      },
+      {
+        "propertyName": "rating",
+        "currentPropertyType": "float",
+        "from": null,
+        "to": 1.1
+      },
+      {
+        "propertyName": "views",
+        "currentPropertyType": "integer",
+        "from": null,
+        "to": 1
+      }
+    ]
+  }
+}

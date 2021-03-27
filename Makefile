@@ -1,6 +1,5 @@
 REST_PORT ?= 5000
 RECEIVER_PORT ?= 8888
-PERCONA_PORT ?= 3306
 GO_VERSION := 1.15.2
 GO := go
 GO_TEST := $(GO) test -race
@@ -25,7 +24,6 @@ RECEIVER_MAIN := ./cmd/receiver/receiver.go
 vars:
 	@echo APP_VERSION=${APP_VERSION}
 	@echo REST_PORT=${REST_PORT}
-	@echo PERCONA_PORT=${PERCONA_PORT}
 	@echo AUDITBASE_VERSION
 
 .PHONY: test clean mock wrk debug recompile up build
@@ -55,7 +53,7 @@ build:
 
 test: local/test
 local/test:
-	go test ./db/mysql ./model ./rest ./flow
+	go test ./internal ./cmd
 
 docker/test:
 	docker-compose -f docker-compose-test.yml up --build --force-recreate
@@ -63,17 +61,8 @@ docker/test:
 seed:
 	go run ./cmd/seed --endpoint=$(RECEIVER_ENDPOINT)
 
-integration_test:
-	go test ./test/integration/...
-
 docker/debug: vars
 	docker-compose -f docker-compose-debug.yml up -d --build --force-recreate
-
-wrk/run:
-	wrk -c50 -t3 -d100s -s ./test/lua/events.lua http://127.0.0.1:8888
-
-wrk/debug:
-	wrk -c20 -t2 -d20s --rate=30 -s ./test/lua/events.lua http://127.0.0.1:8888
 
 docker-remove:
 	docker rm --force `docker ps -a -q` || true

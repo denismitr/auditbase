@@ -8,13 +8,7 @@ RUN go mod download
 RUN go mod verify
 
 COPY cmd/ ./cmd
-COPY rest/ ./rest
-COPY queue/ ./queue
-COPY model/ ./model
-COPY utils/ ./utils
-COPY flow/ ./flow
-COPY service/ ./service
-COPY db/ ./db
+COPY internal/ ./internal
 COPY .env ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o receiver ./cmd/receiver
