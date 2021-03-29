@@ -19,8 +19,8 @@ type Logger interface {
 
 // NewStdoutLogger creates StdLogger that uses stderr and stdout for logging
 func NewStdoutLogger(env, namespace string) *StdLogger {
-	debugLogger := log.New(os.Stdout, namespace+" ", log.Ldate|log.Ltime|log.Lshortfile)
-	errLogger := log.New(os.Stderr, namespace+" ", log.Ldate|log.Ltime|log.Lshortfile)
+	debugLogger := log.New(os.Stdout, " : " + namespace+" : ", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
+	errLogger := log.New(os.Stderr, " : " + namespace + " : ", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
 
 	return &StdLogger{
 		debugLogger: debugLogger,

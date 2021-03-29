@@ -2,8 +2,9 @@ package consumer
 
 import (
 	"context"
+	"errors"
 	"github.com/denismitr/auditbase/internal/flow"
-	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/model"
 	"github.com/denismitr/auditbase/internal/service"
 	"github.com/denismitr/auditbase/internal/utils/logger"
 	"os"
@@ -11,122 +12,109 @@ import (
 	"time"
 )
 
+type Stats struct {
+	mu                    sync.RWMutex
+	processedActions      int
+	failedActionCreations int
+	statusOK              bool
+	startedAt             time.Time
+	finishedAt           time.Time
+}
+
 // Consumer - consumers from the action flow and
-// persists events to the permanent storage
+// persists actions to the permanent storage
 type Consumer struct {
 	lg            logger.Logger
 	actionFlow    flow.ActionFlow
 	actionService service.ActionService
-
-	receiveCh        chan queue.ReceivedMessage
-	eventFlowStateCh chan flow.State
-
-	mu                    sync.RWMutex
-	persistedEvents       int
-	failedActionCreations int
-	statusOK              bool
-	startedAt             time.Time
-	failedAt              time.Time
+	consumerName       string
+	stats Stats
 }
 
 // New consumer
 func New(
+	consumerName string,
 	ef flow.ActionFlow,
 	lg logger.Logger,
 	actionService service.ActionService,
 ) *Consumer {
 	return &Consumer{
-		actionFlow:       ef,
-		actionService:    actionService,
-		lg:               lg,
-		receiveCh:        make(chan queue.ReceivedMessage),
-		eventFlowStateCh: make(chan flow.State),
-		mu:               sync.RWMutex{},
-		statusOK:         true,
+		actionFlow:         ef,
+		actionService:      actionService,
+		lg:                 lg,
+		consumerName:       consumerName,
 	}
 }
+
+var ErrConnectionLoss = errors.New("connection to message broker was lost")
+var ErrInterrupted = errors.New("consumer was interrupted")
 
 // Start consumer
-func (c *Consumer) Start(stopCh <-chan os.Signal, queueName, consumerName string) error {
-	c.mu.Lock()
-	c.statusOK = true
-	c.startedAt = time.Now()
-	c.mu.Unlock()
+func (c *Consumer) Start(stopCh chan os.Signal) <-chan error {
+	c.stats.mu.Lock()
+	c.stats.statusOK = true
+	c.stats.startedAt = time.Now()
+	c.stats.mu.Unlock()
 
-	go c.healthCheck(stopCh)
+	connLossCh := make(chan struct{})
+	c.actionFlow.NotifyOnConnectionLoss(connLossCh)
 
-	return c.processEvents(stopCh, queueName, consumerName)
-}
+	c.actionFlow.Start()
+	go c.processNewActions()
+	go c.processUpdateActions()
 
-func (c *Consumer) processEvents(stopCh <-chan os.Signal, queue, consumerName string) error {
-	c.mu.Lock()
-	c.actionFlow.NotifyOnStateChange(c.eventFlowStateCh)
-	c.mu.Unlock()
-
-	events := c.actionFlow.Receive(queue, consumerName)
-	sem := make(chan struct{}, 4) // fixme: config
-
-	for {
-		select {
-		case re := <-events:
-			// action flow failed
-			if re == nil {
-				c.lg.Debugf("EMPTY EVENT RECEIVED")
-				continue
+	doneCh := make(chan error, 1)
+	go func() {
+		defer func() {
+			c.stats.mu.Lock()
+			c.stats.statusOK = false
+			c.stats.finishedAt = time.Now()
+			c.stats.mu.Unlock()
+		}()
+		
+		for {
+			select {
+				case <-connLossCh:
+					doneCh <- ErrConnectionLoss
+					return
+				case <-stopCh:
+					_ = c.actionFlow.Stop()
+					doneCh <- ErrInterrupted
+					return
 			}
-
-			sem <- struct{}{}
-			go func() {
-				defer func() { <- sem }()
-
-				if err := c.handleNewAction(re); err != nil {
-					c.lg.Error(err)
-					if err := c.actionFlow.Reject(re); err != nil {
-						c.mu.Lock()
-						c.failedActionCreations++
-						c.mu.Unlock()
-						c.lg.Error(err)
-					}
-				}
-			}()
-		case efState := <-c.eventFlowStateCh:
-			if efState == flow.Failed || efState == flow.Stopped {
-				c.markAsFailed()
-			}
-		case <-stopCh:
-			c.lg.Debugf("Received on stop channel")
-			c.markAsFailed()
-			_ = c.actionFlow.Stop()
-			return nil
 		}
-	}
+	}()
+
+	return doneCh
 }
 
-func (c *Consumer) handleNewAction(ra flow.ReceivedAction) error {
-	na, err := ra.NewAction()
-	if err != nil {
-		return err
+
+func (c *Consumer) processNewActions() {
+	h := func(na *model.NewAction) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if _, err := c.actionService.Create(ctx, na); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
-	defer cancel()
+	c.actionFlow.ReceiveNewActions(c.consumerName, h)
+}
 
-	if _, err := c.actionService.Create(ctx, na); err != nil {
-		return err
+func (c *Consumer) processUpdateActions() {
+	h := func(ua *model.UpdateAction) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if _, err := c.actionService.Update(ctx, ua); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	return nil
-}
-
-func (c *Consumer) statusIsOK() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.statusOK
-}
-
-func (c *Consumer) markAsFailed() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.statusOK = false
-	c.failedAt = time.Now()
+	c.actionFlow.ReceiveUpdateActions(c.consumerName, h)
 }

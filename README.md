@@ -23,9 +23,10 @@ RUN:
 ## REST API
 
 ### RECEIVER API
-Receives events to put them into queue for later processing by consumers
+Receives actions to put them into queue for later processing by consumers
 
 -  POST /api/v1/actions
+- PATCH /api/v1/actions (updates status nly)
 
 ##### Payload sample
 ```json

@@ -5,11 +5,11 @@ Accept: application/json
 {
     "targetExternalId": "9109213",
 	"targetEntity": "article3",
-	"targetService": "article-storage-4",
+	"targetService": "article-storage-44",
 	"actorExternalId": "9",
-	"actorEntity": "promoter3",
-	"actorService": "back-office-4",
-    "name": "articlePublished",
+	"actorEntity": "promoter-33",
+	"actorService": "back-office-44",
+    "name": "articlePublished-44",
     "emittedAt": "2006-01-02 15:04:05",
     "isAsync": false,
 	"details": [
@@ -24,6 +24,16 @@ Accept: application/json
         "to": "baz"
       }
 	]
+}
+
+###
+PATCH {{receiver}}/api/v1/actions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "uid": "37f3c4c2c99d4528ba1077acb0a0c0b5",
+  "status": 6
 }
 
 ###

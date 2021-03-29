@@ -121,7 +121,7 @@ func (ec *actionsController) count(rCtx echo.Context) error {
 //		return ctx.JSON(validationFailed(errBag.All()...))
 //	}
 //
-//	err := ec.events.Delete(ID)
+//	err := ec.actions.Delete(ID)
 //	if err != nil {
 //		return ctx.JSON(notFound(err))
 //	}

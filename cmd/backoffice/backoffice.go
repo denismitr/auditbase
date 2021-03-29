@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"github.com/denismitr/auditbase/internal/service"
+	"github.com/denismitr/auditbase/internal/utils/env"
+	"github.com/denismitr/goenv"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
 	"os"
@@ -13,9 +15,8 @@ import (
 
 	"github.com/denismitr/auditbase/internal/db/mysql"
 	"github.com/denismitr/auditbase/internal/flow"
-	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/flow/queue"
 	"github.com/denismitr/auditbase/internal/rest"
-	"github.com/denismitr/auditbase/internal/utils/env"
 	"github.com/denismitr/auditbase/internal/utils/logger"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/profile"
@@ -24,11 +25,11 @@ import (
 func main() {
 	env.LoadFromDotEnv()
 
-	debug(env.IsTruthy("APP_TRACE"))
+	debug(goenv.IsTruthy("APP_TRACE"))
 
-	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+	lg := logger.NewStdoutLogger(goenv.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 
-	port := ":" + env.MustString("BACK_OFFICE_API_PORT")
+	port := ":" + goenv.MustString("BACK_OFFICE_API_PORT")
 
 	restCfg := rest.Config{
 		Port:      port,
@@ -81,14 +82,22 @@ func createBackOffice(lg logger.Logger, restCfg rest.Config) (*rest.API, error) 
 	go func() {
 		defer wg.Done()
 
-		mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 3)
+		mq := queue.Rabbit(goenv.MustString("RABBITMQ_DSN"), lg, 3)
 
 		if err := mq.Connect(ctx); err != nil {
 			errCh <- err
 			return
 		}
 
-		ef := flow.New(mq, lg, flow.NewConfigFromGlobals())
+		ef := flow.New(mq, lg, flow.Config{
+			ExchangeName: goenv.MustString("ACTIONS_EXCHANGE"),
+			ActionsCreateQueue: goenv.MustString("NEW_ACTIONS_QUEUE"),
+			ActionsUpdateQueue: goenv.MustString("UPDATE_ACTIONS_QUEUE"),
+			Concurrency: goenv.IntOrDefault("CONSUMER_CONCURRENCY", 4),
+			ExchangeType: goenv.MustString("ACTIONS_EXCHANGE_TYPE"),
+			MaxRequeue: goenv.IntOrDefault("ACTIONS_MAX_REQUEUE", 2),
+			IsPeristent: true,
+		})
 
 		if err := ef.Scaffold(); err != nil {
 			errCh <- err
@@ -101,7 +110,7 @@ func createBackOffice(lg logger.Logger, restCfg rest.Config) (*rest.API, error) 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		dbConn, err := mysql.ConnectAndMigrate(ctx, lg, env.MustString("AUDITBASE_DB_DSN"), 50, 10)
+		dbConn, err := mysql.ConnectAndMigrate(ctx, lg, goenv.MustString("AUDITBASE_DB_DSN"), 50, 10)
 		if err != nil {
 			errCh <- err
 			return

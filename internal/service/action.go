@@ -14,6 +14,7 @@ type ActionService interface {
 	Create(context.Context, *model.NewAction) (*model.Action, error)
 	FirstByID(context.Context, model.ID) (*model.Action, error)
 	Count(ctx context.Context) (int, error)
+	Update(ctx context.Context, ua *model.UpdateAction) (*model.Action, error)
 }
 
 type BaseActionService struct {
@@ -118,6 +119,45 @@ func (s *BaseActionService) FirstByID(ctx context.Context, ID model.ID) (*model.
 	action, ok := result.(*model.Action);
 	if !ok {
 		panic("how result could have of different type than Action?")
+	}
+
+	return action, nil
+}
+
+func (s *BaseActionService) Update(ctx context.Context, ua *model.UpdateAction) (*model.Action, error) {
+	result, err := s.db.ReadWrite(ctx, func(ctx context.Context, tx db.Tx) (interface{}, error) {
+		var action *model.Action
+		var err error
+		if ua.UID != "" {
+			action, err = tx.Actions().FirstByUID(ctx, model.UID(ua.UID))
+			if err != nil {
+				return nil, err
+			}
+		} else if ua.ID != 0 {
+			action, err = tx.Actions().FirstByID(ctx, model.ID(ua.ID))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			panic("how can update action have both uid and id empty?")
+		}
+
+		if err := tx.Actions().UpdateStatus(ctx, action.ID, ua.Status); err != nil {
+			return nil, err
+		}
+
+		action.Status = ua.Status
+
+		return action, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	action, ok := result.(*model.Action)
+	if !ok {
+		panic(fmt.Sprintf("how result could have of different type than Action? %#v", result))
 	}
 
 	return action, nil

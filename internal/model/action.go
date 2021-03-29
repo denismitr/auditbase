@@ -1,19 +1,27 @@
 package model
 
 import (
-	"github.com/denismitr/auditbase/internal/utils/errbag"
 	"github.com/denismitr/auditbase/internal/utils/validator"
 	"time"
 )
 
-type Crud int
+type UpdateAction struct {
+	ID           int       `json:"id"`
+	UID          string    `json:"uid"`
+	Hash         string    `json:"hash"`
+	RegisteredAt time.Time `json:"registeredAt"`
+	Status       Status    `json:"status"`
+}
 
-const (
-	AnyAction Crud = iota
-	CreateAction
-	UpdateAction
-	DeleteAction
-)
+func (ua UpdateAction) Validate() *validator.ValidationErrors {
+	eb := validator.NewValidationError()
+
+	if ua.UID != "" && len(ua.UID) != 32 {
+		eb.Add("uid", ErrInvalidUID)
+	}
+
+	return eb
+}
 
 type NewAction struct {
 	UID              string      `json:"uid"`
@@ -55,13 +63,6 @@ type Action struct {
 type ActionCollection struct {
 	Items []Action `json:"data"`
 	Meta  Meta     `json:"meta"`
-}
-
-// todo: remove
-func (a *Action) Validate() *errbag.ErrorBag {
-	bag := errbag.New()
-
-	return bag
 }
 
 func (na *NewAction) Validate() *validator.ValidationErrors {

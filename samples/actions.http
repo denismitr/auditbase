@@ -16,13 +16,7 @@ Accept: application/json
 
 ###
 
-GET {{back-office}}/api/v1/events/count
-Content-Type: application/json
-Accept: application/json
-
-###
-
-GET {{back-office}}/api/v1/events/queue
+GET {{back-office}}/api/v1/actions/count
 Content-Type: application/json
 Accept: application/json
 

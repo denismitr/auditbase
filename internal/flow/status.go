@@ -1,7 +1,7 @@
 package flow
 
 import (
-	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/flow/queue"
 )
 
 // State of event flow
@@ -44,12 +44,12 @@ func (s Status) OK() bool {
 func (s Status) Error() string {
 	switch s.State {
 	case Failed:
-		return "Events flow has failed"
+		return "Actions flow has failed"
 	case Stopped:
-		return "Events flow is stopped"
+		return "Actions flow is stopped"
 	case Idle:
-		return "Events flow is not active"
+		return "Actions flow is not active"
 	default:
-		return "Events flow is not working well"
+		return "Actions flow is not working well"
 	}
 }

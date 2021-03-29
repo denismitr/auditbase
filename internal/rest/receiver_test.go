@@ -41,7 +41,7 @@ package rest
 //			cacher.EXPECT().Has("hash_key_90f589619c71fb63d34ae2cba3b259b7f18db598").Return(false, nil),
 //			clock.EXPECT().CurrentTime().Return(now),
 //			cacher.EXPECT().CreateKey("hash_key_90f589619c71fb63d34ae2cba3b259b7f18db598", 1 * time.Minute).Return(nil),
-//			efMock.EXPECT().Send(gomock.Any()).Return(nil),
+//			efMock.EXPECT().SendNewAction(gomock.Any()).Return(nil),
 //		)
 //
 //		c := &receiverController{lg: lg, uuid4: uuidMock, af: efMock, clock: clock, cacher: cacher}
@@ -82,7 +82,7 @@ package rest
 //			uuidMock.EXPECT().Generate().Return("22e1d82a-a065-436d-afd0-5fbcb752a4f3"),
 //			clock.EXPECT().CurrentTime().Return(now),
 //			cacher.EXPECT().CreateKey("hash_key_fb01901eb94091e8dd6c38c81f7d2576ff4ec735", 1 * time.Minute).Return(nil),
-//			efMock.EXPECT().Send(evt).Return(nil),
+//			efMock.EXPECT().SendNewAction(evt).Return(nil),
 //		)
 //
 //		c := &receiverController{lg: lg, uuid4: uuidMock, af: efMock, clock: clock, cacher: cacher}

@@ -61,6 +61,29 @@ func (r *ActionRepository) Create(ctx context.Context, action *model.Action) (*m
 	return r.FirstByID(ctx, model.ID(newID))
 }
 
+func (r *ActionRepository) UpdateStatus(ctx context.Context, id model.ID, status model.Status) error {
+	q, args, err := updateActionQuery(id, status)
+	if err != nil {
+		return errors.Wrap(err, "how could updateActionQuery func have failed?")
+	}
+
+	stmt, err := r.mysqlTx.PreparexContext(ctx, q)
+	if err != nil {
+		return errors.Wrapf(err, "could not prepare query %s", q)
+	}
+
+	if _, err := stmt.ExecContext(ctx, args...); err != nil {
+		return  errors.Wrap(err, "could not update action status")
+	}
+
+	return nil
+}
+
+func updateActionQuery(id model.ID, status model.Status) (string, []interface{}, error) {
+	q := "UPDATE actions SET status = ? WHERE id = ?"
+	return q, []interface{}{int64(status), id.Int64()}, nil
+}
+
 func (r *ActionRepository) CountAll(ctx context.Context) (int, error) {
 	q := `select count(*) as cnt from actions`
 

@@ -6,6 +6,7 @@ import (
 	"github.com/denismitr/auditbase/internal/receiver"
 	"github.com/denismitr/auditbase/internal/utils"
 	"github.com/denismitr/auditbase/internal/utils/clock"
+	"github.com/denismitr/goenv"
 	"github.com/go-redis/redis/v7"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
@@ -15,7 +16,7 @@ import (
 	"time"
 
 	"github.com/denismitr/auditbase/internal/flow"
-	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/flow/queue"
 	"github.com/denismitr/auditbase/internal/rest"
 	"github.com/denismitr/auditbase/internal/utils/env"
 	"github.com/denismitr/auditbase/internal/utils/logger"
@@ -27,7 +28,7 @@ func main() {
 
 	debug()
 
-	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
+	lg := logger.NewStdoutLogger(goenv.StringOrDefault("APP_ENV", "prod"), "auditbase_rest_api")
 
 	receiverAPI, err := create(lg)
 	if err != nil {
@@ -53,13 +54,21 @@ func create(lg logger.Logger) (*rest.API, error) {
 	startCtx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
 	defer cancel()
 
-	mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 3)
+	mq := queue.Rabbit(goenv.MustString("RABBITMQ_DSN"), lg, 3)
 
 	if err := mq.Connect(startCtx); err != nil {
 		return nil, err
 	}
 
-	af := flow.New(mq, lg, flow.NewConfigFromGlobals())
+	af := flow.New(mq, lg, flow.Config{
+		ExchangeName: goenv.MustString("ACTIONS_EXCHANGE"),
+		ActionsCreateQueue: goenv.MustString("NEW_ACTIONS_QUEUE"),
+		ActionsUpdateQueue: goenv.MustString("UPDATE_ACTIONS_QUEUE"),
+		Concurrency: goenv.IntOrDefault("CONSUMER_CONCURRENCY", 4),
+		ExchangeType: goenv.MustString("ACTIONS_EXCHANGE_TYPE"),
+		MaxRequeue: goenv.IntOrDefault("ACTIONS_MAX_REQUEUE", 2),
+		IsPeristent: true,
+	})
 
 	if err := af.Scaffold(); err != nil {
 		return nil, err
@@ -68,7 +77,7 @@ func create(lg logger.Logger) (*rest.API, error) {
 	c := createRedisCache()
 
 	restCfg := rest.Config{
-		Port:      ":" + env.MustString("RECEIVER_API_PORT"),
+		Port:      ":" + goenv.MustString("RECEIVER_API_PORT"),
 		BodyLimit: "250K",
 	}
 
@@ -79,9 +88,9 @@ func create(lg logger.Logger) (*rest.API, error) {
 
 func createRedisCache() *cache.RedisCache {
 	c := redis.NewClient(&redis.Options{
-		Addr:     env.MustString("REDIS_HOST") + ":" + env.MustString("REDIS_PORT"),
-		Password: env.String("REDIS_PASSWORD"),
-		DB:       env.IntOrDefault("REDIS_DB", 0),
+		Addr:     goenv.MustString("REDIS_HOST") + ":" + goenv.MustString("REDIS_PORT"),
+		Password: goenv.String("REDIS_PASSWORD"),
+		DB:       goenv.IntOrDefault("REDIS_DB", 0),
 	})
 
 	if err := c.Ping().Err(); err != nil {
@@ -92,7 +101,7 @@ func createRedisCache() *cache.RedisCache {
 }
 
 func debug() {
-	if env.IsTruthy("APP_TRACE") {
+	if goenv.IsTruthy("APP_TRACE") {
 		stopper := profile.Start(profile.CPUProfile, profile.ProfilePath("/tmp/debug/receiver"))
 
 		go func() {

@@ -45,7 +45,44 @@ type Reg struct {
 	RegisteredAt time.Time
 }
 
-func (rc *Receiver) ReceiveOne(r io.Reader) (*Reg, error) {
+func (rc *Receiver) ReceiveOneForUpdate(r io.Reader) (*Reg, error) {
+	b, err := readBytes(r)
+	if err != nil {
+		return nil, err
+	}
+
+	hash := createHash(b)
+
+	found, err := rc.c.Has(hash)
+	if err != nil {
+		rc.lg.Error(errors.Wrap(err, "receiver cache failed"))
+	}
+
+	if found {
+		return nil, ErrActionAlreadyProcessed
+	}
+
+	updateAction, err := rc.createUpdateAction(b, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := rc.c.CreateKey(hash, 5*time.Minute); err != nil {
+		rc.lg.Error(errors.Wrap(err, "receiver cache failed"))
+	}
+
+	if err := rc.af.SendUpdateAction(updateAction); err != nil {
+		return nil, errors.Wrap(ErrDataPipelineFailed, err.Error())
+	}
+
+	return &Reg{
+		Hash: updateAction.Hash,
+		UID:  updateAction.UID,
+		RegisteredAt: updateAction.RegisteredAt,
+	}, nil
+}
+
+func (rc *Receiver) ReceiveOneForCreate(r io.Reader) (*Reg, error) {
 	b, err := readBytes(r)
 	if err != nil {
 		return nil, err
@@ -71,7 +108,7 @@ func (rc *Receiver) ReceiveOne(r io.Reader) (*Reg, error) {
 		rc.lg.Error(errors.Wrap(err, "receiver cache failed"))
 	}
 
-	if err := rc.af.Send(newAction); err != nil {
+	if err := rc.af.SendNewAction(newAction); err != nil {
 		return nil, errors.Wrap(ErrDataPipelineFailed, err.Error())
 	}
 
@@ -111,6 +148,25 @@ func (rc *Receiver) createNewAction(in []byte, hash string) (*model.NewAction, e
 	}
 
 	return newAction, nil
+}
+
+func (rc *Receiver) createUpdateAction(in []byte, hash string) (*model.UpdateAction, error) {
+	updateAction := new(model.UpdateAction)
+	if err := json.Unmarshal(in, updateAction); err != nil {
+		return nil, errors.Wrapf(ErrInvalidInput, "could not parse incoming action payload", err.Error())
+	}
+
+	if errorBag := updateAction.Validate(); errorBag.NotEmpty() {
+		return nil, errorBag
+	}
+
+	updateAction.Hash = hash
+	updateAction.RegisteredAt = rc.clock.CurrentTime()
+	if updateAction.UID == "" {
+		updateAction.UID = rc.uuid4.Generate()
+	}
+
+	return updateAction, nil
 }
 
 func createHash(in []byte) string {

@@ -2,139 +2,53 @@ package main
 
 import (
 	"context"
-	"flag"
 	"github.com/denismitr/auditbase/internal/service"
+	"github.com/denismitr/goenv"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/denismitr/auditbase/internal/consumer"
 	"github.com/denismitr/auditbase/internal/db/mysql"
 	"github.com/denismitr/auditbase/internal/flow"
-	"github.com/denismitr/auditbase/internal/queue"
+	"github.com/denismitr/auditbase/internal/flow/queue"
 	"github.com/denismitr/auditbase/internal/utils/env"
 	"github.com/denismitr/auditbase/internal/utils/logger"
 	"github.com/pkg/profile"
 )
 
-const defaultConsumerName = "auditbase_consumer"
-const defaultErrorsConsumerName = "auditbase_requeue_consumer"
+const defaultConsumerName = "actions_consumer"
 
 func main() {
-	var errorsConsumer = flag.Bool("errors", false, "Consumer that consumes requeued messages")
-	var name = flag.String("name", defaultConsumerName, "Consumer name")
-
-	flag.Parse()
-
 	env.LoadFromDotEnv()
-	cfg := flow.NewConfigFromGlobals()
 
-	queueName, consumerName := resolveNames(*errorsConsumer, cfg, *name)
-	lg := logger.NewStdoutLogger(env.StringOrDefault("APP_ENV", "prod"), consumerName)
+	lg := logger.NewStdoutLogger(goenv.MustString("APP_ENV"), "ACTIONS_CONSUMER")
 
-	debug(*errorsConsumer)
-
-	if err := run(lg, cfg, consumerName, queueName); err != nil {
+	if err := run(lg); err != nil {
 		panic(err)
 	}
 }
 
-func resolveNames(errorsConsumer bool, cfg flow.Config, consumerName string) (string, string) {
-	var queueName string
-
-	if errorsConsumer {
-		queueName = cfg.ErrorQueueName
-		if consumerName == defaultConsumerName {
-			consumerName = defaultErrorsConsumerName
-		}
-	} else {
-		queueName = cfg.QueueName
+func run(lg logger.Logger) error {
+	cfg := flow.Config{
+		ExchangeName: goenv.MustString("ACTIONS_EXCHANGE"),
+		ActionsCreateQueue: goenv.MustString("NEW_ACTIONS_QUEUE"),
+		ActionsUpdateQueue: goenv.MustString("UPDATE_ACTIONS_QUEUE"),
+		Concurrency: goenv.IntOrDefault("CONSUMER_CONCURRENCY", 4),
+		ExchangeType: goenv.MustString("ACTIONS_EXCHANGE_TYPE"),
+		MaxRequeue: goenv.IntOrDefault("ACTIONS_MAX_REQUEUE", 2),
+		IsPeristent: true,
 	}
 
-	return queueName, consumerName
-}
+	consumerName := goenv.StringOrDefault("CONSUMER_NAME", defaultConsumerName)
 
-func createConsumer(lg logger.Logger, cfg flow.Config) (*consumer.Consumer, error) {
-	startCtx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
-	defer cancel()
-
-	connCh := make(chan *sqlx.DB)
-	efCh := make(chan *flow.MQActionFlow)
-	errCh := make(chan error)
-
-	go func() {
-		dbConn, err := mysql.ConnectAndMigrate(startCtx, lg, env.MustString("AUDITBASE_DB_DSN"), 200, 20)
-		if err != nil {
-			errCh <- err
-			return
-		}
-
-		connCh <- dbConn
-	}()
-
-	go func() {
-		mq := queue.Rabbit(env.MustString("RABBITMQ_DSN"), lg, 3)
-
-		if err := mq.Connect(startCtx); err != nil {
-			errCh <- err
-			return
-		}
-
-		ef := flow.New(mq, lg, cfg)
-
-		if err := ef.Scaffold(); err != nil {
-			errCh <- err
-			return
-		}
-
-		efCh <- ef
-	}()
-
-	var conn *sqlx.DB
-	var ef *flow.MQActionFlow
-	var err error
-
-	allServicesReady := func() bool {
-		return conn != nil && ef != nil
-	}
-
-done:
-	for {
-		select {
-			case ef = <-efCh:
-				if allServicesReady() {
-					break done
-				}
-			case conn = <-connCh:
-				if allServicesReady() {
-					break done
-				}
-			case err = <-errCh:
-				break done
-		}
-	}
-
-	close(efCh)
-	close(connCh)
-	close(errCh)
-
+	c, err := createConsumer(consumerName, lg, cfg)
 	if err != nil {
-		return nil, err
-	}
-
-	db := mysql.NewDatabase(conn, lg)
-	actionService := service.NewActionService(db, lg)
-
-	return consumer.New(ef, lg, actionService), nil
-}
-
-func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) error {
-	c, err := createConsumer(lg, cfg)
-	if err != nil {
-		panic(err)
+		return err
 	}
 
 	terminate := make(chan os.Signal, 1)
@@ -143,8 +57,10 @@ func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) erro
 	doneCh := make(chan struct{})
 
 	go func() {
-		if err := c.Start(terminate, queueName, consumerName); err != nil {
-			errCh <- err
+		err := <- c.Start(terminate)
+		if err != nil {
+			lg.Error(err)
+			os.Exit(1)
 		} else {
 			doneCh <- struct{}{}
 		}
@@ -162,8 +78,68 @@ func run(lg logger.Logger, cfg flow.Config, consumerName, queueName string) erro
 	}
 }
 
+func createConsumer(consumerName string, lg logger.Logger, cfg flow.Config) (*consumer.Consumer, error) {
+	startCtx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
+	defer cancel()
+
+	connCh := make(chan *sqlx.DB, 1)
+	afCh := make(chan *flow.MQActionFlow, 1)
+	errCh := make(chan error, 2)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		dbConn, err := mysql.ConnectAndMigrate(startCtx, lg, goenv.MustString("AUDITBASE_DB_DSN"), 200, 20)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		connCh <- dbConn
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		mq := queue.Rabbit(goenv.MustString("RABBITMQ_DSN"), lg, 3)
+
+		if err := mq.Connect(startCtx); err != nil {
+			errCh <- err
+			return
+		}
+
+		af := flow.New(mq, lg, cfg)
+
+		if err := af.Scaffold(); err != nil {
+			errCh <- err
+			return
+		}
+
+		afCh <- af
+	}()
+
+	wg.Wait()
+
+	select {
+	case err := <-errCh:
+		return nil, err
+	default:
+		lg.Debugf("consumer dependencies activated")
+	}
+
+	conn := <-connCh
+	af := <-afCh
+
+	db := mysql.NewDatabase(conn, lg)
+	actionService := service.NewActionService(db, lg)
+
+	return consumer.New(consumerName, af, lg, actionService), nil
+}
+
 func debug(isErrorsConsumer bool) {
-	if env.IsTruthy("APP_TRACE") && !isErrorsConsumer {
+	if goenv.IsTruthy("APP_TRACE") && !isErrorsConsumer {
 		stopper := profile.Start(profile.CPUProfile, profile.MemProfile, profile.ProfilePath("/tmp/debug/consumer"))
 
 		go func() {

@@ -81,6 +81,7 @@ type ActionRepository interface {
 	Delete(context.Context, model.ID) error
 	FirstByID(context.Context, model.ID) (*model.Action, error)
 	FirstByUID(context.Context, model.UID) (*model.Action, error)
+	UpdateStatus(context.Context, model.ID, model.Status) error
 	Select(context.Context, *Cursor, *Filter) (*model.ActionCollection, error)
 	CountAll(context.Context) (int, error)
 }
